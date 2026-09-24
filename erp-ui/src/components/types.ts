@@ -98,9 +98,10 @@ export interface LineColumn<R = any> {
   /**
    * material 物料编码单元格（输入编码回车带出，或打开选择器）；
    * text 文本；qty 数量；price 单价；amount 金额；number 数字；date 日期；select 下拉；dict 字典；
-   * readonly 只读文本（带出字段、计算字段）
+   * readonly 只读文本（带出字段、计算字段）；checkbox 复选框（只读时显示是/否）；
+   * slot 自定义单元格（具名插槽 `cell-<prop>`，参数 row、index、disabled；不参与键盘导航和校验）
    */
-  type: 'material' | 'text' | 'qty' | 'price' | 'amount' | 'number' | 'date' | 'select' | 'dict' | 'readonly'
+  type: 'material' | 'text' | 'qty' | 'price' | 'amount' | 'number' | 'date' | 'select' | 'dict' | 'readonly' | 'checkbox' | 'slot'
   required?: boolean
   options?: Option[]
   dictType?: string

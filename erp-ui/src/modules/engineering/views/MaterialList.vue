@@ -1,155 +1,273 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { SearchField, TableColumn } from '@/components'
 import { useListPage } from '@/composables/useListPage'
+import { fetchBlob } from '@/api/http'
+import { formatQty } from '@/utils/format'
+import { categoryApi, type CategorySimple } from '../api/category'
 import {
-  materialApi,
-  MATERIAL_STATUS,
-  MATERIAL_TYPE_OPTIONS,
-  type Material,
-  type MaterialQuery,
-  type MaterialSave
+  materialApi, MATERIAL_STATUS, MATERIAL_STATUS_OPTIONS, MATERIAL_TYPE_OPTIONS, SOURCE_TYPE_OPTIONS, TRACKING_OPTIONS,
+  type BatchResult, type Material, type MaterialQuery, type MaterialSettings
 } from '../api/material'
 
 defineOptions({ name: 'EngMaterialList' })
 
 /**
- * 物料列表：前端列表页（T1）的参考实现。新模块照此组织页面：
- * ErpPage（标题、描述） → ErpPanel（filter 插槽放 ErpSearchForm） → ErpTable（工具栏、列定义、行操作） → ErpPagination；
- * 新建/编辑用 T2 弹窗。样式只用公共组件与 token，不在页面里写颜色和字号。
+ * 物料列表（需求 05-02 3.1，T1 + 左侧类别树）：前端列表页的参考实现。
+ * ErpPage → erp-split（左侧 ErpPanel 树 + 右侧 ErpPanel：filter 插槽放 ErpSearchForm → ErpTable → ErpPagination）。
+ * 样式只用公共组件与 token，不在页面里写颜色和字号。
  */
-const { query, list, total, loading, load, search, reset } = useListPage<Omit<MaterialQuery, 'pageNo' | 'pageSize'>, Material>({
-  api: (q) => materialApi.page(q as MaterialQuery)
+const route = useRoute()
+const router = useRouter()
+const settings = ref<MaterialSettings>({ enableApproval: false, manualCodeAllowed: true, duplicateCheck: 'WARN', canViewCost: false })
+const tableRef = ref<{ getVisibleColumns: () => TableColumn[] }>()
+const importRef = ref<{ open: () => void }>()
+
+type Query = Omit<MaterialQuery, 'pageNo' | 'pageSize' | 'types'> & { types?: string[]; created?: [string, string] }
+
+const { query, list, total, loading, selection, load, search, reset, onSelectionChange } = useListPage<Query, Material>({
+  api: (q) => materialApi.page(toParams(q) as MaterialQuery),
+  defaultQuery: () => ({ categoryId: typeof route.query.categoryId === 'string' ? route.query.categoryId : undefined }),
+  refreshOnActivated: true
 })
+
+function toParams(q: Query) {
+  const { types, created, ...rest } = q
+  return { ...rest, types: types?.length ? types.join(',') : undefined, createdFrom: created?.[0], createdTo: created?.[1] }
+}
 
 const fields: SearchField[] = [
   { prop: 'code', label: '编码', placeholder: '编码前缀', upper: true },
-  { prop: 'name', label: '名称', placeholder: '名称关键字' },
-  { prop: 'materialType', label: '类型', type: 'select', options: MATERIAL_TYPE_OPTIONS },
-  { prop: 'status', label: '状态', type: 'select', options: Object.entries(MATERIAL_STATUS).map(([value, s]) => ({ value, label: s.label })) }
+  { prop: 'name', label: '名称/规格', placeholder: '名称或规格关键字' },
+  { prop: 'types', label: '物料类型', type: 'select', options: MATERIAL_TYPE_OPTIONS, multiple: true },
+  { prop: 'status', label: '状态', type: 'select', options: MATERIAL_STATUS_OPTIONS },
+  { prop: 'mpn', label: '制造商料号' },
+  { prop: 'sourceType', label: '取得方式', type: 'select', options: SOURCE_TYPE_OPTIONS },
+  { prop: 'buyerId', label: '采购员', type: 'user' },
+  { prop: 'tracking', label: '库存管理', type: 'select', options: TRACKING_OPTIONS },
+  { prop: 'created', label: '创建时间', type: 'datetimerange' }
 ]
 
-const columns: TableColumn<Material>[] = [
-  { prop: 'code', label: '编码', width: 140, type: 'link', onClick: (r) => openEdit(r) },
-  { prop: 'name', label: '名称', minWidth: 180 },
-  { prop: 'spec', label: '规格型号', minWidth: 180 },
-  { prop: 'materialType', label: '类型', width: 100, type: 'enum', options: MATERIAL_TYPE_OPTIONS },
-  { prop: 'baseUom', label: '单位', width: 80 },
-  { prop: 'status', label: '状态', width: 90, type: 'status', statusMap: MATERIAL_STATUS },
-  { prop: 'updatedAt', label: '更新时间', width: 150, type: 'datetime' }
-]
+const columns = computed<TableColumn<Material>[]>(() => [
+  { prop: 'imageFileId', label: '图片', width: 60, align: 'center', slot: true, hidden: true },
+  { prop: 'code', label: '编码', width: 130, type: 'link', sortable: true, onClick: (r) => router.push(`/engineering/material/${r.id}`) },
+  { prop: 'name', label: '名称', minWidth: 180, sortable: true },
+  { prop: 'spec', label: '规格', minWidth: 200 },
+  { prop: 'categoryName', label: '类别', width: 120 },
+  { prop: 'materialType', label: '类型', width: 80, type: 'enum', options: MATERIAL_TYPE_OPTIONS },
+  { prop: 'baseUom', label: '单位', width: 60 },
+  { prop: 'sourceType', label: '取得方式', width: 80, type: 'enum', options: SOURCE_TYPE_OPTIONS },
+  { prop: 'mpn', label: '制造商料号', width: 140, hidden: true },
+  { prop: 'brand', label: '品牌', width: 100, hidden: true },
+  { prop: 'tracking', label: '库存管理', width: 80, type: 'enum', options: TRACKING_OPTIONS, hidden: true },
+  ...(settings.value.canViewCost ? [{ prop: 'standardCost', label: '标准成本', width: 100, type: 'price', hidden: true } as TableColumn<Material>] : []),
+  { prop: 'status', label: '状态', width: 80, type: 'status', statusMap: MATERIAL_STATUS },
+  { prop: 'updatedAt', label: '更新时间', width: 150, type: 'datetime', sortable: true }
+])
 
-// ---------- 新建 / 编辑（T2 弹窗） ----------
-const dialogVisible = ref(false)
-const saving = ref(false)
-const editingId = ref<string>()
-const editingStatus = ref<Material['status']>('DRAFT')
-const formRef = ref<FormInstance>()
-const emptyForm = (): MaterialSave => ({ name: '', baseUom: 'PCS', materialType: 'RAW' })
-const form = ref<MaterialSave>(emptyForm())
-const rules: FormRules = {
-  name: [{ required: true, message: '请输入物料名称', trigger: 'blur' }],
-  materialType: [{ required: true, message: '请选择物料类型', trigger: 'change' }],
-  baseUom: [{ required: true, message: '请选择基本单位', trigger: 'change' }]
+function onSort(s: { prop?: string; order?: 'asc' | 'desc' }) {
+  query.sortField = s.prop
+  query.sortOrder = s.order
+  search()
 }
 
-function openCreate() {
-  editingId.value = undefined
-  editingStatus.value = 'DRAFT'
-  form.value = emptyForm()
-  dialogVisible.value = true
-  formRef.value?.clearValidate()
-}
+// ---------- 类别树 ----------
+const tree = ref<CategorySimple[]>([])
+const treeKeyword = ref('')
+const treeRef = ref<{ filter: (v: string) => void; setCurrentKey: (k?: string) => void }>()
+const filterNode = (v: string, data: CategorySimple) => !v || data.name.includes(v) || data.code.includes(v.toUpperCase())
+const selectedCategory = ref<CategorySimple>()
+const filterFn = (v: string, d: unknown) => filterNode(v, d as CategorySimple)
+const onNodeClick = (d: unknown) => onNode(d as CategorySimple)
 
-async function openEdit(row: Material) {
-  const m = await materialApi.get(row.id)
-  editingId.value = m.id
-  editingStatus.value = m.status
-  form.value = {
-    code: m.code, name: m.name, nameEn: m.nameEn, spec: m.spec, materialType: m.materialType,
-    categoryId: m.categoryId, baseUom: m.baseUom, remark: m.remark, version: m.version
+function onNode(n: CategorySimple) {
+  if (query.categoryId === n.id) {
+    query.categoryId = undefined
+    selectedCategory.value = undefined
+    treeRef.value?.setCurrentKey(undefined)
+  } else {
+    query.categoryId = n.id
+    selectedCategory.value = n
   }
-  dialogVisible.value = true
-  formRef.value?.clearValidate()
+  search()
 }
 
-async function save() {
-  if (!(await formRef.value?.validate().catch(() => false))) return
-  saving.value = true
-  try {
-    if (editingId.value) await materialApi.update(editingId.value, form.value)
-    else await materialApi.create(form.value)
-    ElMessage.success('保存成功')
-    dialogVisible.value = false
-    load()
-  } finally {
-    saving.value = false
-  }
+function clearCategory() {
+  query.categoryId = undefined
+  selectedCategory.value = undefined
+  treeRef.value?.setCurrentKey(undefined)
+  search()
 }
 
-async function changeStatus(row: Material, action: 'enable' | 'disable') {
-  await materialApi[action](row.id)
-  ElMessage.success(action === 'enable' ? '已启用' : '已停用')
+// ---------- 操作 ----------
+function create() {
+  const c = selectedCategory.value
+  router.push({ path: '/engineering/material/new', query: c?.leaf ? { categoryId: c.id } : {} })
+}
+
+async function enable(row: Material) {
+  const status = await materialApi.enable(row.id)
+  ElMessage.success(status === 'PENDING' ? '已提交启用审批' : '已启用')
+  load()
+}
+
+/** 停用前提示引用情况（R08，不阻止） */
+async function disable(row: Material) {
+  const r = await materialApi.references(row.id)
+  const parts: string[] = []
+  if (Number(r.stockQty) > 0) parts.push(`当前有库存 ${formatQty(r.stockQty)}`)
+  if (r.openDocCount) parts.push(`未完成单据 ${r.openDocCount} 张`)
+  if (r.bomCount) parts.push(`被 ${r.bomCount} 个 BOM 使用`)
+  const prefix = parts.length ? `该物料${parts.join('，')}。` : ''
+  await ElMessageBox.confirm(`${prefix}停用后物料「${row.code}」不能在新单据中使用，确定停用吗？`, '停用物料', { type: 'warning' })
+  await materialApi.disable(row.id)
+  ElMessage.success('已停用')
   load()
 }
 
 async function remove(row: Material) {
   await materialApi.remove(row.id)
-  ElMessage.success('已删除')
+  ElMessage.success('删除成功')
   load()
 }
 
-/** 插槽的 row 类型为 any，这里收窄为 Material */
+async function batch(action: 'enable' | 'disable') {
+  const rows = selection.value.filter((r) => (action === 'enable' ? r.status === 'DRAFT' || r.status === 'DISABLED' : r.status === 'ENABLED'))
+  if (!rows.length) return ElMessage.warning(action === 'enable' ? '请勾选草稿或停用的物料' : '请勾选启用的物料')
+  if (action === 'disable') {
+    await ElMessageBox.confirm(`确定停用选中的 ${rows.length} 个物料吗？停用后不能在新单据中使用。`, '批量停用', { type: 'warning' })
+  }
+  const r: BatchResult = action === 'enable' ? await materialApi.batchEnable(rows.map((x) => x.id)) : await materialApi.batchDisable(rows.map((x) => x.id))
+  if (r.failures.length) {
+    await ElMessageBox.alert(
+      `<p>成功 ${r.success} 个，失败 ${r.failures.length} 个：</p><ul>${r.failures.map((f) => `<li>${f.code}：${f.message}</li>`).join('')}</ul>`,
+      '批量操作结果', { dangerouslyUseHTMLString: true })
+  } else {
+    ElMessage.success(`已${action === 'enable' ? '启用' : '停用'} ${r.success} 个物料`)
+  }
+  load()
+}
+
+// ---------- 导入 ----------
+const importMode = ref<'SKIP' | 'UPDATE'>('SKIP')
+const importEnable = ref(false)
+const importParams = computed(() => ({ mode: importMode.value, enable: String(importEnable.value) }))
+
+// ---------- 图片 ----------
+async function preview(id: string) {
+  const url = URL.createObjectURL(await fetchBlob(`/system/files/${id}/preview`))
+  window.open(url, '_blank')
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
+}
+
+const exportColumns = () => (tableRef.value?.getVisibleColumns() ?? []).map((c) => String(c.prop))
 const asMaterial = (row: unknown) => row as Material
+const enableLabel = (r: Material) => (settings.value.enableApproval && r.status === 'DRAFT' ? '提交启用' : '启用')
+
+onMounted(async () => {
+  settings.value = await materialApi.settings().catch(() => settings.value)
+  tree.value = await categoryApi.simpleTree().catch(() => [])
+})
 </script>
 
 <template>
-  <ErpPage description="物料主数据：编码、规格、类型与基本单位；草稿状态可删除，启用后才能在单据中使用">
-    <ErpPanel>
-      <template #filter><ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="search" @reset="reset" /></template>
-      <ErpTable :columns="columns" :data="list" :loading="loading" storage-key="eng.material" :actions-width="160" @refresh="load">
-        <template #toolbar>
-          <el-button v-perm="'eng:material:create'" type="primary" icon="Plus" @click="openCreate">新建物料</el-button>
+  <ErpPage description="物料主数据：基本信息、单位换算、计划、采购、库存、质量、财务属性；草稿可删除，启用后才能在单据中使用">
+    <div class="erp-split">
+      <ErpPanel title="物料类别" class="tree-panel" flush>
+        <template #extra>
+          <el-button v-if="query.categoryId" link type="primary" @click="clearCategory">全部</el-button>
         </template>
-        <template #actions="{ row }">
-          <RowActions :actions="[
-            { label: '编辑', permission: 'eng:material:update', handler: () => openEdit(asMaterial(row)) },
-            { label: '启用', permission: 'eng:material:enable', visible: asMaterial(row).status !== 'ENABLED', handler: () => changeStatus(asMaterial(row), 'enable') },
-            { label: '停用', permission: 'eng:material:disable', visible: asMaterial(row).status === 'ENABLED', confirm: `停用后物料「${asMaterial(row).code}」不能在新单据中使用。确定停用吗？`, handler: () => changeStatus(asMaterial(row), 'disable') },
-            { label: '删除', permission: 'eng:material:delete', danger: true, visible: asMaterial(row).status === 'DRAFT', confirm: `确定删除物料「${asMaterial(row).code} ${asMaterial(row).name}」吗？删除后不可恢复。`, handler: () => remove(asMaterial(row)) }
-          ]" />
-        </template>
-        <template #empty>
-          <el-button v-perm="'eng:material:create'" icon="Plus" @click="openCreate">新建物料</el-button>
-        </template>
-      </ErpTable>
-      <ErpPagination v-model:page-no="query.pageNo" v-model:page-size="query.pageSize" :total="total" @change="load" />
-    </ErpPanel>
+        <div class="tree-search">
+          <el-input v-model="treeKeyword" placeholder="搜索类别" clearable prefix-icon="Search" @input="treeRef?.filter(treeKeyword)" />
+        </div>
+        <el-scrollbar class="tree-scroll">
+          <el-tree
+            ref="treeRef"
+            :data="tree"
+            :props="{ label: 'name', children: 'children' }"
+            node-key="id"
+            :current-node-key="query.categoryId"
+            highlight-current
+            default-expand-all
+            :expand-on-click-node="false"
+            :filter-node-method="filterFn"
+            @node-click="onNodeClick"
+          >
+            <template #default="{ data }">
+              <span class="tree-node"><span>{{ data.name }}</span><span class="tree-code">{{ data.code }}</span></span>
+            </template>
+          </el-tree>
+        </el-scrollbar>
+      </ErpPanel>
 
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑物料' : '新建物料'" width="640px" :close-on-click-modal="false" append-to-body>
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
-        <el-form-item label="编码">
-          <el-input v-model="form.code" :disabled="editingStatus !== 'DRAFT'" placeholder="留空则按编码规则自动生成" @input="form.code = String($event).toUpperCase()" />
-        </el-form-item>
-        <el-form-item label="名称" prop="name"><el-input v-model="form.name" maxlength="128" /></el-form-item>
-        <el-form-item label="英文名称"><el-input v-model="form.nameEn" maxlength="128" /></el-form-item>
-        <el-form-item label="规格型号"><el-input v-model="form.spec" type="textarea" :rows="2" maxlength="256" /></el-form-item>
-        <el-form-item label="物料类型" prop="materialType">
-          <el-select v-model="form.materialType" :disabled="editingStatus !== 'DRAFT'">
-            <el-option v-for="o in MATERIAL_TYPE_OPTIONS" :key="o.value" :value="o.value" :label="o.label" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="基本单位" prop="baseUom">
-          <UomSelect v-model="form.baseUom" :disabled="editingStatus !== 'DRAFT'" />
-          <div class="form-tip">启用后不能修改</div>
-        </el-form-item>
-        <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" :rows="2" maxlength="256" /></el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+      <ErpPanel class="erp-split-main">
+        <template #filter><ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="search" @reset="reset" /></template>
+        <ErpTable
+          ref="tableRef"
+          :columns="columns"
+          :data="list"
+          :loading="loading"
+          selection
+          storage-key="eng.material"
+          :actions-width="180"
+          @selection-change="onSelectionChange"
+          @sort-change="onSort"
+          @refresh="load"
+        >
+          <template #toolbar>
+            <el-button v-perm="'eng:material:create'" type="primary" icon="Plus" @click="create">新建物料</el-button>
+            <el-button v-perm="'eng:material:enable'" :disabled="!selection.length" @click="batch('enable')">批量启用</el-button>
+            <el-button v-perm="'eng:material:disable'" :disabled="!selection.length" @click="batch('disable')">批量停用</el-button>
+          </template>
+          <template #toolbar-right>
+            <ErpIconButton icon="Upload" tooltip="导入" permission="eng:material:import" @click="importRef?.open()" />
+            <ExportButton url="/engineering/materials/export" :params="() => toParams({ ...query })" :columns="exportColumns" filename="物料" permission="eng:material:export" />
+          </template>
+          <template #col-imageFileId="{ row }">
+            <ErpIconButton v-if="asMaterial(row).imageFileId" icon="Picture" tooltip="查看图片" @click="preview(asMaterial(row).imageFileId!)" />
+          </template>
+          <template #actions="{ row }">
+            <RowActions :actions="[
+              { label: '编辑', permission: 'eng:material:update', visible: asMaterial(row).status !== 'PENDING', handler: () => router.push(`/engineering/material/${asMaterial(row).id}/edit`) },
+              { label: enableLabel(asMaterial(row)), permission: 'eng:material:enable', visible: asMaterial(row).status === 'DRAFT' || asMaterial(row).status === 'DISABLED', handler: () => enable(asMaterial(row)) },
+              { label: '停用', permission: 'eng:material:disable', visible: asMaterial(row).status === 'ENABLED', handler: () => disable(asMaterial(row)) },
+              { label: '复制新建', permission: 'eng:material:create', handler: () => router.push({ path: '/engineering/material/new', query: { from: asMaterial(row).id } }) },
+              { label: '删除', permission: 'eng:material:delete', danger: true, visible: asMaterial(row).status === 'DRAFT', confirm: `确定删除物料「${asMaterial(row).code} ${asMaterial(row).name}」吗？删除后不可恢复。`, handler: () => remove(asMaterial(row)) }
+            ]" />
+          </template>
+          <template #empty>
+            <el-button v-perm="'eng:material:create'" icon="Plus" @click="create">新建物料</el-button>
+          </template>
+        </ErpTable>
+        <ErpPagination v-model:page-no="query.pageNo" v-model:page-size="query.pageSize" :total="total" @change="load" />
+      </ErpPanel>
+    </div>
+
+    <ImportDialog ref="importRef" title="导入物料" base="/engineering/materials" template-name="物料" :params="importParams" allow-partial @done="load">
+      <template #options>
+        <el-form label-width="120px" class="import-options">
+          <el-form-item label="编码已存在时">
+            <el-radio-group v-model="importMode">
+              <el-radio value="SKIP">跳过</el-radio>
+              <el-radio value="UPDATE">更新（只更新文件中非空的列）</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item v-if="!settings.enableApproval" v-perm="'eng:material:enable'" label="导入后">
+            <el-checkbox v-model="importEnable">直接启用</el-checkbox>
+          </el-form-item>
+        </el-form>
       </template>
-    </el-dialog>
+    </ImportDialog>
   </ErpPage>
 </template>
+
+<style scoped>
+.tree-panel { width: 240px; flex-shrink: 0; }
+.tree-search { padding: var(--erp-space-3) var(--erp-space-3) var(--erp-space-2); }
+.tree-scroll { height: calc(100vh - 290px); min-height: 240px; padding: 0 var(--erp-space-2) var(--erp-space-3); }
+.tree-node { display: inline-flex; gap: var(--erp-space-2); align-items: baseline; min-width: 0; }
+.tree-code { font-size: var(--erp-font-size-caption); color: var(--erp-color-text-tertiary); }
+.import-options :deep(.el-form-item) { margin-bottom: 0; }
+</style>

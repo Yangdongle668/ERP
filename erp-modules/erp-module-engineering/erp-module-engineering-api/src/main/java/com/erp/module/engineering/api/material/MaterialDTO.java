@@ -9,5 +9,15 @@ public record MaterialDTO(
         MaterialType materialType,
         Long categoryId,
         String baseUom,
-        MaterialStatus status) {
+        MaterialStatus status,
+        String nameEn,
+        SourceType sourceType,
+        Tracking tracking,
+        String hsCode) {
+
+    /** 兼容旧构造（只含基本字段） */
+    public MaterialDTO(Long id, String code, String name, String spec, MaterialType materialType, Long categoryId,
+                       String baseUom, MaterialStatus status) {
+        this(id, code, name, spec, materialType, categoryId, baseUom, status, null, null, null, null);
+    }
 }

@@ -515,6 +515,12 @@ public class UserService implements UserApi {
     }
 
     @Override
+    public Optional<UserDTO> getByUsername(String username) {
+        if (username == null || username.isBlank()) return Optional.empty();
+        return Optional.ofNullable(userMapper.selectByUsername(username.trim().toLowerCase())).map(this::toDTO);
+    }
+
+    @Override
     public Optional<UserDTO> getDeptLeader(Long deptId) {
         return orgService.get(deptId).map(OrgDTO::leaderUserId).flatMap(this::get);
     }

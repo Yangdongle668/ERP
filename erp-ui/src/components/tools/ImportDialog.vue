@@ -12,6 +12,9 @@ import { download, downloadPost, upload } from '@/api/http'
  * - POST {base}/import/check            校验，返回 ImportCheckResult
  * - POST {base}/import/check?report=true 返回错误报告文件（原文件末尾加“错误原因”列）
  * - POST {base}/import                  执行导入（partial=true 时只导入正确行），返回 ImportResult
+ *
+ * 导入选项（如“编码已存在时跳过/更新”）：放在 options 插槽中，取值通过 params 传入，
+ * 校验和导入请求都会带上这些参数。
  */
 interface ImportCheckResult {
   total: number
@@ -25,7 +28,7 @@ interface ImportResult {
   errors: { rowNo: number; message: string }[]
 }
 
-const props = withDefaults(defineProps<{ title?: string; base: string; allowPartial?: boolean; templateName?: string }>(), { title: '导入' })
+const props = withDefaults(defineProps<{ title?: string; base: string; allowPartial?: boolean; templateName?: string; params?: Record<string, string> }>(), { title: '导入' })
 const emit = defineEmits<{ done: [result: ImportResult] }>()
 
 const visible = ref(false)
@@ -61,7 +64,7 @@ async function onFile(f: { raw?: File }) {
   file.value = f.raw
   checking.value = true
   try {
-    check.value = await upload<ImportCheckResult>(`${props.base}/import/check`, f.raw)
+    check.value = await upload<ImportCheckResult>(`${props.base}/import/check`, f.raw, { ...props.params })
     if (check.value.total > MAX_ROWS) {
       ElMessage.warning(`单次最多导入 ${MAX_ROWS} 行，请拆分文件`)
       check.value = undefined
@@ -80,6 +83,7 @@ function downloadReport() {
   if (!file.value) return
   const form = new FormData()
   form.append('file', file.value)
+  for (const [k, v] of Object.entries(props.params ?? {})) form.append(k, v)
   downloadPost(`${props.base}/import/check?report=true`, form, '导入错误报告.xlsx')
 }
 
@@ -88,7 +92,7 @@ async function doImport() {
   importing.value = true
   try {
     const partial = !!check.value?.errorCount
-    result.value = await upload<ImportResult>(`${props.base}/import`, file.value, { partial: String(partial) })
+    result.value = await upload<ImportResult>(`${props.base}/import`, file.value, { ...props.params, partial: String(partial) })
     step.value = 4
     emit('done', result.value)
   } finally {
@@ -115,6 +119,7 @@ defineExpose({ open })
       <p>1. 下载模板，按模板格式填写数据（必填列名带 *，第二行为填写说明，导入时忽略）。
         <el-button link type="primary" icon="Download" @click="downloadTemplate(); step = 1">下载模板</el-button>
       </p>
+      <div v-if="$slots.options" class="options"><slot name="options" /></div>
       <p>2. 上传填写好的文件（.xlsx，最多 {{ MAX_ROWS }} 行）。</p>
       <el-upload drag :auto-upload="false" :show-file-list="false" accept=".xlsx" :on-change="onFile" :disabled="checking">
         <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
@@ -132,7 +137,7 @@ defineExpose({ open })
       </div>
       <el-table :data="previewRows" max-height="420" :row-class-name="rowClass">
         <el-table-column prop="rowNo" label="行号" width="70" align="center" fixed="left" />
-        <el-table-column v-if="check.rows.some((r) => r.action)" prop="action" label="操作" width="80" align="center" />
+        <el-table-column v-if="check.rows.some((r) => r.action)" prop="action" label="操作" min-width="90" show-overflow-tooltip />
         <el-table-column v-for="c in check.columns" :key="c.key" :label="c.label" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">{{ row.data[c.key] }}</template>
         </el-table-column>
@@ -166,6 +171,7 @@ defineExpose({ open })
 </template>
 
 <style scoped>
+.options { margin: 0 0 12px; padding: 12px 16px; background: var(--erp-color-surface-subtle); border-radius: var(--erp-radius-control); }
 .steps { margin-bottom: 16px; }
 .summary { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .bad { color: var(--el-color-danger); }

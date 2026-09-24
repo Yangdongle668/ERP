@@ -66,7 +66,7 @@ function clearError(row: R, prop: string) {
 }
 
 const materialCol = computed(() => props.columns.find((c) => c.type === 'material'))
-const editableCols = computed(() => props.columns.filter((c) => c.type !== 'readonly'))
+const editableCols = computed(() => props.columns.filter((c) => c.type !== 'readonly' && c.type !== 'slot'))
 
 function isEditable(row: R, c: LineColumn<R>) {
   return !props.disabled && c.type !== 'readonly' && (!c.editable || c.editable(row))
@@ -191,7 +191,7 @@ function focusCell(rowIndex: number, colIndex: number) {
 
 function editableIndexes(rowIndex: number): number[] {
   const row = rows.value[rowIndex]
-  return props.columns.map((c, i) => (row && isEditable(row, c) ? i : -1)).filter((i) => i >= 0)
+  return props.columns.map((c, i) => (row && c.type !== 'slot' && c.type !== 'checkbox' && isEditable(row, c) ? i : -1)).filter((i) => i >= 0)
 }
 
 function moveNext(rowIndex: number, colIndex: number) {
@@ -253,7 +253,7 @@ function validate(): boolean {
   rows.value.forEach((row, ri) => {
     if (isEmptyRow(row)) return
     props.columns.forEach((c, ci) => {
-      if (c.type === 'readonly' || (c.editable && !c.editable(row))) return
+      if (c.type === 'readonly' || c.type === 'slot' || c.type === 'checkbox' || (c.editable && !c.editable(row))) return
       const v = row[c.type === 'material' ? props.materialIdProp : c.prop]
       let msg: string | undefined
       if (c.required && isBlank(v)) {
@@ -352,7 +352,12 @@ defineExpose({ validate, validRows, addRow, batchAdd })
         <template #default="{ row, $index }">
           <el-tooltip :disabled="!errorOf(row, c.prop)" :content="errorOf(row, c.prop)" placement="top" effect="dark">
             <div :data-cell="`${$index}-${ci}`" :class="['cell', { 'has-error': errorOf(row, c.prop) }]">
-              <template v-if="!isEditable(row, c)">
+              <slot v-if="c.type === 'slot'" :name="`cell-${c.prop}`" :row="row" :index="$index" :disabled="disabled" />
+              <template v-else-if="c.type === 'checkbox'">
+                <el-checkbox v-if="isEditable(row, c)" :model-value="!!row[c.prop]" @update:model-value="setValue(row, c.prop, $event)" />
+                <span v-else class="ro">{{ row[c.prop] ? '是' : '' }}</span>
+              </template>
+              <template v-else-if="!isEditable(row, c)">
                 <span v-if="c.type === 'qty'">{{ formatQty(row[c.prop], qtyPrecision(row, c)) === '-' ? '' : formatQty(row[c.prop], qtyPrecision(row, c)) }}</span>
                 <span v-else-if="c.type === 'amount'">{{ row[c.prop] === undefined || row[c.prop] === null ? '' : formatAmount(row[c.prop], c.precision ?? 2) }}</span>
                 <span v-else class="ro">{{ readonlyText(row, c) }}</span>

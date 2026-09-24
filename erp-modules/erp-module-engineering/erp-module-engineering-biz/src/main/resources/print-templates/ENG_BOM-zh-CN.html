@@ -1,0 +1,28 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head { width: 100%; margin-bottom: 8pt; font-size: 10pt; }
+  .head td { padding: 2pt 4pt; }
+  .lines { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+  .lines th, .lines td { border: 1px solid #333; padding: 3pt 4pt; }
+  .lines th { background: #f2f2f2; }
+  .num { text-align: right; }
+  .sign { margin-top: 16pt; width: 100%; font-size: 10pt; }
+</style>
+<h1>BOM 物料清单</h1>
+<table class="head">
+  <tr><td>父件编码：{{material.code}}</td><td>父件名称：{{material.name}}</td><td>版本：{{version}}（{{status}}）</td></tr>
+  <tr><td>规格：{{material.spec}}</td><td>基数：{{formatQty baseQty}} {{material.uom}}</td><td>生效日期：{{formatDate effectiveDate}}</td></tr>
+  <tr><td colspan="3">版本说明：{{description}}</td></tr>
+</table>
+<table class="lines">
+  <thead>
+    <tr><th>#</th><th>子件编码</th><th>名称</th><th>规格</th><th>单位</th><th>用量</th><th>损耗率%</th><th>位号</th><th>发料</th><th>替代料</th></tr>
+  </thead>
+  <tbody>
+    {{#each lines}}
+    <tr><td>{{lineNo}}</td><td>{{code}}</td><td>{{name}}</td><td>{{spec}}</td><td>{{uom}}</td><td class="num">{{formatQty qtyPer}}</td>
+      <td class="num">{{scrapRatePct}}</td><td>{{positionNo}}</td><td>{{issueMethod}}</td><td>{{substitutes}}</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+<table class="sign"><tr><td>编制：</td><td>审核：</td><td>批准：</td></tr></table>

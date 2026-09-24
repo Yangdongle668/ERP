@@ -32,7 +32,7 @@ class CodeRuleConcurrencyTest extends AbstractIntegrationTest {
             for (int t = 0; t < threads; t++) {
                 futures.add(pool.submit(() -> {
                     for (int i = 0; i < perThread; i++) {
-                        codes.add(codeRuleApi.nextCode("MATERIAL"));
+                        codes.add(codeRuleApi.nextCode("ENG_TOOLING"));
                     }
                 }));
             }

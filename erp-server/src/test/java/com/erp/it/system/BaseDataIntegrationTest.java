@@ -130,10 +130,10 @@ class BaseDataIntegrationTest extends SystemTestSupport {
 
     @Test
     void codeRuleValidationAndAdjust_COD_T04_T05() throws Exception {
-        JsonNode rule = find(ok(doGet("/api/system/code-rules", admin)), "bizCode", "MATERIAL");
+        JsonNode rule = find(ok(doGet("/api/system/code-rules", admin)), "bizCode", "ENG_TOOLING");
         String id = rule.at("/id").asText();
-        Map<String, Object> body = new HashMap<>(Map.of("name", "物料编码", "prefix", "M", "datePattern", "", "separator", "",
-                "seqLength", 6, "resetCycle", "MONTH", "allowManual", true, "version", rule.at("/version").asInt()));
+        Map<String, Object> body = new HashMap<>(Map.of("name", "工装编号", "prefix", "T", "datePattern", "", "separator", "",
+                "seqLength", 5, "resetCycle", "MONTH", "allowManual", true, "version", rule.at("/version").asInt()));
         assertError(doPut("/api/system/code-rules/" + id, admin, body), "重置周期为“按月”时，日期格式必须包含年和月");
         body.put("prefix", "{categoryPrefix}");
         body.put("resetCycle", "NEVER");
@@ -147,10 +147,10 @@ class BaseDataIntegrationTest extends SystemTestSupport {
         assertError(doPut("/api/system/code-rules/" + id + "/seqs", admin, Map.of("resetKey", "ALL", "newValue", current - 1)),
                 "新值必须大于当前值 " + current);
         ok(doPut("/api/system/code-rules/" + id + "/seqs", admin, Map.of("resetKey", "ALL", "newValue", current + 100)));
-        assertThat(callNextMaterialCode()).isEqualTo(String.format("M%06d", current + 101));
-        assertThat(code).startsWith("M");
-        assertThat(ok(doGet("/api/system/code-rules/by-biz/MATERIAL/allow-manual", admin)).at("/allowManual").asBoolean()).isTrue();
-        assertThat(ok(doPost("/api/system/code-rules/preview", admin, Map.of("bizCode", "MATERIAL", "prefix", "MT", "datePattern", "yyMM",
+        assertThat(callNextMaterialCode()).isEqualTo(String.format("T%05d", current + 101));
+        assertThat(code).startsWith("T");
+        assertThat(ok(doGet("/api/system/code-rules/by-biz/ENG_TOOLING/allow-manual", admin)).at("/allowManual").asBoolean()).isTrue();
+        assertThat(ok(doPost("/api/system/code-rules/preview", admin, Map.of("bizCode", "ENG_TOOLING", "prefix", "MT", "datePattern", "yyMM",
                 "separator", "-", "seqLength", 3, "resetCycle", "MONTH"))).asText()).matches("MT\\d{4}-001");
     }
 
@@ -158,7 +158,7 @@ class BaseDataIntegrationTest extends SystemTestSupport {
     private com.erp.module.system.api.coderule.CodeRuleApi codeRuleApi;
 
     private String callNextMaterialCode() {
-        return codeRuleApi.nextCode("MATERIAL");
+        return codeRuleApi.nextCode("ENG_TOOLING");
     }
 
     // ==================== 工具 ====================
