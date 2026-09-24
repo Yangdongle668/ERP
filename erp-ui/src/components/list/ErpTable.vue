@@ -245,7 +245,7 @@ defineExpose({ getVisibleColumns, clearSelection: () => tableRef.value?.clearSel
           <slot v-if="c.slot" :name="`col-${c.prop ?? c.key}`" :row="row" />
           <StatusTag v-else-if="c.type === 'status'" :value="valueOf(row, c)" :map="c.statusMap" />
           <DictTag v-else-if="c.type === 'dict'" :type="c.dictType!" :value="valueOf(row, c)" />
-          <el-link v-else-if="c.type === 'link'" type="primary" :underline="false" @click.stop="c.onClick?.(row)">{{ textOf(row, c) }}</el-link>
+          <el-link v-else-if="c.type === 'link'" type="primary" underline="never" @click.stop="c.onClick?.(row)">{{ textOf(row, c) }}</el-link>
           <span v-else :class="{ num: c.type && NUMERIC.has(c.type), neg: negative(row, c) }">{{ textOf(row, c) }}</span>
         </template>
       </el-table-column>

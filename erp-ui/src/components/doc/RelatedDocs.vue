@@ -20,7 +20,7 @@ const router = useRouter()
     <el-table-column prop="docTypeName" label="单据类型" width="140" />
     <el-table-column label="单号" min-width="180">
       <template #default="{ row }">
-        <el-link v-if="row.route" type="primary" :underline="false" @click="router.push(row.route)">{{ row.docNo }}</el-link>
+        <el-link v-if="row.route" type="primary" underline="never" @click="router.push(row.route)">{{ row.docNo }}</el-link>
         <span v-else>{{ row.docNo }}</span>
       </template>
     </el-table-column>

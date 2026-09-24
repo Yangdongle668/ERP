@@ -199,6 +199,7 @@ onBeforeUnmount(() => {
 .right { min-width: 0; }
 .header { height: 56px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--el-border-color-light); background: var(--el-bg-color); }
 .spacer { flex: 1; }
-.user { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+.user { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0; }
+.header .el-breadcrumb { white-space: nowrap; flex-shrink: 0; }
 .main { background: var(--el-bg-color-page); padding: 16px; }
 </style>

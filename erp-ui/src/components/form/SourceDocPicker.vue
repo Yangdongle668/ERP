@@ -47,7 +47,7 @@ async function load() {
     const page = await props.api({ ...query, ...fixed })
     const exclude = new Set(props.excludeKeys ?? [])
     list.value = page.list.filter((l) => !exclude.has(String(l[props.rowKey])))
-    total.value = page.total
+    total.value = Number(page.total) || 0
   } finally {
     loading.value = false
   }

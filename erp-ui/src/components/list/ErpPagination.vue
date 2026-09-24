@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
  * 分页（UI 设计规范 T1）：每页 20/50/100/200，默认 20，显示总条数；翻页后触发 change，由列表页重新加载。
- * <ErpPagination v-model:page-no="query.pageNo" v-model:page-size="query.pageSize" :total="total" @change="load" />
+ * <ErpPagination v-model:page-no="query.pageNo" v-model:page-size="query.pageSize" :total="Number(total) || 0" @change="load" />
  */
-defineProps<{ pageNo: number; pageSize: number; total: number }>()
+// 后端 Long 序列化为字符串，这里兼容字符串总数
+defineProps<{ pageNo: number; pageSize: number; total: number | string }>()
 const emit = defineEmits<{ 'update:pageNo': [v: number]; 'update:pageSize': [v: number]; change: [] }>()
 
 function onPage(p: number) {
@@ -22,7 +23,7 @@ function onSize(s: number) {
     <el-pagination
       :current-page="pageNo"
       :page-size="pageSize"
-      :total="total"
+      :total="Number(total) || 0"
       :page-sizes="[20, 50, 100, 200]"
       layout="total, sizes, prev, pager, next, jumper"
       background

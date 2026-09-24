@@ -43,7 +43,7 @@ export function useListPage<Q extends object, T>(options: ListPageOptions<Q, T>)
         total.value = result.length
       } else {
         list.value = result.list
-        total.value = result.total
+        total.value = Number(result.total) || 0
       }
       selection.value = []
     } finally {

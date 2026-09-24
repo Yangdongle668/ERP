@@ -44,7 +44,7 @@ async function load() {
       pageNo: pageNo.value, pageSize
     })
     list.value = page.list
-    total.value = page.total
+    total.value = Number(page.total) || 0
     syncSelection()
   } finally {
     loading.value = false
@@ -124,7 +124,7 @@ defineExpose({ open })
           <el-table-column prop="baseUom" label="单位" width="70" align="center" />
           <template #empty><el-empty description="暂无数据" :image-size="60" /></template>
         </el-table>
-        <el-pagination v-model:current-page="pageNo" :page-size="pageSize" :total="total" layout="total, prev, pager, next" small class="pager" @current-change="load" />
+        <el-pagination v-model:current-page="pageNo" :page-size="pageSize" :total="total" layout="total, prev, pager, next" size="small" class="pager" @current-change="load" />
       </div>
     </div>
     <div v-if="multiple" class="selected">

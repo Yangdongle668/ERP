@@ -80,7 +80,7 @@
 | `CurrentUserApi` | `current()` | 当前用户：ID、姓名、主部门、所属公司、角色、数据范围 |
 | `UserApi` | `get(id)`、`list(ids)`、`getDeptLeader(deptId)`、`getSuperior(userId)` | 用户查询、部门负责人、直属上级 |
 | `OrgApi` | `get(id)`、`getChildrenIds(id)`、`getCompanyOf(deptId)` | 组织查询 |
-| `DataScopeApi` | `currentScope()` | 当前用户的数据范围（供业务查询拼条件） |
+| `@DataScope` / `SecurityUtils.currentDataScope()`（框架） | — | 当前用户的数据范围：注解自动拼条件，或手工读取后拼条件 |
 | `CodeRuleApi` | `nextCode(bizCode)` | 生成编码（已实现） |
 | `DictApi` | `getItems(type)`、`validate(type, value)`、`label(type, value)` | 字典 |
 | `UomApi` | `get(code)`、`convert(qty, from, to)`、`round(qty, uom)` | 计量单位 |

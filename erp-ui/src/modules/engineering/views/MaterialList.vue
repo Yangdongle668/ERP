@@ -21,7 +21,7 @@ async function load() {
   try {
     const page = await materialApi.page(query)
     list.value = page.list
-    total.value = page.total
+    total.value = Number(page.total) || 0
   } finally {
     loading.value = false
   }
