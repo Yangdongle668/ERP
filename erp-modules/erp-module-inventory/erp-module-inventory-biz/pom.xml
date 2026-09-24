@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.erp</groupId>
+        <artifactId>erp-module-inventory</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>erp-module-inventory-biz</artifactId>
+    <description>仓库模块实现。只能依赖框架、本模块 api 和其他模块的 api，禁止依赖其他模块的 biz。</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.erp</groupId>
+            <artifactId>erp-framework-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.erp</groupId>
+            <artifactId>erp-module-inventory-api</artifactId>
+        </dependency>
+        <!-- 依赖的其他模块契约（只能是 -api） -->
+        <dependency>
+            <groupId>com.erp</groupId>
+            <artifactId>erp-module-system-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.erp</groupId>
+            <artifactId>erp-module-engineering-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

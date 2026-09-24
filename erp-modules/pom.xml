@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.erp</groupId>
+        <artifactId>erp</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>erp-modules</artifactId>
+    <packaging>pom</packaging>
+    <description>业务模块。每个模块 = xxx-api（对外契约）+ xxx-biz（实现）</description>
+
+    <modules>
+        <module>erp-module-system</module>
+        <module>erp-module-engineering</module>
+        <module>erp-module-inventory</module>
+        <module>erp-module-crm</module>
+        <module>erp-module-sales</module>
+        <module>erp-module-purchase</module>
+        <module>erp-module-pmc</module>
+        <module>erp-module-production</module>
+        <module>erp-module-quality</module>
+        <module>erp-module-shipping</module>
+        <module>erp-module-finance</module>
+        <module>erp-module-bi</module>
+        <module>erp-module-workbench</module>
+    </modules>
+</project>

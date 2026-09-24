@@ -1,0 +1,52 @@
+server:
+  port: ${ERP_SERVER_PORT:8080}
+
+spring:
+  application:
+    name: erp-server
+  profiles:
+    active: ${ERP_PROFILE:mysql}
+  # 由框架按模块执行迁移（ModuleMigrationRunner），关闭 Spring Boot 默认的单一 Flyway
+  flyway:
+    enabled: false
+  jackson:
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    default-enum-type-handler: org.apache.ibatis.type.EnumTypeHandler
+  global-config:
+    banner: false
+    db-config:
+      id-type: ASSIGN_ID
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+erp:
+  security:
+    jwt:
+      # 生产环境务必通过环境变量 ERP_JWT_SECRET 注入随机密钥
+      secret: ${ERP_JWT_SECRET:change-me-please-this-is-a-dev-only-secret-key}
+      access-token-ttl: 2h
+      refresh-token-ttl: 7d
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  pattern:
+    level: "%5p [%X{traceId:-}]"

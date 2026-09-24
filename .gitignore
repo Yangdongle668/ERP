@@ -1,0 +1,18 @@
+# Maven
+target/
+.flattened-pom.xml
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# 本地运行数据（H2 等）
+data/
+logs/
+*.log
+
+# 前端
+erp-ui/node_modules/
+erp-ui/dist/

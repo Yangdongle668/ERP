@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.erp</groupId>
+        <artifactId>erp</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>erp-framework</artifactId>
+    <packaging>pom</packaging>
+    <description>框架层：所有业务模块共用的基础能力，业务代码不得放在这里</description>
+
+    <modules>
+        <module>erp-common</module>
+        <module>erp-framework-core</module>
+    </modules>
+</project>
