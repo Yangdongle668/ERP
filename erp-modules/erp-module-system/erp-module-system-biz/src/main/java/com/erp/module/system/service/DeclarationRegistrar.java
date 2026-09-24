@@ -4,6 +4,8 @@ import com.erp.module.system.api.dict.DictDefinition;
 import com.erp.module.system.api.param.ParamDefinition;
 import com.erp.module.system.api.param.ParamDefinitions;
 import com.erp.module.system.api.permission.PermissionDefinition;
+import com.erp.module.system.api.print.PrintBizDefinition;
+import com.erp.module.system.service.print.PrintService;
 import com.erp.module.system.api.workflow.ApprovalBizDefinition;
 import com.erp.module.system.service.workflow.WfDefinitionService;
 import lombok.extern.slf4j.Slf4j;
@@ -32,12 +34,15 @@ public class DeclarationRegistrar implements SmartInitializingSingleton {
     private final CodeRuleService codeRuleService;
     private final ObjectProvider<ApprovalBizDefinition> approvals;
     private final WfDefinitionService wfDefinitionService;
+    private final ObjectProvider<PrintBizDefinition> prints;
+    private final PrintService printService;
 
     public DeclarationRegistrar(ObjectProvider<PermissionDefinition> permissions, ObjectProvider<DictDefinition> dicts,
                                 ObjectProvider<ParamDefinition> params, ObjectProvider<ParamDefinitions> paramGroups,
                                 PermissionService permissionService, DictService dictService, ParamService paramService,
                                 CodeRuleService codeRuleService, ObjectProvider<ApprovalBizDefinition> approvals,
-                                WfDefinitionService wfDefinitionService) {
+                                WfDefinitionService wfDefinitionService, ObjectProvider<PrintBizDefinition> prints,
+                                PrintService printService) {
         this.permissions = permissions;
         this.dicts = dicts;
         this.params = params;
@@ -48,6 +53,8 @@ public class DeclarationRegistrar implements SmartInitializingSingleton {
         this.codeRuleService = codeRuleService;
         this.approvals = approvals;
         this.wfDefinitionService = wfDefinitionService;
+        this.prints = prints;
+        this.printService = printService;
     }
 
     @Override
@@ -59,6 +66,7 @@ public class DeclarationRegistrar implements SmartInitializingSingleton {
         paramService.sync(all);
         codeRuleService.sync();
         wfDefinitionService.syncBizTypes(approvals.orderedStream().toList());
+        printService.sync(prints.orderedStream().toList());
         log.info("[声明式注册] 完成");
     }
 }

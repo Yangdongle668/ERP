@@ -151,6 +151,8 @@ public interface SystemErrorCodes {
     ErrorCode PRINT_TEMPLATE_DEFAULT = new ErrorCode(1_001_015_004, "默认模板不能停用或删除");
     ErrorCode PRINT_NO_TEMPLATE = new ErrorCode(1_001_015_005, "单据类型「{}」没有可用的打印模板");
     ErrorCode PRINT_BIZ_NOT_EXISTS = new ErrorCode(1_001_015_006, "打印单据类型「{}」不存在");
+    ErrorCode PRINT_TEMPLATE_RENDER = new ErrorCode(1_001_015_007, "模板渲染失败：{}");
+    ErrorCode PRINT_TEMPLATE_DISABLED = new ErrorCode(1_001_015_008, "打印模板已停用");
 
     // ========== 审批流 1_001_016_xxx ==========
     ErrorCode WF_BIZ_TYPE_NOT_EXISTS = new ErrorCode(1_001_016_000, "单据类型「{}」不存在或未声明审批");

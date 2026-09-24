@@ -22,6 +22,10 @@
         </dependency>
         <!-- 依赖的其他模块契约（只能是 -api） -->
         <dependency>
+            <groupId>com.github.jknack</groupId>
+            <artifactId>handlebars</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>

@@ -11,11 +11,15 @@
     "lint:style": "node scripts/check-style.mjs"
   },
   "dependencies": {
+    "@codemirror/lang-html": "^6.4.12",
     "axios": "^1.7.7",
+    "codemirror": "^6.0.2",
     "element-plus": "^2.8.6",
+    "handlebars": "^4.7.9",
     "lucide-vue-next": "^1.0.0",
     "pinia": "^2.2.4",
     "pinyin-pro": "^3.29.4",
+    "qrcode-generator": "^2.0.4",
     "vue": "^3.5.12",
     "vue-router": "^4.4.5"
   },

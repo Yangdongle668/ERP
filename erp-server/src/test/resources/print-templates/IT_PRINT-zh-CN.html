@@ -1,0 +1,15 @@
+<style>
+  h1 { font-size: 18px; text-align: center; }
+  table { width: 100%; border-collapse: collapse; }
+  thead { display: table-header-group; }
+  th, td { border: 1px solid #333; padding: 4px; }
+</style>
+<h1>测试单</h1>
+<p>单号：{{docNo}}　日期：{{formatDate docDate}}</p>
+<table>
+  <thead><tr><th>#</th><th>物料</th><th>数量</th><th>金额</th></tr></thead>
+  <tbody>
+    {{#each lines}}<tr><td>{{add @index 1}}</td><td>{{name}}</td><td>{{formatQty qty}}</td><td>{{formatAmount amount}}</td></tr>{{/each}}
+  </tbody>
+</table>
+<p>合计：{{formatAmount total}}（{{amountInWordsCn total}}）</p>
