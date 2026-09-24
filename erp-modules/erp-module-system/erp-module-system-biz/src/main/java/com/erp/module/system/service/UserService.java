@@ -29,11 +29,13 @@ import com.erp.module.system.dal.mapper.RoleMapper;
 import com.erp.module.system.dal.mapper.UserMapper;
 import com.erp.module.system.dal.mapper.UserRoleMapper;
 import com.erp.module.system.service.support.SystemCaches;
+import com.erp.module.system.service.support.UserDisabledEvent;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -70,10 +72,11 @@ public class UserService implements UserApi {
     private final ParamApi paramApi;
     private final SystemCaches caches;
     private final TransactionTemplate tx;
+    private final ApplicationEventPublisher eventPublisher;
 
     public UserService(UserMapper userMapper, UserRoleMapper userRoleMapper, RoleMapper roleMapper, OrgMapper orgMapper,
                        OrgService orgService, PasswordEncoder passwordEncoder, PasswordPolicyService passwordPolicy,
-                       ParamApi paramApi, SystemCaches caches, TransactionTemplate tx) {
+                       ParamApi paramApi, SystemCaches caches, TransactionTemplate tx, ApplicationEventPublisher eventPublisher) {
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.roleMapper = roleMapper;
@@ -84,6 +87,7 @@ public class UserService implements UserApi {
         this.paramApi = paramApi;
         this.caches = caches;
         this.tx = tx;
+        this.eventPublisher = eventPublisher;
     }
 
     // ==================== 查询 ====================
@@ -346,6 +350,7 @@ public class UserService implements UserApi {
         userMapper.updateByIdOrFail(u);
         userMapper.increaseTokenVersion(id);
         caches.evictLoginUser(id);
+        eventPublisher.publishEvent(new UserDisabledEvent(id));
     }
 
     /** 批量停用：逐条执行，部分失败时返回每条结果 */

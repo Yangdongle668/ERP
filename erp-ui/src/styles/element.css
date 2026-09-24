@@ -296,3 +296,7 @@
 .el-switch { --el-switch-off-color: var(--el-border-color-darker); }
 .el-link { --el-link-font-weight: var(--erp-font-weight-regular); }
 .el-link.is-underline:hover::after { display: none; }
+
+/* 选中的复选框、单选框：只有控件本身用主色，文字保持正文色（颜色只用于状态与关键操作） */
+.el-checkbox__input.is-checked + .el-checkbox__label,
+.el-radio__input.is-checked + .el-radio__label { color: var(--erp-color-text); }

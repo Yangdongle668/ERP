@@ -385,6 +385,8 @@
 
 ### 5.3 单据页
 
+> 审批：待审批单据的页头使用 `ApprovalActions`（当前用户有待办时显示 通过/驳回/转交，发起人显示 撤回），“审批记录”页签使用 `ApprovalTimeline`。
+
 | 组件 | 说明 |
 |---|---|
 | `DocPageHeader` | 单据页头：返回、标题、状态标签、按钮区（按钮配置含 `permission`、`visible(status)`、`confirm`、`reasonRequired`） |

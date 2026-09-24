@@ -35,6 +35,7 @@ import AttachmentUpload from './form/AttachmentUpload.vue'
 import DocPageHeader from './doc/DocPageHeader.vue'
 import DocSteps from './doc/DocSteps.vue'
 import ApprovalTimeline from './doc/ApprovalTimeline.vue'
+import ApprovalActions from './doc/ApprovalActions.vue'
 import OperationLogTable from './doc/OperationLogTable.vue'
 import RelatedDocs from './doc/RelatedDocs.vue'
 import AttachmentPanel from './doc/AttachmentPanel.vue'
@@ -58,7 +59,7 @@ export const components = {
   StatusTag, DictTag, DictSelect, DictRadio, RemoteSelect, UserSelect, OrgTreeSelect, UomSelect, CurrencySelect, CountrySelect,
   MaterialSelect, MaterialPickerDialog, CustomerSelect, SupplierSelect, WarehouseSelect, LocationSelect, BatchSelect,
   NumberInput, QtyInput, AmountInput, PriceInput, SourceDocPicker, LinesEditor, AttachmentUpload,
-  DocPageHeader, DocSteps, ApprovalTimeline, OperationLogTable, RelatedDocs, AttachmentPanel, ApproveDialog, ReasonDialog,
+  DocPageHeader, DocSteps, ApprovalTimeline, ApprovalActions, OperationLogTable, RelatedDocs, AttachmentPanel, ApproveDialog, ReasonDialog,
   ImportDialog, ExportButton, PrintButton
 }
 
@@ -104,6 +105,7 @@ declare module 'vue' {
     DocPageHeader: typeof DocPageHeader
     DocSteps: typeof DocSteps
     ApprovalTimeline: typeof ApprovalTimeline
+    ApprovalActions: typeof ApprovalActions
     OperationLogTable: typeof OperationLogTable
     RelatedDocs: typeof RelatedDocs
     AttachmentPanel: typeof AttachmentPanel

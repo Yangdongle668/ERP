@@ -151,3 +151,32 @@ export interface RelatedDoc {
   /** 前端详情路由，如 /sales/order/123 */
   route?: string
 }
+
+/** 审批记录（ApprovalTimeline / ApprovalActions，数据来自 /system/workflow/instances/by-biz） */
+export interface WfTask {
+  id: string
+  nodeName: string
+  assigneeName: string
+  status: string
+  comment?: string
+  autoReason?: string
+  transferToName?: string
+  handledByName?: string
+  createdAt: string
+  finishedAt?: string
+}
+export interface WfInstance {
+  id: string
+  status: string
+  initiatorName: string
+  startedAt: string
+  finishedAt?: string
+  resultComment?: string
+  tasks: WfTask[]
+}
+export interface ByBiz {
+  instances: WfInstance[]
+  myPendingTaskId?: string
+  canWithdraw?: boolean
+  runningInstanceId?: string
+}

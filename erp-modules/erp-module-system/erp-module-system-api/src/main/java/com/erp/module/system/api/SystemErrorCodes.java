@@ -142,4 +142,40 @@ public interface SystemErrorCodes {
     ErrorCode JOB_NOT_EXISTS = new ErrorCode(1_001_014_000, "定时任务「{}」不存在");
     ErrorCode JOB_CRON_INVALID = new ErrorCode(1_001_014_001, "Cron 表达式不正确");
     ErrorCode JOB_RUNNING = new ErrorCode(1_001_014_002, "任务正在执行中");
+
+    // ========== 打印 1_001_015_xxx ==========
+    ErrorCode PRINT_TEMPLATE_NOT_EXISTS = new ErrorCode(1_001_015_000, "打印模板不存在");
+    ErrorCode PRINT_TEMPLATE_SCRIPT = new ErrorCode(1_001_015_001, "模板中不允许包含脚本");
+    ErrorCode PRINT_TEMPLATE_TOO_LARGE = new ErrorCode(1_001_015_002, "模板内容不能超过 200KB");
+    ErrorCode PRINT_TEMPLATE_BUILTIN = new ErrorCode(1_001_015_003, "内置模板不能修改或删除，请复制后修改");
+    ErrorCode PRINT_TEMPLATE_DEFAULT = new ErrorCode(1_001_015_004, "默认模板不能停用或删除");
+    ErrorCode PRINT_NO_TEMPLATE = new ErrorCode(1_001_015_005, "单据类型「{}」没有可用的打印模板");
+    ErrorCode PRINT_BIZ_NOT_EXISTS = new ErrorCode(1_001_015_006, "打印单据类型「{}」不存在");
+
+    // ========== 审批流 1_001_016_xxx ==========
+    ErrorCode WF_BIZ_TYPE_NOT_EXISTS = new ErrorCode(1_001_016_000, "单据类型「{}」不存在或未声明审批");
+    ErrorCode WF_DEFINITION_NOT_EXISTS = new ErrorCode(1_001_016_001, "流程版本不存在");
+    ErrorCode WF_NOT_DRAFT = new ErrorCode(1_001_016_002, "只能修改草稿版本");
+    ErrorCode WF_NO_DEFAULT_BRANCH = new ErrorCode(1_001_016_003, "流程必须有“其他情况”分支");
+    ErrorCode WF_BRANCH_NO_NODE = new ErrorCode(1_001_016_004, "分支「{}」至少需要一个审批节点");
+    ErrorCode WF_BRANCH_NO_CONDITION = new ErrorCode(1_001_016_005, "分支「{}」至少需要一个条件");
+    ErrorCode WF_CONDITION_INCOMPLETE = new ErrorCode(1_001_016_006, "分支「{}」的条件不完整");
+    ErrorCode WF_CONDITION_FIELD = new ErrorCode(1_001_016_007, "分支「{}」的条件字段「{}」不存在");
+    ErrorCode WF_NODE_INCOMPLETE = new ErrorCode(1_001_016_008, "节点「{}」的审批人未设置");
+    ErrorCode WF_NODE_USER_DISABLED = new ErrorCode(1_001_016_009, "节点「{}」的审批人「{}」已停用");
+    ErrorCode WF_NODE_ROLE_INVALID = new ErrorCode(1_001_016_010, "节点「{}」的角色不存在或已停用");
+    ErrorCode WF_NODE_BIZ_FIELD = new ErrorCode(1_001_016_011, "节点「{}」的单据字段「{}」不存在");
+    ErrorCode WF_NO_ACTIVE_VERSION = new ErrorCode(1_001_016_012, "该单据还没有已发布的审批流程");
+    ErrorCode WF_ALREADY_RUNNING = new ErrorCode(1_001_016_013, "该单据正在审批中，不能重复提交");
+    ErrorCode WF_TASK_NOT_HANDLER = new ErrorCode(1_001_016_014, "你不是该任务的处理人或任务已处理");
+    ErrorCode WF_REJECT_COMMENT_REQUIRED = new ErrorCode(1_001_016_015, "请填写驳回意见");
+    ErrorCode WF_COMMENT_TOO_LONG = new ErrorCode(1_001_016_016, "审批意见不能超过 500 字");
+    ErrorCode WF_WITHDRAW_NOT_INITIATOR = new ErrorCode(1_001_016_017, "只有发起人可以撤回");
+    ErrorCode WF_NOT_RUNNING = new ErrorCode(1_001_016_018, "审批已结束，不能撤回");
+    ErrorCode WF_TRANSFER_SELF = new ErrorCode(1_001_016_019, "不能转交给自己");
+    ErrorCode WF_TRANSFER_DUPLICATE = new ErrorCode(1_001_016_020, "{} 已是该节点的审批人");
+    ErrorCode WF_TRANSFER_TARGET_INVALID = new ErrorCode(1_001_016_021, "转交对象不存在或已停用");
+    ErrorCode WF_INSTANCE_NOT_EXISTS = new ErrorCode(1_001_016_022, "审批实例不存在");
+    ErrorCode WF_TERMINATE_REASON_REQUIRED = new ErrorCode(1_001_016_023, "请填写终止原因");
+    ErrorCode WF_INSTANCE_FINISHED = new ErrorCode(1_001_016_024, "审批已结束");
 }

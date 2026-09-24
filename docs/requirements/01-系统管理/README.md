@@ -87,11 +87,11 @@
 | `PaymentTermApi` | `get(id)`、`calcDueDates(termId, amount, events)` | 付款条件与到期日计算 |
 | `CurrencyApi` | `getBaseCurrency()`、`getRate(currency, date)`、`getPrecision(currency)` | 币别汇率 |
 | `ParamApi` | `getString/getInt/getDecimal/getBool(key)` | 系统参数 |
-| `WorkflowApi` | `start(bizType, bizId, bizNo, title, variables, bizUsers, initiatorId)`、`withdraw(...)`、`isRunning(...)` | 审批流；结果以 `ApprovalCompletedEvent` 通知（契约已定义，引擎未实现前返回 NOT_REQUIRED） |
+| `WorkflowApi` | `start(bizType, bizId, bizNo, title, variables, bizUsers, initiatorId)`、`withdraw(...)`、`isRunning(...)`、`getRunning(...)` | 审批流（已实现）。`start` 返回 `isStarted()=false`（NOT_REQUIRED 未配置 / AUTO_APPROVED 全部自动通过）时调用方直接审核；为 true 时单据置为待审批，结果以 `ApprovalCompletedEvent` 在审批动作的同一事务内通知 |
 | `NotifyApi` | `todo(...)`、`done(...)`、`message(...)`、`alert(...)`、`resolve(alertKey)` | 各模块发待办、消息、预警的统一入口，发布 `TodoCreatedEvent` 等事件，由工作台监听（契约已实现） |
 | `DocLogApi` | `record(bizType, bizId, bizNo, action, fromStatus, toStatus, reason)` | 单据操作日志 |
-| `FileApi` | `bind(fileIds, bizType, bizId)`、`list(bizType, bizId)` | 附件 |
-| `AsyncTaskApi` | `submit(type, name, runnable)` | 提交后台任务（异步导出等） |
+| `FileApi` | `bind(fileIds, bizType, bizId)`、`list(bizType, bizId)`、`deleteByBiz(...)`、`saveGenerated(...)` | 附件（已实现）；访问控制扩展点 `FileAccessChecker` |
+| `AsyncTaskApi` | `submit(type, name, moduleCode, TaskRunner)` | 提交后台任务（异步导出等，已实现）；定时任务用 `@ErpJob` 声明 |
 
 ## 7. 开发分期
 
@@ -100,4 +100,4 @@
 | 第 1 步（其他模块开工前完成） | 组织架构、用户、角色权限（含数据范围）、字典、编码规则、计量单位、币别汇率、付款条件、系统参数、日志、登录与个人中心、声明式注册机制 |
 | 第 2 步（与业务模块并行） | 审批流、打印模板、附件、任务中心、定时任务 |
 
-在审批流完成之前，业务模块调用 `WorkflowApi.start()` 时按“该单据未配置审批流”处理（直接审核通过），因此不会阻塞业务模块开发。
+业务模块声明 `ApprovalBizDefinition` 后，管理员在“审批流”页面配置流程；未配置或未启用时 `WorkflowApi.start()` 返回 NOT_REQUIRED（直接审核通过），因此不会阻塞业务模块开发。单据详情页使用公共组件 `ApprovalActions`（通过/驳回/转交/撤回）与 `ApprovalTimeline`（审批记录）。

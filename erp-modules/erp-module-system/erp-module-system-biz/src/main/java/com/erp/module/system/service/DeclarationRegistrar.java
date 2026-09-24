@@ -4,6 +4,8 @@ import com.erp.module.system.api.dict.DictDefinition;
 import com.erp.module.system.api.param.ParamDefinition;
 import com.erp.module.system.api.param.ParamDefinitions;
 import com.erp.module.system.api.permission.PermissionDefinition;
+import com.erp.module.system.api.workflow.ApprovalBizDefinition;
+import com.erp.module.system.service.workflow.WfDefinitionService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -28,11 +30,14 @@ public class DeclarationRegistrar implements SmartInitializingSingleton {
     private final DictService dictService;
     private final ParamService paramService;
     private final CodeRuleService codeRuleService;
+    private final ObjectProvider<ApprovalBizDefinition> approvals;
+    private final WfDefinitionService wfDefinitionService;
 
     public DeclarationRegistrar(ObjectProvider<PermissionDefinition> permissions, ObjectProvider<DictDefinition> dicts,
                                 ObjectProvider<ParamDefinition> params, ObjectProvider<ParamDefinitions> paramGroups,
                                 PermissionService permissionService, DictService dictService, ParamService paramService,
-                                CodeRuleService codeRuleService) {
+                                CodeRuleService codeRuleService, ObjectProvider<ApprovalBizDefinition> approvals,
+                                WfDefinitionService wfDefinitionService) {
         this.permissions = permissions;
         this.dicts = dicts;
         this.params = params;
@@ -41,6 +46,8 @@ public class DeclarationRegistrar implements SmartInitializingSingleton {
         this.dictService = dictService;
         this.paramService = paramService;
         this.codeRuleService = codeRuleService;
+        this.approvals = approvals;
+        this.wfDefinitionService = wfDefinitionService;
     }
 
     @Override
@@ -51,6 +58,7 @@ public class DeclarationRegistrar implements SmartInitializingSingleton {
         paramGroups.orderedStream().forEach(g -> all.addAll(g.items()));
         paramService.sync(all);
         codeRuleService.sync();
+        wfDefinitionService.syncBizTypes(approvals.orderedStream().toList());
         log.info("[声明式注册] 完成");
     }
 }
