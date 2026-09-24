@@ -3,14 +3,13 @@ package com.erp.module.system.controller;
 import com.erp.common.result.CommonResult;
 import com.erp.common.result.PageResult;
 import com.erp.framework.excel.ExcelColumn;
-import com.erp.framework.excel.ExcelSupport;
-import com.erp.module.system.api.param.ParamApi;
 import com.erp.module.system.controller.vo.LogVOs.DocLogResp;
 import com.erp.module.system.controller.vo.LogVOs.LoginLogQuery;
 import com.erp.module.system.controller.vo.LogVOs.LoginLogResp;
 import com.erp.module.system.controller.vo.LogVOs.OperLogQuery;
 import com.erp.module.system.controller.vo.LogVOs.OperLogResp;
 import com.erp.module.system.service.LogService;
+import com.erp.module.system.service.support.ExportHelper;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -23,7 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 
@@ -55,11 +53,11 @@ public class LogController {
             ExcelColumn.text("traceId", "追踪号", OperLogResp::traceId));
 
     private final LogService logService;
-    private final ParamApi paramApi;
+    private final ExportHelper exportHelper;
 
-    public LogController(LogService logService, ParamApi paramApi) {
+    public LogController(LogService logService, ExportHelper exportHelper) {
         this.logService = logService;
-        this.paramApi = paramApi;
+        this.exportHelper = exportHelper;
     }
 
     @GetMapping("/login-logs")
@@ -83,13 +81,13 @@ public class LogController {
     @GetMapping("/login-logs/export")
     @PreAuthorize("@ss.has('system:log:export')")
     public void exportLogin(@Valid LoginLogQuery q, @RequestParam(required = false) String columns, HttpServletResponse response) throws IOException {
-        ExcelSupport.export(response, "登录日志", LOGIN_COLUMNS, collect(q, logService::loginLogs), keys(columns));
+        exportHelper.export(response, "system", "登录日志", LOGIN_COLUMNS, columns, limit -> collect(q, logService::loginLogs, limit));
     }
 
     @GetMapping("/oper-logs/export")
     @PreAuthorize("@ss.has('system:log:export')")
     public void exportOper(@Valid OperLogQuery q, @RequestParam(required = false) String columns, HttpServletResponse response) throws IOException {
-        ExcelSupport.export(response, "操作日志", OPER_COLUMNS, collect(q, logService::operLogs), keys(columns));
+        exportHelper.export(response, "system", "操作日志", OPER_COLUMNS, columns, limit -> collect(q, logService::operLogs, limit));
     }
 
     /** 单据操作日志：登录即可（单据详情页“操作日志”页签） */
@@ -98,8 +96,7 @@ public class LogController {
         return CommonResult.success(logService.docLogs(bizType, bizId));
     }
 
-    private <Q extends com.erp.common.result.PageParam, T> List<T> collect(Q q, Function<Q, PageResult<T>> page) {
-        int max = paramApi.getInt("sys.export.sync-max-rows");
+    private <Q extends com.erp.common.result.PageParam, T> List<T> collect(Q q, Function<Q, PageResult<T>> page, int max) {
         q.setPageNo(1);
         q.setPageSize(500);
         List<T> all = new ArrayList<>();
@@ -112,7 +109,4 @@ public class LogController {
         return all.size() > max ? all.subList(0, max) : all;
     }
 
-    private static List<String> keys(String columns) {
-        return columns == null ? null : Arrays.asList(columns.split(","));
-    }
 }

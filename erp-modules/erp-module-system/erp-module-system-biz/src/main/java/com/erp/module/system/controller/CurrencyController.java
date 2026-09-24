@@ -12,7 +12,7 @@ import com.erp.framework.excel.ImportResult;
 import com.erp.framework.excel.ImportRow;
 import com.erp.framework.operlog.OperLog;
 import com.erp.module.system.api.currency.RateType;
-import com.erp.module.system.api.param.ParamApi;
+import com.erp.module.system.service.support.ExportHelper;
 import com.erp.module.system.controller.vo.CurrencyVOs.CurrencyResp;
 import com.erp.module.system.controller.vo.CurrencyVOs.CurrencySave;
 import com.erp.module.system.controller.vo.CurrencyVOs.CurrencySimple;
@@ -43,7 +43,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /** 币别与汇率（01-07） */
@@ -69,11 +68,11 @@ public class CurrencyController {
             ExcelColumn.dateTime("updatedAt", "修改时间", RateResp::updatedAt));
 
     private final CurrencyService currencyService;
-    private final ParamApi paramApi;
+    private final ExportHelper exportHelper;
 
-    public CurrencyController(CurrencyService currencyService, ParamApi paramApi) {
+    public CurrencyController(CurrencyService currencyService, ExportHelper exportHelper) {
         this.currencyService = currencyService;
-        this.paramApi = paramApi;
+        this.exportHelper = exportHelper;
     }
 
     // ==================== 币别 ====================
@@ -210,17 +209,17 @@ public class CurrencyController {
     @GetMapping("/exchange-rates/export")
     @PreAuthorize("@ss.has('system:rate:export')")
     public void export(@Valid RateQuery q, @RequestParam(required = false) String columns, HttpServletResponse response) throws IOException {
-        int max = paramApi.getInt("sys.export.sync-max-rows");
-        q.setPageNo(1);
-        q.setPageSize(500);
-        List<RateResp> all = new ArrayList<>();
-        while (all.size() < max) {
-            PageResult<RateResp> p = currencyService.pageRates(q);
-            all.addAll(p.list());
-            if (p.list().isEmpty() || all.size() >= p.total()) break;
-            q.setPageNo(q.getPageNo() + 1);
-        }
-        ExcelSupport.export(response, "汇率", EXPORT_COLUMNS, all.size() > max ? all.subList(0, max) : all,
-                columns == null ? null : Arrays.asList(columns.split(",")));
+        exportHelper.export(response, "system", "汇率", EXPORT_COLUMNS, columns, limit -> {
+            q.setPageNo(1);
+            q.setPageSize(500);
+            List<RateResp> all = new ArrayList<>();
+            while (all.size() < limit) {
+                PageResult<RateResp> p = currencyService.pageRates(q);
+                all.addAll(p.list());
+                if (p.list().isEmpty() || all.size() >= p.total()) break;
+                q.setPageNo(q.getPageNo() + 1);
+            }
+            return all.size() > limit ? all.subList(0, limit) : all;
+        });
     }
 }

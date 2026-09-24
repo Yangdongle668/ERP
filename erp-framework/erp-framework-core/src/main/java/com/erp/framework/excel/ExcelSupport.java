@@ -27,6 +27,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -54,7 +55,7 @@ public final class ExcelSupport {
     public static final int MAX_IMPORT_ROWS = 5000;
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    private static final String XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    public static final String XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
     private ExcelSupport() {
     }
@@ -66,9 +67,38 @@ public final class ExcelSupport {
      */
     public static <T> void export(HttpServletResponse response, String name, List<ExcelColumn<T>> columns, List<T> rows,
                                   List<String> columnKeys) throws IOException {
+        prepare(response, fileName(name));
+        write(response.getOutputStream(), name, columns, rows, columnKeys);
+    }
+
+    /** 生成导出文件内容（后台导出任务使用：结果保存到任务中心） */
+    public static <T> byte[] toBytes(String name, List<ExcelColumn<T>> columns, List<T> rows, List<String> columnKeys) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try {
+            write(out, name, columns, rows, columnKeys);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return out.toByteArray();
+    }
+
+    /** 导出文件名：名称_yyyyMMddHHmmss.xlsx */
+    public static String fileName(String name) {
+        return name + "_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + ".xlsx";
+    }
+
+    /**
+     * 数据量超过同步导出上限、已转为后台任务时的响应（UI 设计规范 9.2）：
+     * {@code {"code":0,"data":{"async":true,"taskId":"…"}}}，前端提示到任务中心下载。
+     */
+    public static void writeAsyncAccepted(HttpServletResponse response, Long taskId) throws IOException {
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"code\":0,\"msg\":\"已转为后台导出\",\"data\":{\"async\":true,\"taskId\":\"" + taskId + "\"}}");
+    }
+
+    private static <T> void write(OutputStream target, String name, List<ExcelColumn<T>> columns, List<T> rows,
+                                  List<String> columnKeys) throws IOException {
         List<ExcelColumn<T>> cols = selectColumns(columns, columnKeys);
-        String fileName = name + "_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + ".xlsx";
-        prepare(response, fileName);
         try (SXSSFWorkbook wb = new SXSSFWorkbook(500)) {
             Sheet sheet = wb.createSheet(safeSheetName(name));
             CellStyle header = headerStyle(wb);
@@ -92,7 +122,7 @@ public final class ExcelSupport {
                 }
             }
             sheet.createFreezePane(0, 1);
-            wb.write(response.getOutputStream());
+            wb.write(target);
             wb.dispose();
         }
     }

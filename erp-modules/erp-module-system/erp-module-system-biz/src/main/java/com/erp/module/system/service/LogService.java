@@ -23,7 +23,6 @@ import com.erp.module.system.dal.mapper.DocLogMapper;
 import com.erp.module.system.dal.mapper.LoginLogMapper;
 import com.erp.module.system.dal.mapper.OperLogMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -161,8 +160,8 @@ public class LogService implements OperLogRecorder, DocLogApi {
 
     // ==================== 清理（R01：每天 02:00；单据操作日志永久保留） ====================
 
-    @Scheduled(cron = "0 0 2 * * ?")
-    public void cleanup() {
+    /** 由定时任务 SYS_LOG_CLEANUP 调用，返回执行说明 */
+    public String cleanup() {
         LocalDateTime operBefore = LocalDateTime.now().minusDays(paramApi.getInt("sys.log.oper-retention-days"));
         LocalDateTime loginBefore = LocalDateTime.now().minusDays(paramApi.getInt("sys.log.login-retention-days"));
         int oper = deleteInBatches(() -> operLogMapper.selectList(new LambdaQueryWrapper<OperLogDO>().select(OperLogDO::getId)
@@ -170,6 +169,7 @@ public class LogService implements OperLogRecorder, DocLogApi {
         int login = deleteInBatches(() -> loginLogMapper.selectList(new LambdaQueryWrapper<LoginLogDO>().select(LoginLogDO::getId)
                 .lt(LoginLogDO::getCreatedAt, loginBefore).last("LIMIT " + CLEANUP_BATCH)).stream().map(LoginLogDO::getId).toList(), loginLogMapper::deleteBatchIds);
         log.info("[日志清理] 删除操作日志 {} 条、登录日志 {} 条", oper, login);
+        return "删除操作日志 " + oper + " 条、登录日志 " + login + " 条";
     }
 
     private static int deleteInBatches(java.util.function.Supplier<List<Long>> nextBatch, java.util.function.Function<List<Long>, Integer> delete) {

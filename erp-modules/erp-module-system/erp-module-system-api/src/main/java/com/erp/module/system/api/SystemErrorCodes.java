@@ -124,4 +124,22 @@ public interface SystemErrorCodes {
 
     // ========== 日志 1_001_011_xxx ==========
     ErrorCode LOG_RANGE_TOO_LARGE = new ErrorCode(1_001_011_000, "查询时间范围不能超过 3 个月");
+
+    // ========== 附件 1_001_012_xxx ==========
+    ErrorCode FILE_NOT_EXISTS = new ErrorCode(1_001_012_000, "附件不存在或已删除");
+    ErrorCode FILE_TOO_LARGE = new ErrorCode(1_001_012_001, "文件大小不能超过 {}MB");
+    ErrorCode FILE_TYPE_NOT_ALLOWED = new ErrorCode(1_001_012_002, "不支持的文件类型：{}");
+    ErrorCode FILE_ACCESS_DENIED = new ErrorCode(1_001_012_003, "没有权限访问该附件");
+    ErrorCode FILE_EMPTY = new ErrorCode(1_001_012_004, "不能上传空文件");
+    ErrorCode FILE_STORAGE_FAILED = new ErrorCode(1_001_012_005, "附件保存失败，请稍后重试");
+
+    // ========== 后台任务 1_001_013_xxx ==========
+    ErrorCode TASK_NOT_EXISTS = new ErrorCode(1_001_013_000, "任务不存在");
+    ErrorCode TASK_CANNOT_CANCEL = new ErrorCode(1_001_013_001, "只能取消等待中的任务");
+    ErrorCode TASK_INTERRUPTED = new ErrorCode(1_001_013_002, "服务重启，任务中断，请重新提交");
+
+    // ========== 定时任务 1_001_014_xxx ==========
+    ErrorCode JOB_NOT_EXISTS = new ErrorCode(1_001_014_000, "定时任务「{}」不存在");
+    ErrorCode JOB_CRON_INVALID = new ErrorCode(1_001_014_001, "Cron 表达式不正确");
+    ErrorCode JOB_RUNNING = new ErrorCode(1_001_014_002, "任务正在执行中");
 }

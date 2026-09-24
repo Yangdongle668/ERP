@@ -262,6 +262,13 @@ public class CurrencyService implements CurrencyApi {
         if (Boolean.TRUE.equals(c.getBase())) throw new BizException(SystemErrorCodes.RATE_BASE_CURRENCY);
     }
 
+    /** 指定日期没有维护日汇率的启用外币（汇率提醒任务使用） */
+    public List<String> missingDailyRates(LocalDate date) {
+        return currencyMapper.selectList(new LambdaQueryWrapper<CurrencyDO>().eq(CurrencyDO::getStatus, EnableStatus.ENABLED)
+                        .eq(CurrencyDO::getBase, false).orderByAsc(CurrencyDO::getSort))
+                .stream().map(CurrencyDO::getCode).filter(c -> findRate(c, RateType.DAILY, date) == null).toList();
+    }
+
     private ExchangeRateDO findRate(String currency, RateType type, LocalDate date) {
         return rateMapper.selectOne(new LambdaQueryWrapper<ExchangeRateDO>().eq(ExchangeRateDO::getCurrency, currency)
                 .eq(ExchangeRateDO::getRateType, type).eq(ExchangeRateDO::getEffectiveDate, date));

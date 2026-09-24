@@ -26,7 +26,7 @@ export default defineModule({
     { path: 'print-template', title: '打印模板', permission: 'system:print:query', doc: '09-打印模板.md' },
     { path: 'param', title: '系统参数', permission: 'system:param:query', doc: '10-系统参数.md', component: () => import('./views/ParamPage.vue') },
     { path: 'log', title: '日志审计', permission: 'system:log:query', doc: '11-日志审计.md', component: () => import('./views/LogPage.vue') },
-    { path: 'job', title: '定时任务', permission: 'system:job:query', doc: '12-附件与任务中心.md' },
-    { path: 'task', title: '任务中心', doc: '12-附件与任务中心.md' }
+    { path: 'job', title: '定时任务', permission: 'system:job:query', doc: '12-附件与任务中心.md', component: () => import('./views/JobList.vue') },
+    { path: 'task', title: '任务中心', doc: '12-附件与任务中心.md', component: () => import('./views/TaskCenter.vue') }
   ]
 })

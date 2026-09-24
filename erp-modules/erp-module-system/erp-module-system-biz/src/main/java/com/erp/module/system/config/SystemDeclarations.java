@@ -216,6 +216,6 @@ public class SystemDeclarations {
                 ParamDefinition.integer("sys.log.oper-retention-days", M, "日志", "操作日志保留天数", 365, 30, 3650, "超过保留期的操作日志每天 02:00 自动清理").sort(10),
                 ParamDefinition.integer("sys.log.login-retention-days", M, "日志", "登录日志保留天数", 365, 30, 3650, "超过保留期的登录日志每天 02:00 自动清理").sort(20),
                 ParamDefinition.integer("sys.export.sync-max-rows", M, "导入导出", "同步导出最大行数", 10000, 1000, 50000,
-                        "超过时转后台导出（任务中心上线前提示缩小查询范围）"));
+                        "超过时转为后台导出，完成后在任务中心下载"));
     }
 }

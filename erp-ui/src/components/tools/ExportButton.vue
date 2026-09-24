@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElNotification } from 'element-plus'
+import { useRouter } from 'vue-router'
 import { download } from '@/api/http'
 import ErpIconButton from '../base/ErpIconButton.vue'
 
@@ -17,6 +18,7 @@ const props = defineProps<{
   label?: string
 }>()
 
+const router = useRouter()
 const loading = ref(false)
 
 async function run() {
@@ -28,7 +30,18 @@ async function run() {
     delete q.pageSize
     if (props.columns) q.columns = props.columns().join(',')
     const r = await download<{ async?: boolean }>(props.url, q, `${props.filename ?? '导出'}.xlsx`)
-    if (r?.async) ElMessage.info({ message: '数据量较大，已转为后台导出，完成后在【任务中心】下载', duration: 5000 })
+    if (r?.async) {
+      const n = ElNotification({
+        type: 'info',
+        title: '已转为后台导出',
+        message: '数据量较大，完成后会收到消息通知。点击此处前往任务中心查看进度。',
+        duration: 6000,
+        onClick: () => {
+          n.close()
+          router.push('/system/task')
+        }
+      })
+    }
   } finally {
     loading.value = false
   }

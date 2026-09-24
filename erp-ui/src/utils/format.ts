@@ -80,6 +80,23 @@ export function formatDateTime(v?: string | null, toMinute = false): string {
   return toMinute ? s.slice(0, 16) : s.slice(0, 19)
 }
 
+/** 耗时（毫秒）：120 ms / 12 秒 / 3 分 5 秒 / 1 小时 2 分 */
+export function formatElapsed(ms?: number | null): string {
+  if (ms === null || ms === undefined) return EMPTY
+  if (ms < 1000) return `${ms} ms`
+  const s = Math.round(ms / 1000)
+  if (s < 60) return `${s} 秒`
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m} 分 ${s % 60} 秒`
+  return `${Math.floor(m / 60)} 小时 ${m % 60} 分`
+}
+
+/** 两个时间之间的耗时（毫秒），任一为空返回 undefined */
+export function elapsedBetween(from?: string | null, to?: string | null): number | undefined {
+  if (!from || !to) return undefined
+  return new Date(to.replace(' ', 'T')).getTime() - new Date(from.replace(' ', 'T')).getTime()
+}
+
 /** 时长：N 天 / N 小时 M 分 */
 export function formatDuration(minutes?: number | null): string {
   if (minutes === null || minutes === undefined) return EMPTY

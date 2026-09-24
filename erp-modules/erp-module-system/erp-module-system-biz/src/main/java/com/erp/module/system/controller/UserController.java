@@ -12,7 +12,7 @@ import com.erp.framework.excel.ImportRow;
 import com.erp.framework.operlog.OperLog;
 import com.erp.module.system.api.dict.DictApi;
 import com.erp.module.system.api.dict.DictItemDTO;
-import com.erp.module.system.api.param.ParamApi;
+import com.erp.module.system.service.support.ExportHelper;
 import com.erp.module.system.controller.vo.UserVOs.BatchResult;
 import com.erp.module.system.controller.vo.UserVOs.CreateResult;
 import com.erp.module.system.controller.vo.UserVOs.ResetPasswordReq;
@@ -76,12 +76,12 @@ public class UserController {
 
     private final UserService userService;
     private final DictApi dictApi;
-    private final ParamApi paramApi;
+    private final ExportHelper exportHelper;
 
-    public UserController(UserService userService, DictApi dictApi, ParamApi paramApi) {
+    public UserController(UserService userService, DictApi dictApi, ExportHelper exportHelper) {
         this.userService = userService;
         this.dictApi = dictApi;
-        this.paramApi = paramApi;
+        this.exportHelper = exportHelper;
     }
 
     @GetMapping
@@ -207,9 +207,7 @@ public class UserController {
     @GetMapping("/export")
     @PreAuthorize("@ss.has('system:user:export')")
     public void export(@Valid UserQuery q, @RequestParam(required = false) String columns, HttpServletResponse response) throws IOException {
-        int max = paramApi.getInt("sys.export.sync-max-rows");
-        List<UserResp> list = userService.listForExport(q, max);
-        ExcelSupport.export(response, "用户", EXPORT_COLUMNS, list, columns == null ? null : Arrays.asList(columns.split(",")));
+        exportHelper.export(response, "system", "用户", EXPORT_COLUMNS, columns, limit -> userService.listForExport(q, limit));
     }
 
     /** 岗位字典：标签 → 值 */

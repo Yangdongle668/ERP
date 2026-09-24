@@ -14,8 +14,9 @@ spring:
     default-property-inclusion: non_null
   servlet:
     multipart:
-      max-file-size: 50MB
-      max-request-size: 100MB
+      # 单个附件上限由系统参数 sys.file.max-size-mb（最大 500）控制，这里只设硬上限
+      max-file-size: 512MB
+      max-request-size: 520MB
 
 mybatis-plus:
   configuration:
@@ -30,6 +31,10 @@ mybatis-plus:
       logic-not-delete-value: 0
 
 erp:
+  file:
+    # 附件存储：local（默认）；本地根目录
+    storage: ${ERP_FILE_STORAGE:local}
+    local-path: ${ERP_FILE_PATH:./data/files}
   security:
     jwt:
       # 生产环境务必通过环境变量 ERP_JWT_SECRET 注入随机密钥
