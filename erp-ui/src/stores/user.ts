@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { authApi, type CurrentUser } from '@/api/auth'
+import { authApi, type CurrentUser, type LoginReq, type LoginResp } from '@/api/auth'
 
 const ACCESS = 'erp.accessToken'
 const REFRESH = 'erp.refreshToken'
@@ -29,7 +29,9 @@ export const useUserStore = defineStore('user', {
   }),
   getters: {
     isLoggedIn: (s) => !!s.accessToken,
-    permissionSet: (s) => new Set(s.user?.permissions ?? [])
+    permissionSet: (s) => new Set(s.user?.permissions ?? []),
+    /** 首次登录或密码过期，必须先修改密码 */
+    mustChangePassword: (s) => !!s.user && (s.user.mustChangePassword || s.user.passwordExpired)
   },
   actions: {
     setTokens(access: string, refresh: string) {
@@ -38,10 +40,14 @@ export const useUserStore = defineStore('user', {
       writeStorage(ACCESS, access)
       writeStorage(REFRESH, refresh)
     },
-    async login(username: string, password: string) {
-      const resp = await authApi.login(username, password)
+    applyLogin(resp: LoginResp) {
       this.setTokens(resp.accessToken, resp.refreshToken)
+    },
+    async login(req: LoginReq) {
+      const resp = await authApi.login(req)
+      this.applyLogin(resp)
       await this.loadUser()
+      return resp
     },
     async refresh(): Promise<boolean> {
       try {
@@ -59,6 +65,10 @@ export const useUserStore = defineStore('user', {
       if (!permission) return true
       const set = this.permissionSet
       return set.has('*') || set.has(permission)
+    },
+    async logout() {
+      if (this.accessToken) await authApi.logout().catch(() => undefined)
+      this.clear()
     },
     clear() {
       this.setTokens('', '')

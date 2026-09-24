@@ -5,25 +5,35 @@ import MainLayout from '@/layout/MainLayout.vue'
 
 const PlaceholderPage = () => import('@/components/PlaceholderPage.vue')
 
+/** 需求文档路径：模块目录 + 功能文件 */
+function docPath(moduleDoc: string | undefined, menuDoc: string | undefined) {
+  return moduleDoc ? `${moduleDoc}/${menuDoc ?? 'README.md'}` : undefined
+}
+
 /** 由模块定义生成路由：/<模块code>/<菜单path> */
 const moduleRoutes: RouteRecordRaw[] = modules.flatMap((m) =>
   m.menus.map((menu) => ({
     path: `/${m.code}/${menu.path}`,
     name: `${m.code}.${menu.path}`,
     component: menu.component ?? PlaceholderPage,
-    meta: { title: menu.title, module: m.title, permission: menu.permission, doc: m.doc ? `${m.doc}/${menu.doc ?? 'README.md'}` : undefined }
+    meta: { title: menu.title, module: m.title, permission: menu.permission, doc: docPath(m.doc, menu.doc) }
   }))
 )
 
+/** 修改密码前可以访问的页面 */
+const PASSWORD_ALLOWED = new Set(['/change-password', '/login'])
+
 const routes: RouteRecordRaw[] = [
-  { path: '/login', name: 'login', component: () => import('@/views/login/LoginView.vue'), meta: { public: true } },
+  { path: '/login', name: 'login', component: () => import('@/views/auth/LoginView.vue'), meta: { public: true, title: '登录' } },
+  { path: '/change-password', name: 'change-password', component: () => import('@/views/auth/ChangePasswordView.vue'), meta: { title: '修改密码', noTab: true } },
   {
     path: '/',
     component: MainLayout,
     redirect: '/workbench/home',
     children: [
       ...moduleRoutes,
-      { path: '/403', name: 'forbidden', component: () => import('@/views/error/ForbiddenView.vue') }
+      { path: '/profile', name: 'profile', component: () => import('@/views/profile/ProfileView.vue'), meta: { title: '个人中心' } },
+      { path: '/403', name: 'forbidden', component: () => import('@/views/error/ForbiddenView.vue'), meta: { title: '无权限' } }
     ]
   },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/error/NotFoundView.vue'), meta: { public: true } }
@@ -44,6 +54,9 @@ router.beforeEach(async (to) => {
       store.clear()
       return { path: '/login', query: { redirect: to.fullPath } }
     }
+  }
+  if (store.mustChangePassword && !PASSWORD_ALLOWED.has(to.path)) {
+    return { path: '/change-password' }
   }
   if (!store.hasPermission(to.meta.permission as string | undefined)) {
     return { path: '/403' }
