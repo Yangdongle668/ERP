@@ -6,7 +6,9 @@
 
 - `docs/并行开发指南.md`：每个窗口能改哪些文件、契约怎么变更
 - `docs/architecture/后端架构设计.md`：分层、依赖规则、健壮性约定、接口约定
-- `docs/requirements/00-总体需求与通用规范.md` 与对应模块的需求文档
+- `docs/requirements/README.md`（需求编写约定）、`docs/requirements/00-总体需求与通用规范.md`
+- 对应模块的需求目录 `docs/requirements/<编号>-<模块>/`：先读 `README.md`，再读要实现的功能点文件
+- `docs/ui/UI设计规范.md`：页面模板 T1～T8、公共组件、交互与显示格式（前端必须遵守）
 
 ## 常用命令
 

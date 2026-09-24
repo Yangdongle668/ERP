@@ -9,17 +9,19 @@ export default defineModule({
   title: '品质',
   icon: 'CircleCheck',
   order: 90,
-  doc: '10-品质.md',
+  doc: '10-品质',
   menus: [
-    { path: 'standard', title: '检验标准', permission: 'qc:standard:query' },
-    { path: 'iqc', title: 'IQC', permission: 'qc:iqc:query' },
-    { path: 'ipqc', title: 'IPQC', permission: 'qc:ipqc:query' },
-    { path: 'fqc', title: 'FQC', permission: 'qc:fqc:query' },
-    { path: 'oqc', title: 'OQC', permission: 'qc:oqc:query' },
-    { path: 'ncr', title: 'NCR', permission: 'qc:ncr:query' },
-    { path: 'capa', title: 'CAPA', permission: 'qc:capa:query' },
-    { path: 'complaint', title: '客诉', permission: 'qc:complaint:query' },
-    { path: 'scar', title: 'SCAR', permission: 'qc:scar:query' },
-    { path: 'trace', title: '质量追溯', permission: 'qc:trace:query' }
+    { path: 'standard', title: '检验基础数据', permission: 'qc:standard:query', doc: '01-检验基础数据.md' },
+    { path: 'iqc', title: '来料检验 IQC', permission: 'qc:iqc:query', doc: '02-检验单.md' },
+    { path: 'ipqc', title: '制程检验 IPQC', permission: 'qc:ipqc:query', doc: '02-检验单.md' },
+    { path: 'fqc', title: '成品检验 FQC', permission: 'qc:fqc:query', doc: '02-检验单.md' },
+    { path: 'oqc', title: '出货检验 OQC', permission: 'qc:oqc:query', doc: '02-检验单.md' },
+    { path: 'return', title: '退货检验', permission: 'qc:return:query', doc: '02-检验单.md' },
+    { path: 'ncr', title: 'NCR', permission: 'qc:ncr:query', doc: '03-NCR与MRB.md' },
+    { path: 'capa', title: 'CAPA', permission: 'qc:capa:query', doc: '04-CAPA.md' },
+    { path: 'complaint', title: '客诉', permission: 'qc:complaint:query', doc: '05-客诉.md' },
+    { path: 'scar', title: 'SCAR', permission: 'qc:scar:query', doc: '06-SCAR.md' },
+    { path: 'trace', title: '质量追溯', permission: 'qc:trace:query', doc: '07-质量追溯与报表.md' },
+    { path: 'report', title: '质量报表', permission: 'qc:report:query', doc: '07-质量追溯与报表.md' }
   ]
 })

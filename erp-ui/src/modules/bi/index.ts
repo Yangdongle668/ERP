@@ -9,14 +9,17 @@ export default defineModule({
   title: 'BI / AI',
   icon: 'DataAnalysis',
   order: 120,
-  doc: '13-BI与AI.md',
+  doc: '13-BI与AI',
   menus: [
-    { path: 'dashboard', title: '经营分析', permission: 'bi:dashboard:view' },
-    { path: 'sales', title: '销售分析', permission: 'bi:sales:view' },
-    { path: 'purchase', title: '采购分析', permission: 'bi:purchase:view' },
-    { path: 'inventory', title: '库存分析', permission: 'bi:inventory:view' },
-    { path: 'production', title: '生产分析', permission: 'bi:production:view' },
-    { path: 'quality', title: '品质分析', permission: 'bi:quality:view' },
-    { path: 'ai', title: 'AI分析', permission: 'ai:query:use' }
+    { path: 'dashboard', title: '经营驾驶舱', permission: 'bi:dashboard:view', doc: '02-经营驾驶舱.md' },
+    { path: 'sales', title: '销售分析', permission: 'bi:sales:view', doc: '03-专题分析.md' },
+    { path: 'purchase', title: '采购分析', permission: 'bi:purchase:view', doc: '03-专题分析.md' },
+    { path: 'inventory', title: '库存分析', permission: 'bi:inventory:view', doc: '03-专题分析.md' },
+    { path: 'production', title: '生产分析', permission: 'bi:production:view', doc: '03-专题分析.md' },
+    { path: 'quality', title: '品质分析', permission: 'bi:quality:view', doc: '03-专题分析.md' },
+    { path: 'finance', title: '财务分析', permission: 'bi:finance:view', doc: '03-专题分析.md' },
+    { path: 'ai', title: 'AI 分析', permission: 'ai:query:use', doc: '04-AI分析.md' },
+    { path: 'metric', title: '指标库', permission: 'bi:metric:manage', doc: '01-指标库与数据层.md' },
+    { path: 'etl', title: '数据任务', permission: 'bi:metric:manage', doc: '01-指标库与数据层.md' }
   ]
 })

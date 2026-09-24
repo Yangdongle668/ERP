@@ -9,14 +9,22 @@ export default defineModule({
   title: '系统管理',
   icon: 'Setting',
   order: 900,
-  doc: '01-系统管理.md',
+  doc: '01-系统管理',
   menus: [
-    { path: 'user', title: '用户', permission: 'system:user:query' },
-    { path: 'role', title: '角色', permission: 'system:role:query' },
-    { path: 'org', title: '组织架构', permission: 'system:org:query' },
-    { path: 'dict', title: '数据字典', permission: 'system:dict:query' },
-    { path: 'code-rule', title: '编码规则', permission: 'system:code-rule:query' },
-    { path: 'param', title: '系统参数', permission: 'system:param:query' },
-    { path: 'log', title: '日志审计', permission: 'system:log:query' }
+    { path: 'org', title: '组织架构', permission: 'system:org:query', doc: '01-组织架构.md' },
+    { path: 'user', title: '用户', permission: 'system:user:query', doc: '02-用户管理.md' },
+    { path: 'role', title: '角色', permission: 'system:role:query', doc: '03-角色与权限.md' },
+    { path: 'dict', title: '数据字典', permission: 'system:dict:query', doc: '04-数据字典.md' },
+    { path: 'code-rule', title: '编码规则', permission: 'system:code-rule:query', doc: '05-编码规则.md' },
+    { path: 'uom', title: '计量单位', permission: 'system:uom:query', doc: '06-计量单位.md' },
+    { path: 'currency', title: '币别汇率', permission: 'system:currency:query', doc: '07-币别汇率.md' },
+    { path: 'payment-term', title: '付款条件', permission: 'system:payment-term:query', doc: '14-付款条件与贸易基础数据.md' },
+    { path: 'workflow', title: '审批流', permission: 'system:workflow:query', doc: '08-审批流.md' },
+    { path: 'workflow-instance', title: '审批监控', permission: 'system:workflow:monitor', doc: '08-审批流.md' },
+    { path: 'print-template', title: '打印模板', permission: 'system:print:query', doc: '09-打印模板.md' },
+    { path: 'param', title: '系统参数', permission: 'system:param:query', doc: '10-系统参数.md' },
+    { path: 'log', title: '日志审计', permission: 'system:log:query', doc: '11-日志审计.md' },
+    { path: 'job', title: '定时任务', permission: 'system:job:query', doc: '12-附件与任务中心.md' },
+    { path: 'task', title: '任务中心', doc: '12-附件与任务中心.md' }
   ]
 })

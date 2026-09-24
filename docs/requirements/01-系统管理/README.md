@@ -87,7 +87,8 @@
 | `PaymentTermApi` | `get(id)`、`calcDueDates(termId, amount, events)` | 付款条件与到期日计算 |
 | `CurrencyApi` | `getBaseCurrency()`、`getRate(currency, date)`、`getPrecision(currency)` | 币别汇率 |
 | `ParamApi` | `getString/getInt/getDecimal/getBool(key)` | 系统参数 |
-| `WorkflowApi` | `start(...)`、`withdraw(...)`、`getStatus(...)` | 审批流；结果以 `ApprovalCompletedEvent` 通知 |
+| `WorkflowApi` | `start(bizType, bizId, bizNo, title, variables, bizUsers, initiatorId)`、`withdraw(...)`、`isRunning(...)` | 审批流；结果以 `ApprovalCompletedEvent` 通知（契约已定义，引擎未实现前返回 NOT_REQUIRED） |
+| `NotifyApi` | `todo(...)`、`done(...)`、`message(...)`、`alert(...)`、`resolve(alertKey)` | 各模块发待办、消息、预警的统一入口，发布 `TodoCreatedEvent` 等事件，由工作台监听（契约已实现） |
 | `DocLogApi` | `record(bizType, bizId, bizNo, action, fromStatus, toStatus, reason)` | 单据操作日志 |
 | `FileApi` | `bind(fileIds, bizType, bizId)`、`list(bizType, bizId)` | 附件 |
 | `AsyncTaskApi` | `submit(type, name, runnable)` | 提交后台任务（异步导出等） |

@@ -9,14 +9,17 @@ export default defineModule({
   title: '出货',
   icon: 'Van',
   order: 100,
-  doc: '11-出货.md',
+  doc: '11-出货',
   menus: [
-    { path: 'notice', title: '出货通知', permission: 'shp:notice:query' },
-    { path: 'picking', title: '拣货单', permission: 'shp:picking:query' },
-    { path: 'packing', title: '装箱', permission: 'shp:packing:query' },
-    { path: 'packing-list', title: 'Packing List', permission: 'shp:packing-list:query' },
-    { path: 'invoice', title: 'Invoice', permission: 'shp:invoice:query' },
-    { path: 'shipment', title: '出货单', permission: 'shp:shipment:query' },
-    { path: 'customs', title: '报关', permission: 'shp:customs:query' }
+    { path: 'notice', title: '出货通知', permission: 'shp:notice:query', doc: '01-出货通知.md' },
+    { path: 'picking', title: '拣货', permission: 'shp:picking:query', doc: '02-拣货与装箱.md' },
+    { path: 'packing', title: '装箱', permission: 'shp:packing:query', doc: '02-拣货与装箱.md' },
+    { path: 'shipment', title: '出货单', permission: 'shp:shipment:query', doc: '03-出货单.md' },
+    { path: 'packing-list', title: 'Packing List', permission: 'shp:document:query', doc: '04-出货单证.md' },
+    { path: 'invoice', title: 'Invoice', permission: 'shp:document:query', doc: '04-出货单证.md' },
+    { path: 'customs', title: '报关资料', permission: 'shp:document:query', doc: '04-出货单证.md' },
+    { path: 'logistics', title: '物流跟踪', permission: 'shp:logistics:query', doc: '05-物流跟踪.md' },
+    { path: 'forwarder', title: '货代', permission: 'shp:logistics:query', doc: '05-物流跟踪.md' },
+    { path: 'report', title: '出货报表', permission: 'shp:report:query', doc: '06-出货报表.md' }
   ]
 })

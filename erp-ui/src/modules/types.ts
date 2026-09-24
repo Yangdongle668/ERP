@@ -10,6 +10,8 @@ export interface ModuleMenu {
   component?: () => Promise<{ default: Component }>
   /** 不在侧边栏显示（如详情页） */
   hidden?: boolean
+  /** 该页面对应的功能需求文件名（位于模块需求目录下），如 02-物料.md */
+  doc?: string
 }
 
 /** 业务模块定义。每个模块在 src/modules/<code>/index.ts 中默认导出一个 ModuleDefinition，框架自动注册。 */
@@ -21,7 +23,7 @@ export interface ModuleDefinition {
   icon: string
   /** 侧边栏排序，越小越靠前 */
   order: number
-  /** 需求文档文件名（占位页中给出链接） */
+  /** 需求文档目录名（位于 docs/requirements/ 下），如 05-研发工程；占位页中给出路径 */
   doc?: string
   menus: ModuleMenu[]
 }

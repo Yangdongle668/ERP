@@ -11,7 +11,7 @@ const moduleRoutes: RouteRecordRaw[] = modules.flatMap((m) =>
     path: `/${m.code}/${menu.path}`,
     name: `${m.code}.${menu.path}`,
     component: menu.component ?? PlaceholderPage,
-    meta: { title: menu.title, module: m.title, permission: menu.permission, doc: m.doc }
+    meta: { title: menu.title, module: m.title, permission: menu.permission, doc: m.doc ? `${m.doc}/${menu.doc ?? 'README.md'}` : undefined }
   }))
 )
 

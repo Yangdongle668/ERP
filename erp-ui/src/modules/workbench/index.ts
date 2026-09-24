@@ -9,11 +9,12 @@ export default defineModule({
   title: '工作台',
   icon: 'HomeFilled',
   order: 10,
-  doc: '02-工作台.md',
+  doc: '02-工作台',
   menus: [
-    { path: 'home', title: '工作台' },
-    { path: 'todo', title: '我的待办' },
-    { path: 'message', title: '消息通知' },
-    { path: 'alert', title: '预警中心', permission: 'workbench:alert:handle' }
+    { path: 'home', title: '工作台', doc: '01-首页.md' },
+    { path: 'todo', title: '我的待办', doc: '02-待办与审批.md' },
+    { path: 'message', title: '消息中心', doc: '03-消息与公告.md' },
+    { path: 'notice', title: '公告管理', permission: 'wb:notice:manage', doc: '03-消息与公告.md' },
+    { path: 'alert', title: '预警中心', doc: '04-预警中心.md' }
   ]
 })
