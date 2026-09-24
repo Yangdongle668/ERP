@@ -69,5 +69,5 @@ defineExpose({ open })
 <style scoped>
 .tip { margin: 0 0 12px; color: var(--el-color-warning); }
 .pick { width: 100%; margin-bottom: 8px; }
-.err { color: var(--el-color-danger); font-size: 12px; margin-top: 4px; }
+.err { color: var(--el-color-danger); font-size: var(--erp-font-size-caption); margin-top: 4px; }
 </style>

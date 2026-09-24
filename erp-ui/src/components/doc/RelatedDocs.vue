@@ -13,9 +13,9 @@ const router = useRouter()
 </script>
 
 <template>
-  <el-table :data="docs" border>
+  <el-table :data="docs">
     <el-table-column label="方向" width="80" align="center">
-      <template #default="{ row }"><el-tag :type="row.direction === 'UP' ? 'info' : 'primary'" size="small">{{ row.direction === 'UP' ? '上游' : '下游' }}</el-tag></template>
+      <template #default="{ row }"><ErpBadge :type="row.direction === 'UP' ? 'info' : 'primary'" :dot="false">{{ row.direction === 'UP' ? '上游' : '下游' }}</ErpBadge></template>
     </el-table-column>
     <el-table-column prop="docTypeName" label="单据类型" width="140" />
     <el-table-column label="单号" min-width="180">
@@ -28,6 +28,6 @@ const router = useRouter()
     <el-table-column label="状态" width="120" align="center">
       <template #default="{ row }"><span v-if="row.statusLabel">{{ row.statusLabel }}</span><StatusTag v-else :value="row.status" /></template>
     </el-table-column>
-    <template #empty><el-empty description="暂无关联单据" :image-size="60" /></template>
+    <template #empty><ErpEmpty description="暂无关联单据" compact /></template>
   </el-table>
 </template>

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { modules } from '@/modules/registry'
+import type { ModuleMenu } from '@/modules/types'
 import { useUserStore } from '@/stores/user'
 import MainLayout from '@/layout/MainLayout.vue'
 
@@ -10,13 +11,19 @@ function docPath(moduleDoc: string | undefined, menuDoc: string | undefined) {
   return moduleDoc ? `${moduleDoc}/${menuDoc ?? 'README.md'}` : undefined
 }
 
+/** 隐藏页面（详情、编辑）所属的列表菜单标题，用于面包屑 */
+function parentOf(menus: ModuleMenu[], menu: ModuleMenu) {
+  if (!menu.hidden) return undefined
+  return menus.filter((x) => !x.hidden && menu.path.startsWith(`${x.path}/`)).sort((a, b) => b.path.length - a.path.length)[0]?.title
+}
+
 /** 由模块定义生成路由：/<模块code>/<菜单path> */
 const moduleRoutes: RouteRecordRaw[] = modules.flatMap((m) =>
   m.menus.map((menu) => ({
     path: `/${m.code}/${menu.path}`,
     name: `${m.code}.${menu.path}`,
     component: menu.component ?? PlaceholderPage,
-    meta: { title: menu.title, module: m.title, permission: menu.permission, doc: docPath(m.doc, menu.doc) }
+    meta: { title: menu.title, module: m.title, parentTitle: parentOf(m.menus, menu), permission: menu.permission, doc: docPath(m.doc, menu.doc) }
   }))
 )
 

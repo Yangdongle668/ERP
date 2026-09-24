@@ -37,6 +37,6 @@ const label = (m: MaterialBrief) => `${m.code} ${m.name}`
 
 <style scoped>
 .code { display: inline-block; min-width: 110px; font-variant-numeric: tabular-nums; }
-.sub { margin-left: 8px; color: var(--el-text-color-secondary); font-size: 12px; }
-.uom { float: right; margin-left: 12px; color: var(--el-text-color-secondary); }
+.sub { margin-left: 8px; color: var(--erp-color-text-secondary); font-size: var(--erp-font-size-caption); }
+.uom { float: right; margin-left: 12px; color: var(--erp-color-text-secondary); }
 </style>

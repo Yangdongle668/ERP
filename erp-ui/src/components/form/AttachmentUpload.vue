@@ -81,5 +81,5 @@ function onChange(f: { raw?: File }) {
 .progress { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
 .progress .name { min-width: 160px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .progress .el-progress { flex: 1; }
-.err { color: var(--el-color-danger); font-size: 12px; }
+.err { color: var(--el-color-danger); font-size: var(--erp-font-size-caption); }
 </style>

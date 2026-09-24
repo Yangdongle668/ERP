@@ -1,4 +1,5 @@
 import { http, type PageParam, type PageResult } from '@/api/http'
+import type { StatusMap } from '@/components'
 
 export type MaterialType = 'RAW' | 'SEMI_FINISHED' | 'FINISHED' | 'PACKAGING' | 'AUXILIARY' | 'PHANTOM'
 export type MaterialStatus = 'DRAFT' | 'ENABLED' | 'DISABLED'
@@ -12,10 +13,11 @@ export const MATERIAL_TYPE_OPTIONS: { value: MaterialType; label: string }[] = [
   { value: 'PHANTOM', label: '虚拟件' }
 ]
 
-export const MATERIAL_STATUS: Record<MaterialStatus, { label: string; type: 'info' | 'success' | 'danger' }> = {
+/** 物料状态（StatusTag / ErpTable status 列使用）：停用为终态，灰色低权重 */
+export const MATERIAL_STATUS: StatusMap & Record<MaterialStatus, StatusMap[string]> = {
   DRAFT: { label: '草稿', type: 'info' },
   ENABLED: { label: '启用', type: 'success' },
-  DISABLED: { label: '停用', type: 'danger' }
+  DISABLED: { label: '停用', type: 'info', plain: true }
 }
 
 export interface Material {

@@ -132,63 +132,65 @@ onMounted(() => loadTypes(false))
 </script>
 
 <template>
-  <div class="dict-page">
-    <el-card class="left">
-      <div class="bar">
-        <el-input v-model="typeQuery.keyword" placeholder="编码/名称" clearable class="kw" @keyup.enter="typeQuery.pageNo = 1; loadTypes()" @clear="loadTypes()" />
-        <el-button icon="Search" @click="typeQuery.pageNo = 1; loadTypes()">查询</el-button>
-        <el-button v-perm="'system:dict:create'" type="primary" icon="Plus" @click="openType()">新建类型</el-button>
-      </div>
-      <el-table v-loading="typeLoading" :data="types" highlight-current-row border row-key="id" :current-row-key="current?.id" @row-click="(r: any) => select(r)">
-        <el-table-column prop="code" label="编码" min-width="150" show-overflow-tooltip />
-        <el-table-column label="名称" min-width="130">
-          <template #default="{ row }">{{ asType(row).name }}<el-tag v-if="asType(row).builtin" size="small" type="info" class="tag">内置</el-tag></template>
-        </el-table-column>
-        <el-table-column prop="moduleName" label="模块" width="90" />
-        <el-table-column label="状态" width="70" align="center"><template #default="{ row }"><StatusTag :value="asType(row).status" :map="ENABLE_STATUS" /></template></el-table-column>
-        <el-table-column label="操作" width="100">
-          <template #default="{ row }">
-            <RowActions :actions="[
-              { label: '编辑', permission: 'system:dict:update', handler: () => openType(asType(row)) },
-              { label: '删除', permission: 'system:dict:delete', danger: true, visible: !asType(row).builtin, confirm: `确定删除字典类型「${asType(row).code} ${asType(row).name}」吗？`, handler: () => removeType(asType(row)) }
-            ]" />
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-pagination v-model:current-page="typeQuery.pageNo" :page-size="typeQuery.pageSize" :total="typeTotal" layout="total, prev, pager, next" size="small" class="pager" @current-change="loadTypes()" />
-    </el-card>
-    <el-card class="right">
-      <div class="bar">
-        <span class="title">字典项<template v-if="current">：{{ current.name }} <span class="code">{{ current.code }}</span></template></span>
-        <div class="spacer" />
-        <el-button v-if="current" v-perm="'system:dict:create'" type="primary" icon="Plus" @click="openItem()">新建字典项</el-button>
-        <el-tooltip content="刷新缓存" placement="top"><el-button v-perm="'system:dict:update'" icon="Refresh" circle @click="refreshCache" /></el-tooltip>
-      </div>
-      <el-table v-loading="itemLoading" :data="items" border>
-        <el-table-column prop="value" label="值" width="140" />
-        <el-table-column label="标签" width="150">
-          <template #default="{ row }">
-            <el-tag v-if="asItem(row).tagType !== 'DEFAULT'" :type="tagTypeOf(asItem(row).tagType as any) || undefined">{{ asItem(row).label }}</el-tag>
-            <span v-else>{{ asItem(row).label }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="labelEn" label="英文标签" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="sort" label="排序" width="70" align="right" />
-        <el-table-column label="默认" width="60" align="center"><template #default="{ row }">{{ asItem(row).isDefault ? '✓' : '' }}</template></el-table-column>
-        <el-table-column label="状态" width="70" align="center"><template #default="{ row }"><StatusTag :value="asItem(row).status" :map="ENABLE_STATUS" /></template></el-table-column>
-        <el-table-column label="操作" width="160">
-          <template #default="{ row }">
-            <RowActions :actions="[
-              { label: '编辑', permission: 'system:dict:update', handler: () => openItem(asItem(row)) },
-              { label: '停用', permission: 'system:dict:update', visible: !asItem(row).builtin && asItem(row).status === 'ENABLED', handler: () => itemAction(asItem(row), 'disableItem') },
-              { label: '启用', permission: 'system:dict:update', visible: !asItem(row).builtin && asItem(row).status === 'DISABLED', handler: () => itemAction(asItem(row), 'enableItem') },
-              { label: '删除', permission: 'system:dict:delete', danger: true, visible: !asItem(row).builtin, confirm: `确定删除字典项「${asItem(row).value} ${asItem(row).label}」吗？`, handler: () => itemAction(asItem(row), 'removeItem') }
-            ]" />
-          </template>
-        </el-table-column>
-        <template #empty><el-empty :description="current ? '暂无字典项' : '请选择左侧字典类型'" :image-size="60" /></template>
-      </el-table>
-    </el-card>
+  <ErpPage description="维护下拉选项等枚举数据；内置字典项由系统声明，不能删除">
+    <div class="erp-split">
+      <ErpPanel title="字典类型" class="types-panel">
+        <template #extra>
+          <el-button v-perm="'system:dict:create'" type="primary" icon="Plus" @click="openType()">新建类型</el-button>
+        </template>
+        <el-input v-model="typeQuery.keyword" placeholder="搜索编码或名称，回车查询" clearable prefix-icon="Search" class="kw"
+                  @keyup.enter="typeQuery.pageNo = 1; loadTypes()" @clear="loadTypes()" />
+        <el-table v-loading="typeLoading" :data="types" highlight-current-row row-key="id" :current-row-key="current?.id" class="clickable" @row-click="(r: any) => select(r)">
+          <el-table-column prop="code" label="编码" min-width="150" show-overflow-tooltip />
+          <el-table-column label="名称" min-width="130">
+            <template #default="{ row }"><span class="name-cell">{{ asType(row).name }}<ErpBadge v-if="asType(row).builtin" :dot="false">内置</ErpBadge></span></template>
+          </el-table-column>
+          <el-table-column prop="moduleName" label="模块" width="90" />
+          <el-table-column label="状态" width="80"><template #default="{ row }"><StatusTag :value="asType(row).status" :map="ENABLE_STATUS" /></template></el-table-column>
+          <el-table-column label="操作" width="100">
+            <template #default="{ row }">
+              <RowActions :actions="[
+                { label: '编辑', permission: 'system:dict:update', handler: () => openType(asType(row)) },
+                { label: '删除', permission: 'system:dict:delete', danger: true, visible: !asType(row).builtin, confirm: `确定删除字典类型「${asType(row).code} ${asType(row).name}」吗？`, handler: () => removeType(asType(row)) }
+              ]" />
+            </template>
+          </el-table-column>
+          <template #empty><ErpEmpty description="没有匹配的字典类型" compact /></template>
+        </el-table>
+        <el-pagination v-model:current-page="typeQuery.pageNo" :page-size="typeQuery.pageSize" :total="typeTotal" layout="total, prev, pager, next" size="small" background class="pager" @current-change="loadTypes()" />
+      </ErpPanel>
+
+      <ErpPanel class="erp-split-main" :title="current ? current.name : '字典项'" :description="current?.code">
+        <template #extra>
+          <ErpIconButton icon="Refresh" tooltip="刷新字典缓存" permission="system:dict:update" @click="refreshCache" />
+          <el-button v-if="current" v-perm="'system:dict:create'" type="primary" icon="Plus" @click="openItem()">新建字典项</el-button>
+        </template>
+        <el-table v-loading="itemLoading" :data="items">
+          <el-table-column prop="value" label="值" min-width="110" show-overflow-tooltip />
+          <el-table-column label="标签" min-width="120">
+            <template #default="{ row }">
+              <ErpBadge v-if="asItem(row).tagType !== 'DEFAULT'" :type="tagTypeOf(asItem(row).tagType as any) || 'info'">{{ asItem(row).label }}</ErpBadge>
+              <span v-else>{{ asItem(row).label }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="labelEn" label="英文标签" min-width="120" show-overflow-tooltip />
+          <el-table-column prop="sort" label="排序" width="64" align="right" />
+          <el-table-column label="默认" width="56"><template #default="{ row }"><el-icon v-if="asItem(row).isDefault" class="text-success"><Check /></el-icon></template></el-table-column>
+          <el-table-column label="状态" width="80"><template #default="{ row }"><StatusTag :value="asItem(row).status" :map="ENABLE_STATUS" /></template></el-table-column>
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <RowActions :actions="[
+                { label: '编辑', permission: 'system:dict:update', handler: () => openItem(asItem(row)) },
+                { label: '停用', permission: 'system:dict:update', visible: !asItem(row).builtin && asItem(row).status === 'ENABLED', handler: () => itemAction(asItem(row), 'disableItem') },
+                { label: '启用', permission: 'system:dict:update', visible: !asItem(row).builtin && asItem(row).status === 'DISABLED', handler: () => itemAction(asItem(row), 'enableItem') },
+                { label: '删除', permission: 'system:dict:delete', danger: true, visible: !asItem(row).builtin, confirm: `确定删除字典项「${asItem(row).value} ${asItem(row).label}」吗？`, handler: () => itemAction(asItem(row), 'removeItem') }
+              ]" />
+            </template>
+          </el-table-column>
+          <template #empty><ErpEmpty :description="current ? '暂无字典项' : '请选择左侧字典类型'" :icon="current ? 'Empty' : 'Back'" /></template>
+        </el-table>
+      </ErpPanel>
+    </div>
 
     <el-dialog v-model="typeVisible" :title="typeEditing ? '编辑字典类型' : '新建字典类型'" width="640px" :close-on-click-modal="false" append-to-body>
       <el-form ref="typeFormRef" :model="typeForm" :rules="typeRules" label-width="90px">
@@ -215,7 +217,7 @@ onMounted(() => loadTypes(false))
         <el-form-item label="颜色">
           <el-radio-group v-model="itemForm.tagType">
             <el-radio v-for="t in TAGS" :key="t" :value="t">
-              <el-tag v-if="t !== 'DEFAULT'" :type="tagTypeOf(t) || undefined" size="small">{{ itemForm.label || '示例' }}</el-tag>
+              <ErpBadge v-if="t !== 'DEFAULT'" :type="tagTypeOf(t) || 'info'">{{ itemForm.label || '示例' }}</ErpBadge>
               <span v-else>默认</span>
             </el-radio>
           </el-radio-group>
@@ -229,20 +231,14 @@ onMounted(() => loadTypes(false))
         <el-button type="primary" @click="saveItem">保存</el-button>
       </template>
     </el-dialog>
-  </div>
+  </ErpPage>
 </template>
 
 <style scoped>
-.dict-page { display: flex; gap: 12px; align-items: flex-start; }
-.left { width: 40%; min-width: 420px; }
-.right { flex: 1; min-width: 0; margin-top: 0 !important; }
-.bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.bar :deep(.el-button + .el-button) { margin-left: 0; }
-.kw { flex: 1; }
-.title { font-weight: 600; }
-.code { color: var(--el-text-color-secondary); font-weight: 400; margin-left: 4px; }
-.spacer { flex: 1; }
-.tag { margin-left: 4px; }
-.pager { margin-top: 8px; justify-content: flex-end; }
+.types-panel { width: 38%; min-width: 400px; max-width: 520px; flex-shrink: 0; }
+.kw { margin-bottom: 12px; }
+.name-cell { display: inline-flex; align-items: center; gap: 8px; }
+.clickable :deep(.el-table__row) { cursor: pointer; }
+.pager { margin-top: 12px; justify-content: flex-end; }
 .tip { margin-left: 8px; }
 </style>

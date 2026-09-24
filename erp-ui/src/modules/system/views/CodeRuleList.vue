@@ -43,12 +43,13 @@ function reset() {
   load()
 }
 
+/** 规则分段：前缀 / 日期 / 分隔符 / 流水号，用中性色块区分，流水号用主色 */
 function segments(r: Pick<CodeRuleRow, 'prefix' | 'datePattern' | 'separator' | 'seqLength'>) {
-  const s: { text: string; type: '' | 'success' | 'warning' | 'info' }[] = []
-  if (r.prefix) s.push({ text: r.prefix, type: '' })
-  if (r.datePattern) s.push({ text: r.datePattern, type: 'success' })
-  if (r.datePattern && r.separator) s.push({ text: r.separator, type: 'info' })
-  s.push({ text: '0'.repeat(r.seqLength), type: 'warning' })
+  const s: { text: string; kind: 'prefix' | 'date' | 'sep' | 'seq'; title: string }[] = []
+  if (r.prefix) s.push({ text: r.prefix, kind: 'prefix', title: '前缀' })
+  if (r.datePattern) s.push({ text: r.datePattern, kind: 'date', title: '日期' })
+  if (r.datePattern && r.separator) s.push({ text: r.separator, kind: 'sep', title: '分隔符' })
+  s.push({ text: '0'.repeat(r.seqLength), kind: 'seq', title: `流水号 ${r.seqLength} 位` })
   return s
 }
 
@@ -133,20 +134,23 @@ onMounted(load)
 </script>
 
 <template>
-  <el-card>
-    <ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="load" @reset="reset" />
-    <ErpTable :columns="columns" :data="list" :loading="loading" storage-key="system.codeRule" :actions-width="140" @refresh="load">
-      <template #col-rule="{ row }">
-        <el-tag v-for="(s, i) in segments(asRule(row))" :key="i" :type="s.type || undefined" effect="plain" class="seg">{{ s.text }}</el-tag>
-      </template>
-      <template #actions="{ row }">
-        <RowActions :actions="[
-          { label: '编辑', permission: 'system:code-rule:update', handler: () => openEdit(asRule(row)) },
-          { label: '流水号', permission: 'system:code-rule:query', handler: () => openSeqs(asRule(row)) }
-        ]" />
-      </template>
-    </ErpTable>
-  </el-card>
+  <ErpPage description="各业务单据与主数据的编号规则：前缀 + 日期 + 流水号；修改只影响之后生成的编号">
+    <ErpPanel>
+      <template #filter><ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="load" @reset="reset" /></template>
+      <ErpTable :columns="columns" :data="list" :loading="loading" storage-key="system.codeRule" :actions-width="140" @refresh="load">
+        <template #col-rule="{ row }">
+          <span class="segs">
+            <span v-for="(s, i) in segments(asRule(row))" :key="i" :class="['seg', `seg--${s.kind}`]" :title="s.title">{{ s.text }}</span>
+          </span>
+        </template>
+        <template #actions="{ row }">
+          <RowActions :actions="[
+            { label: '编辑', permission: 'system:code-rule:update', handler: () => openEdit(asRule(row)) },
+            { label: '流水号', permission: 'system:code-rule:query', handler: () => openSeqs(asRule(row)) }
+          ]" />
+        </template>
+      </ErpTable>
+    </ErpPanel>
 
   <el-dialog v-model="visible" :title="`编辑编码规则 - ${editing?.bizCode ?? ''}`" width="640px" :close-on-click-modal="false" append-to-body>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
@@ -180,21 +184,29 @@ onMounted(load)
   </el-dialog>
 
   <el-drawer v-model="seqVisible" :title="`流水号 - ${seqRule?.name ?? ''}`" size="720px" append-to-body>
-    <el-table :data="seqs" border>
+    <el-table :data="seqs">
       <el-table-column prop="resetKey" label="重置键" min-width="160" />
       <el-table-column prop="currentValue" label="当前值" width="120" align="right" />
       <el-table-column label="最后更新" width="170"><template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template></el-table-column>
       <el-table-column label="操作" width="90">
         <template #default="{ row }"><el-button v-perm="'system:code-rule:update'" link type="primary" @click="adjust(row as SeqRow)">调整</el-button></template>
       </el-table-column>
-      <template #empty><el-empty description="尚未生成过编码" :image-size="60" /></template>
+      <template #empty><ErpEmpty description="尚未生成过编码" compact /></template>
     </el-table>
   </el-drawer>
+  </ErpPage>
 </template>
 
 <style scoped>
-.seg { margin-right: 2px; font-family: monospace; }
-.preview { font-family: monospace; font-size: 16px; color: var(--el-color-primary); }
-.err { color: var(--el-color-danger); font-size: 12px; }
-.var { margin-left: 4px; }
+.segs { display: inline-flex; gap: 2px; }
+.seg {
+  display: inline-flex; align-items: center; height: 22px; padding: 0 6px; border-radius: var(--erp-radius-xs);
+  font-family: var(--erp-font-family-mono); font-size: var(--erp-font-size-caption); background: var(--erp-color-hover); color: var(--erp-color-text);
+}
+.seg--date { color: var(--erp-color-text-secondary); }
+.seg--sep { background: transparent; color: var(--erp-color-text-tertiary); padding: 0 2px; }
+.seg--seq { background: var(--erp-color-primary-bg); color: var(--el-color-primary); }
+.preview { font-family: var(--erp-font-family-mono); font-size: var(--erp-font-size-section-title); color: var(--erp-color-text); letter-spacing: 0.5px; }
+.err { color: var(--el-color-danger); font-size: var(--erp-font-size-caption); }
+.var { margin-left: 4px; font-family: var(--erp-font-family-mono); font-size: var(--erp-font-size-caption); padding: 1px 4px; border-radius: var(--erp-radius-xs); background: var(--erp-color-hover); }
 </style>

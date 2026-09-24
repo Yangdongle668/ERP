@@ -77,12 +77,18 @@ async function back() {
 </template>
 
 <style scoped>
+/* 吸顶：抵消内容区内边距，贴合内容区顶部与两侧（UI 设计规范 T4/T5） */
 .doc-page-header {
-  position: sticky; top: -16px; z-index: 10; display: flex; justify-content: space-between; align-items: center;
-  margin: -16px -16px 12px; padding: 12px 16px; background: var(--el-bg-color); border-bottom: 1px solid var(--el-border-color-lighter);
+  position: sticky; top: calc(-1 * var(--erp-page-padding-y)); z-index: 10; display: flex; justify-content: space-between; align-items: center;
+  gap: var(--erp-space-4); margin: calc(-1 * var(--erp-page-padding-y)) calc(-1 * var(--erp-page-padding-x)) 0;
+  padding: 12px var(--erp-page-padding-x); min-height: 60px; background: var(--erp-color-surface); border-bottom: 1px solid var(--erp-color-border);
 }
-.left, .right { display: flex; align-items: center; gap: 8px; }
+.left, .right { display: flex; align-items: center; gap: var(--erp-space-2); min-width: 0; }
+.right { flex-shrink: 0; }
 .right :deep(.el-button + .el-button) { margin-left: 0; }
-.back { font-size: 18px; }
-.title { font-size: 18px; font-weight: 600; }
+.back { font-size: var(--erp-icon-size-lg); color: var(--erp-color-text-secondary); }
+.title {
+  font-size: var(--erp-font-size-page-title); font-weight: var(--erp-font-weight-semibold); line-height: 28px; margin-right: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 </style>

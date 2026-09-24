@@ -52,7 +52,7 @@ async function submit() {
     <el-form-item label="确认新密码" prop="confirm"><el-input v-model="form.confirm" type="password" show-password autocomplete="new-password" /></el-form-item>
     <el-form-item>
       <ul class="checks">
-        <li v-for="c in checks" :key="c.label" :class="c.ok ? 'ok' : 'no'">{{ c.ok ? '✓' : '✗' }} {{ c.label }}</li>
+        <li v-for="c in checks" :key="c.label" :class="c.ok ? 'ok' : 'no'"><el-icon><component :is="c.ok ? 'Check' : 'Close'" /></el-icon>{{ c.label }}</li>
       </ul>
     </el-form-item>
     <el-form-item>
@@ -64,7 +64,8 @@ async function submit() {
 
 <style scoped>
 .pwd-form { max-width: 480px; }
-.checks { margin: 0; padding: 0; list-style: none; font-size: 13px; line-height: 1.8; }
+.checks { margin: 0; padding: 0; list-style: none; font-size: var(--erp-font-size-secondary); line-height: 1.8; }
+.checks li { display: flex; align-items: center; gap: 6px; }
 .ok { color: var(--el-color-success); }
-.no { color: var(--el-text-color-secondary); }
+.no { color: var(--erp-color-text-secondary); }
 </style>

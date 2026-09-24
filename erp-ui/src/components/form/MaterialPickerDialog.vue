@@ -116,13 +116,13 @@ defineExpose({ open })
           <el-input v-model="keyword" placeholder="编码/名称/规格，回车查询" clearable @keyup.enter="search" @clear="search" />
           <el-button type="primary" icon="Search" @click="search">查询</el-button>
         </div>
-        <el-table ref="tableRef" v-loading="loading" :data="list" row-key="id" border height="360" @selection-change="onSelect" @row-click="onRowClick">
+        <el-table ref="tableRef" v-loading="loading" :data="list" row-key="id" height="360" @selection-change="onSelect" @row-click="onRowClick">
           <el-table-column v-if="multiple" type="selection" width="44" />
           <el-table-column prop="code" label="编码" width="140" />
           <el-table-column prop="name" label="名称" min-width="160" show-overflow-tooltip />
           <el-table-column prop="spec" label="规格" min-width="160" show-overflow-tooltip />
           <el-table-column prop="baseUom" label="单位" width="70" align="center" />
-          <template #empty><el-empty description="暂无数据" :image-size="60" /></template>
+          <template #empty><ErpEmpty description="暂无数据" compact /></template>
         </el-table>
         <el-pagination v-model:current-page="pageNo" :page-size="pageSize" :total="total" layout="total, prev, pager, next" size="small" class="pager" @current-change="load" />
       </div>
@@ -140,12 +140,12 @@ defineExpose({ open })
 
 <style scoped>
 .picker { display: flex; gap: 12px; }
-.tree { width: 220px; border: 1px solid var(--el-border-color-lighter); border-radius: 4px; padding: 8px; }
-.tree-title { font-weight: 600; margin-bottom: 8px; }
+.tree { width: 220px; border: 1px solid var(--erp-color-border-light); border-radius: var(--erp-radius-xs); padding: 8px; }
+.tree-title { font-weight: var(--erp-font-weight-semibold); margin-bottom: 8px; }
 .main { flex: 1; min-width: 0; }
 .bar { display: flex; gap: 8px; margin-bottom: 8px; }
 .pager { margin-top: 8px; justify-content: flex-end; }
 .selected { margin-top: 12px; max-height: 80px; overflow: auto; }
-.selected .label { color: var(--el-text-color-secondary); }
+.selected .label { color: var(--erp-color-text-secondary); }
 .tag { margin: 2px 4px 2px 0; }
 </style>

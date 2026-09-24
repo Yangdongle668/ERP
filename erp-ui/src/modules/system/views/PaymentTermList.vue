@@ -118,20 +118,21 @@ const asTerm = (r: unknown) => r as TermRow
 </script>
 
 <template>
-  <el-card>
-    <ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="search" @reset="reset" />
-    <ErpTable :columns="columns" :data="list" :loading="loading" storage-key="system.payment-term" :actions-width="170" @refresh="load">
-      <template #toolbar><el-button v-perm="'system:payment-term:create'" type="primary" icon="Plus" @click="open()">新建</el-button></template>
-      <template #actions="{ row }">
-        <RowActions :actions="[
-          { label: '编辑', permission: 'system:payment-term:update', handler: () => open(asTerm(row)) },
-          { label: '停用', permission: 'system:payment-term:update', visible: asTerm(row).status === 'ENABLED', handler: () => action(asTerm(row), 'disable') },
-          { label: '启用', permission: 'system:payment-term:update', visible: asTerm(row).status === 'DISABLED', handler: () => action(asTerm(row), 'enable') },
-          { label: '删除', permission: 'system:payment-term:delete', danger: true, confirm: `确定删除付款条件「${asTerm(row).name}」吗？删除后不可恢复。`, handler: () => action(asTerm(row), 'remove') }
-        ]" />
-      </template>
-    </ErpTable>
-  </el-card>
+  <ErpPage description="付款节点决定回款 / 付款计划与到期日；修改节点只影响之后新建的单据">
+    <ErpPanel>
+      <template #filter><ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="search" @reset="reset" /></template>
+      <ErpTable :columns="columns" :data="list" :loading="loading" storage-key="system.payment-term" :actions-width="170" @refresh="load">
+        <template #toolbar><el-button v-perm="'system:payment-term:create'" type="primary" icon="Plus" @click="open()">新建付款条件</el-button></template>
+        <template #actions="{ row }">
+          <RowActions :actions="[
+            { label: '编辑', permission: 'system:payment-term:update', handler: () => open(asTerm(row)) },
+            { label: '停用', permission: 'system:payment-term:update', visible: asTerm(row).status === 'ENABLED', handler: () => action(asTerm(row), 'disable') },
+            { label: '启用', permission: 'system:payment-term:update', visible: asTerm(row).status === 'DISABLED', handler: () => action(asTerm(row), 'enable') },
+            { label: '删除', permission: 'system:payment-term:delete', danger: true, confirm: `确定删除付款条件「${asTerm(row).name}」吗？删除后不可恢复。`, handler: () => action(asTerm(row), 'remove') }
+          ]" />
+        </template>
+      </ErpTable>
+    </ErpPanel>
 
   <el-dialog v-model="visible" :title="editing ? '编辑付款条件' : '新建付款条件'" width="860px" :close-on-click-modal="false" append-to-body>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
@@ -152,7 +153,7 @@ const asTerm = (r: unknown) => r as TermRow
       <span class="group-title">付款节点</span>
       <el-button icon="Plus" @click="addNode">添加节点</el-button>
     </div>
-    <el-table :data="form.nodes" border>
+    <el-table :data="form.nodes">
       <el-table-column type="index" label="#" width="50" align="center" />
       <el-table-column label="名称" min-width="140"><template #default="{ row }"><el-input v-model="row.name" maxlength="32" placeholder="如 定金、尾款" /></template></el-table-column>
       <el-table-column label="比例(%)" width="140"><template #default="{ row }"><NumberInput v-model="row.percent" :precision="2" :min="0" :max="100" trim-zeros /></template></el-table-column>
@@ -173,12 +174,13 @@ const asTerm = (r: unknown) => r as TermRow
       <el-button type="primary" @click="save">保存</el-button>
     </template>
   </el-dialog>
+  </ErpPage>
 </template>
 
 <style scoped>
 .nodes-head { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 8px; }
 .nodes-head .group-title { margin: 0; }
-.sum { margin-top: 8px; text-align: right; font-weight: 500; }
+.sum { margin-top: 8px; text-align: right; font-weight: var(--erp-font-weight-medium); }
 .sum.bad { color: var(--el-color-danger); }
 .w100 { width: 100px; }
 </style>

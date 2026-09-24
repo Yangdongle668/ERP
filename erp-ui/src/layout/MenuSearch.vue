@@ -57,6 +57,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 </script>
 
 <template>
+  <div class="menu-search">
   <el-autocomplete
     ref="inputRef"
     v-model="keyword"
@@ -66,16 +67,21 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
     :trigger-on-focus="false"
     highlight-first-item
     clearable
-    class="menu-search"
+    class="menu-search__input"
     @select="select"
   >
     <template #default="{ item }">
       <span>{{ item.entry.title }}</span><span class="module">{{ item.entry.module }}</span>
     </template>
   </el-autocomplete>
+  </div>
 </template>
 
 <style scoped>
-.menu-search { width: 220px; }
-.module { float: right; margin-left: 12px; color: var(--el-text-color-secondary); font-size: 12px; }
+.menu-search { width: 260px; flex: none; }
+.menu-search__input { width: 100%; }
+.menu-search :deep(.el-input__wrapper) { background: var(--erp-color-surface-subtle); box-shadow: 0 0 0 1px transparent inset; }
+.menu-search :deep(.el-input__wrapper:hover) { box-shadow: 0 0 0 1px var(--erp-color-border) inset; }
+.menu-search :deep(.el-input__wrapper.is-focus) { background: var(--erp-color-surface); }
+.module { float: right; margin-left: 12px; color: var(--erp-color-text-tertiary); font-size: var(--erp-font-size-caption); }
 </style>

@@ -1,4 +1,9 @@
 import type { App } from 'vue'
+import ErpPage from './base/ErpPage.vue'
+import ErpPanel from './base/ErpPanel.vue'
+import ErpBadge from './base/ErpBadge.vue'
+import ErpEmpty from './base/ErpEmpty.vue'
+import ErpIconButton from './base/ErpIconButton.vue'
 import ErpSearchForm from './list/ErpSearchForm.vue'
 import ErpTable from './list/ErpTable.vue'
 import ErpPagination from './list/ErpPagination.vue'
@@ -42,8 +47,13 @@ import PrintButton from './tools/PrintButton.vue'
 /**
  * 公共组件（UI 设计规范第 5 节）。全局注册，模块页面直接使用，不需要 import；
  * 各模块不得自行实现同类组件。
+ *
+ * 基础：ErpPage（页面骨架）、ErpPanel（内容面板）、ErpBadge（状态徽标）、ErpEmpty（空状态）、ErpIconButton（图标按钮）；
+ * Button / Input / Select / DatePicker / Tabs / Dialog / Drawer / Dropdown / Skeleton / Toast 直接使用 Element Plus，
+ * 外观由 styles/tokens.css + styles/element.css 统一定义，页面不得覆盖。
  */
 export const components = {
+  ErpPage, ErpPanel, ErpBadge, ErpEmpty, ErpIconButton,
   ErpSearchForm, ErpTable, ErpPagination, RowActions,
   StatusTag, DictTag, DictSelect, DictRadio, RemoteSelect, UserSelect, OrgTreeSelect, UomSelect, CurrencySelect, CountrySelect,
   MaterialSelect, MaterialPickerDialog, CustomerSelect, SupplierSelect, WarehouseSelect, LocationSelect, BatchSelect,
@@ -58,6 +68,11 @@ export function registerComponents(app: App) {
 
 declare module 'vue' {
   export interface GlobalComponents {
+    ErpPage: typeof ErpPage
+    ErpPanel: typeof ErpPanel
+    ErpBadge: typeof ErpBadge
+    ErpEmpty: typeof ErpEmpty
+    ErpIconButton: typeof ErpIconButton
     ErpSearchForm: typeof ErpSearchForm
     ErpTable: typeof ErpTable
     ErpPagination: typeof ErpPagination

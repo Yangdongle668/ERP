@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { download } from '@/api/http'
+import ErpIconButton from '../base/ErpIconButton.vue'
 
 /**
  * 导出按钮（UI 设计规范 9.2）：导出内容与当前查询条件一致，列与列设置一致（columns 传当前显示列的字段名）。
@@ -35,7 +36,5 @@ async function run() {
 </script>
 
 <template>
-  <el-tooltip :content="label ?? '导出'" placement="top">
-    <el-button v-perm="permission" icon="Download" circle :loading="loading" @click="run" />
-  </el-tooltip>
+  <ErpIconButton icon="Download" :tooltip="label ?? '导出'" :permission="permission" :loading="loading" @click="run" />
 </template>

@@ -24,7 +24,7 @@ const curColumns: TableColumn<CurrencyRow>[] = [
   { prop: 'code', label: '币别代码', width: 140, slot: true },
   { prop: 'name', label: '名称', width: 110 },
   { prop: 'nameEn', label: '英文名称', minWidth: 160 },
-  { prop: 'symbol', label: '符号', width: 70, align: 'center' },
+  { prop: 'symbol', label: '符号', width: 70 },
   { prop: 'amountPrecision', label: '金额精度', width: 90, align: 'right' },
   { prop: 'sort', label: '排序', width: 70, align: 'right' },
   { prop: 'status', label: '状态', width: 80, type: 'status', statusMap: ENABLE_STATUS }
@@ -204,46 +204,48 @@ onMounted(loadCurrencies)
 </script>
 
 <template>
-  <el-card>
-    <div class="group-title">币别</div>
-    <ErpTable :columns="curColumns" :data="currencies" :loading="curLoading" storage-key="system.currency" :actions-width="200" @refresh="loadCurrencies">
-      <template #toolbar><el-button v-perm="'system:currency:create'" type="primary" icon="Plus" @click="openCurrency()">新建币别</el-button></template>
-      <template #col-code="{ row }">
-        {{ asCur(row).code }}<el-tag v-if="asCur(row).base" size="small" type="success" class="ml4">本位币</el-tag>
-      </template>
-      <template #actions="{ row }">
-        <RowActions :actions="[
-          { label: '编辑', permission: 'system:currency:update', handler: () => openCurrency(asCur(row)) },
-          { label: '设为本位币', permission: 'system:currency:set-base', visible: !asCur(row).base && asCur(row).status === 'ENABLED', handler: () => currencyAction(asCur(row), 'setBase') },
-          { label: '停用', permission: 'system:currency:update', visible: asCur(row).status === 'ENABLED' && !asCur(row).base, handler: () => currencyAction(asCur(row), 'disable') },
-          { label: '启用', permission: 'system:currency:update', visible: asCur(row).status === 'DISABLED', handler: () => currencyAction(asCur(row), 'enable') }
-        ]" />
-      </template>
-    </ErpTable>
-  </el-card>
+  <ErpPage description="维护币别、本位币与汇率；单据按单据日期取当天或之前最近的日汇率">
+    <ErpPanel title="币别">
+      <ErpTable :columns="curColumns" :data="currencies" :loading="curLoading" storage-key="system.currency" :actions-width="200" @refresh="loadCurrencies">
+        <template #toolbar><el-button v-perm="'system:currency:create'" type="primary" icon="Plus" @click="openCurrency()">新建币别</el-button></template>
+        <template #col-code="{ row }">
+          <span class="code-cell"><span class="num">{{ asCur(row).code }}</span><ErpBadge v-if="asCur(row).base" type="primary" :dot="false">本位币</ErpBadge></span>
+        </template>
+        <template #actions="{ row }">
+          <RowActions :actions="[
+            { label: '编辑', permission: 'system:currency:update', handler: () => openCurrency(asCur(row)) },
+            { label: '设为本位币', permission: 'system:currency:set-base', visible: !asCur(row).base && asCur(row).status === 'ENABLED', handler: () => currencyAction(asCur(row), 'setBase') },
+            { label: '停用', permission: 'system:currency:update', visible: asCur(row).status === 'ENABLED' && !asCur(row).base, handler: () => currencyAction(asCur(row), 'disable') },
+            { label: '启用', permission: 'system:currency:update', visible: asCur(row).status === 'DISABLED', handler: () => currencyAction(asCur(row), 'enable') }
+          ]" />
+        </template>
+      </ErpTable>
+    </ErpPanel>
 
-  <el-card>
-    <div class="group-title">汇率<span v-if="baseCode" class="form-tip">（1 外币 = x {{ baseCode }}）</span></div>
-    <ErpSearchForm v-model="query" :fields="rateFields" :loading="loading" @search="search" @reset="reset" />
-    <ErpTable :columns="rateColumns" :data="list" :loading="loading" storage-key="system.rate" :actions-width="120" @sort-change="onSort" @refresh="load">
-      <template #toolbar>
-        <el-button v-perm="'system:rate:create'" type="primary" icon="Plus" @click="openRate()">新增汇率</el-button>
-        <el-button v-perm="'system:rate:create'" @click="openBatch">批量录入</el-button>
-      </template>
-      <template #toolbar-right>
-        <el-tooltip content="导入" placement="top"><el-button v-perm="'system:rate:import'" icon="Upload" circle @click="importRef?.open()" /></el-tooltip>
-        <ExportButton url="/system/exchange-rates/export" :params="() => rateQueryParams({ ...(query as RateQuery) })" filename="汇率" permission="system:rate:export" />
-      </template>
-      <template #col-rate="{ row }"><span class="num">{{ asRate(row).rate }}</span></template>
-      <template #actions="{ row }">
-        <RowActions :actions="[
-          { label: '编辑', permission: 'system:rate:update', handler: () => openRate(asRate(row)) },
-          { label: '删除', permission: 'system:rate:delete', danger: true, confirm: `确定删除 ${asRate(row).currency} ${asRate(row).effectiveDate} 的汇率吗？`, handler: () => removeRate(asRate(row)) }
-        ]" />
-      </template>
-    </ErpTable>
-    <ErpPagination v-model:page-no="query.pageNo" v-model:page-size="query.pageSize" :total="total" @change="load" />
-  </el-card>
+    <ErpPanel title="汇率" :description="baseCode ? `1 外币 = x ${baseCode}` : undefined">
+      <template #filter><ErpSearchForm v-model="query" :fields="rateFields" :loading="loading" @search="search" @reset="reset" /></template>
+      <ErpTable :columns="rateColumns" :data="list" :loading="loading" storage-key="system.rate" :actions-width="120" empty-text="暂无汇率" @sort-change="onSort" @refresh="load">
+        <template #toolbar>
+          <el-button v-perm="'system:rate:create'" type="primary" icon="Plus" @click="openRate()">新增汇率</el-button>
+          <el-button v-perm="'system:rate:create'" @click="openBatch">批量录入</el-button>
+        </template>
+        <template #toolbar-right>
+          <ErpIconButton icon="Upload" tooltip="导入" permission="system:rate:import" @click="importRef?.open()" />
+          <ExportButton url="/system/exchange-rates/export" :params="() => rateQueryParams({ ...(query as RateQuery) })" filename="汇率" permission="system:rate:export" />
+        </template>
+        <template #col-rate="{ row }"><span class="num">{{ asRate(row).rate }}</span></template>
+        <template #actions="{ row }">
+          <RowActions :actions="[
+            { label: '编辑', permission: 'system:rate:update', handler: () => openRate(asRate(row)) },
+            { label: '删除', permission: 'system:rate:delete', danger: true, confirm: `确定删除 ${asRate(row).currency} ${asRate(row).effectiveDate} 的汇率吗？`, handler: () => removeRate(asRate(row)) }
+          ]" />
+        </template>
+        <template #empty>
+          <el-button v-perm="'system:rate:create'" @click="openBatch">批量录入今日汇率</el-button>
+        </template>
+      </ErpTable>
+      <ErpPagination v-model:page-no="query.pageNo" v-model:page-size="query.pageSize" :total="total" @change="load" />
+    </ErpPanel>
 
   <ImportDialog ref="importRef" title="导入汇率" base="/system/exchange-rates" template-name="汇率" @done="load" />
 
@@ -299,7 +301,7 @@ onMounted(loadCurrencies)
       </el-form-item>
       <el-form-item label="生效日期"><el-date-picker v-model="batch.effectiveDate" type="date" value-format="YYYY-MM-DD" :clearable="false" /></el-form-item>
     </el-form>
-    <el-table :data="batch.lines" border max-height="420">
+    <el-table :data="batch.lines" max-height="420">
       <el-table-column prop="currency" label="币别" width="80" />
       <el-table-column prop="name" label="名称" width="110" />
       <el-table-column label="上次汇率" width="120" align="right"><template #default="{ row }">{{ row.last ?? '-' }}</template></el-table-column>
@@ -316,12 +318,11 @@ onMounted(loadCurrencies)
       <el-button type="primary" @click="saveBatch">保存</el-button>
     </template>
   </el-dialog>
+  </ErpPage>
 </template>
 
 <style scoped>
-.ml4 { margin-left: 4px; }
+.code-cell { display: inline-flex; align-items: center; gap: 8px; }
 .mt4 { margin-top: 4px; }
-.w120 { width: 120px; }
-.num { font-variant-numeric: tabular-nums; }
-.warn { color: var(--el-color-warning); font-size: 12px; }
+.warn { color: var(--el-color-warning); font-size: var(--erp-font-size-caption); }
 </style>

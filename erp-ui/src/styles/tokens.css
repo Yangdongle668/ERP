@@ -1,0 +1,185 @@
+/*
+ * ERP Design Tokens（UI 设计规范第 2 节）
+ *
+ * 这是全站唯一的颜色、字体、间距、圆角、阴影、动效来源：
+ * - 业务页面与组件只允许使用 var(--erp-*) 或 var(--el-*)，不允许写 #hex / rgb() / px 字号；
+ *   `npm run lint:style` 会检查（src/modules 与 src/views 下的 .vue 文件）。
+ * - Element Plus 的 CSS 变量在下方统一映射到这些 token，组件库自动继承。
+ */
+:root {
+  /* ---------- 颜色：中性色 ---------- */
+  --erp-color-bg: #F5F6F8;             /* 页面背景 */
+  --erp-color-surface: #FFFFFF;        /* 面板、表格、弹窗 */
+  --erp-color-surface-subtle: #F7F8FA; /* 表头、工具条、只读字段底色 */
+  --erp-color-text: #1F2329;           /* 主文字 */
+  --erp-color-text-secondary: #646A73; /* 次要文字、表单标签 */
+  --erp-color-text-tertiary: #8F959E;  /* 说明、占位符、时间戳 */
+  --erp-color-text-disabled: #BBBFC4;
+  --erp-color-border: #E5E6EB;         /* 分割线、面板边框 */
+  --erp-color-border-light: #EFF0F2;   /* 表格行分割线 */
+  --erp-color-border-strong: #D0D3D8;  /* 输入框、按钮边框 */
+  --erp-color-hover: #F2F3F5;          /* 行、菜单、图标按钮悬停 */
+  --erp-color-active: #EBECEF;         /* 按下 */
+  --erp-color-sidebar: #FFFFFF;
+  --erp-color-mask: rgba(31, 35, 41, 0.4);
+
+  /* ---------- 颜色：语义色（只用于状态与关键操作） ---------- */
+  --erp-color-primary: #2B6CE6;
+  --erp-color-primary-hover: #2256B8;
+  --erp-color-primary-bg: #EAF0FD;
+  --erp-color-success: #1A9E5F;
+  --erp-color-success-bg: #E8F5EF;
+  --erp-color-warning: #D97A00;
+  --erp-color-warning-bg: #FBF2E6;
+  --erp-color-error: #D93D3D;
+  --erp-color-error-bg: #FBECEC;
+  --erp-color-info: #646A73;
+  --erp-color-info-bg: #F0F0F1;
+  --erp-color-focus-ring: rgba(43, 108, 230, 0.16);
+
+  /* ---------- 字体 ---------- */
+  --erp-font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", -apple-system, "Segoe UI", sans-serif;
+  --erp-font-family-mono: "JetBrains Mono", Consolas, "Microsoft YaHei", monospace;
+  --erp-font-size-page-title: 20px;
+  --erp-font-size-section-title: 16px;
+  --erp-font-size-body: 14px;
+  --erp-font-size-secondary: 13px;
+  --erp-font-size-caption: 12px;
+  --erp-font-size-metric: 28px;        /* 工作台指标数字 */
+  --erp-font-weight-regular: 400;
+  --erp-font-weight-medium: 500;
+  --erp-font-weight-semibold: 600;
+  --erp-line-height: 1.5715;
+  --erp-icon-size-sm: 14px;            /* 行内图标 */
+  --erp-icon-size: 16px;               /* 按钮、菜单、表格内图标 */
+  --erp-icon-size-lg: 18px;            /* 头部工具图标 */
+
+  /* ---------- 间距（4 / 8 基准） ---------- */
+  --erp-space-1: 4px;
+  --erp-space-2: 8px;
+  --erp-space-3: 12px;
+  --erp-space-4: 16px;
+  --erp-space-5: 20px;
+  --erp-space-6: 24px;
+  --erp-space-8: 32px;
+  --erp-page-padding-x: 24px;          /* 内容区左右留白 */
+  --erp-page-padding-y: 20px;
+  --erp-section-gap: 20px;             /* 模块之间 */
+
+  /* ---------- 尺寸 ---------- */
+  --erp-control-height: 32px;
+  --erp-header-height: 52px;
+  --erp-tabs-height: 36px;
+  --erp-sidebar-width: 220px;
+  --erp-sidebar-collapsed-width: 64px;
+  --erp-table-row-height: 40px;
+
+  /* ---------- 圆角 ---------- */
+  --erp-radius-xs: 4px;                /* Badge、Checkbox、Tag */
+  --erp-radius-control: 6px;           /* Input、Button、Select */
+  --erp-radius-card: 8px;              /* 面板、下拉浮层 */
+  --erp-radius-dialog: 10px;           /* Dialog、MessageBox */
+
+  /* ---------- 阴影：只用于浮层 ---------- */
+  --erp-shadow-float: 0 6px 20px rgba(31, 35, 41, 0.08), 0 1px 3px rgba(31, 35, 41, 0.06);
+  --erp-shadow-dialog: 0 12px 32px rgba(31, 35, 41, 0.12), 0 2px 6px rgba(31, 35, 41, 0.06);
+
+  /* ---------- 动效 ---------- */
+  --erp-duration-fast: 120ms;
+  --erp-duration: 160ms;
+  --erp-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ================= Element Plus 映射 ================= */
+  --el-font-family: var(--erp-font-family);
+  --el-font-size-extra-large: 20px;
+  --el-font-size-large: 18px;
+  --el-font-size-medium: 16px;
+  --el-font-size-base: 14px;
+  --el-font-size-small: 13px;
+  --el-font-size-extra-small: 12px;
+  --el-font-weight-primary: 500;
+  --el-font-line-height-primary: 22px;
+
+  --el-color-white: #FFFFFF;
+  --el-color-black: #1F2329;
+  --el-color-primary: #2B6CE6;
+  --el-color-primary-light-3: #6B98EE;
+  --el-color-primary-light-5: #95B6F3;
+  --el-color-primary-light-7: #BFD3F8;
+  --el-color-primary-light-8: #D5E2FA;
+  --el-color-primary-light-9: #EAF0FD;
+  --el-color-primary-dark-2: #2256B8;
+  --el-color-success: #1A9E5F;
+  --el-color-success-light-3: #5FBB8F;
+  --el-color-success-light-5: #8DCFAF;
+  --el-color-success-light-7: #BAE2CF;
+  --el-color-success-light-8: #D1ECDF;
+  --el-color-success-light-9: #E8F5EF;
+  --el-color-success-dark-2: #157E4C;
+  --el-color-warning: #D97A00;
+  --el-color-warning-light-3: #E4A24D;
+  --el-color-warning-light-5: #ECBD80;
+  --el-color-warning-light-7: #F4D7B3;
+  --el-color-warning-light-8: #F7E4CC;
+  --el-color-warning-light-9: #FBF2E6;
+  --el-color-warning-dark-2: #AE6200;
+  --el-color-danger: #D93D3D;
+  --el-color-danger-light-3: #E47777;
+  --el-color-danger-light-5: #EC9E9E;
+  --el-color-danger-light-7: #F4C5C5;
+  --el-color-danger-light-8: #F7D8D8;
+  --el-color-danger-light-9: #FBECEC;
+  --el-color-danger-dark-2: #AE3131;
+  --el-color-error: #D93D3D;
+  --el-color-error-light-3: #E47777;
+  --el-color-error-light-5: #EC9E9E;
+  --el-color-error-light-7: #F4C5C5;
+  --el-color-error-light-8: #F7D8D8;
+  --el-color-error-light-9: #FBECEC;
+  --el-color-error-dark-2: #AE3131;
+  --el-color-info: #646A73;
+  --el-color-info-light-3: #93979D;
+  --el-color-info-light-5: #B2B5B9;
+  --el-color-info-light-7: #D1D2D5;
+  --el-color-info-light-8: #E0E1E3;
+  --el-color-info-light-9: #F0F0F1;
+  --el-color-info-dark-2: #50555C;
+
+  --el-bg-color: var(--erp-color-surface);
+  --el-bg-color-page: var(--erp-color-bg);
+  --el-bg-color-overlay: var(--erp-color-surface);
+  --el-text-color-primary: var(--erp-color-text);
+  --el-text-color-regular: var(--erp-color-text);
+  --el-text-color-secondary: var(--erp-color-text-secondary);
+  --el-text-color-placeholder: var(--erp-color-text-tertiary);
+  --el-text-color-disabled: var(--erp-color-text-disabled);
+  --el-border-color: var(--erp-color-border-strong);
+  --el-border-color-hover: #B8BCC3;
+  --el-border-color-light: var(--erp-color-border);
+  --el-border-color-lighter: var(--erp-color-border-light);
+  --el-border-color-extra-light: #F5F6F7;
+  --el-border-color-dark: #C9CDD4;
+  --el-border-color-darker: #B8BCC3;
+  --el-fill-color: var(--erp-color-hover);
+  --el-fill-color-light: var(--erp-color-surface-subtle);
+  --el-fill-color-lighter: #FAFAFB;
+  --el-fill-color-extra-light: #FCFCFD;
+  --el-fill-color-dark: var(--erp-color-active);
+  --el-fill-color-darker: #E1E3E7;
+  --el-fill-color-blank: var(--erp-color-surface);
+  --el-mask-color: rgba(255, 255, 255, 0.72);
+  --el-overlay-color-lighter: var(--erp-color-mask);
+
+  --el-border-radius-base: var(--erp-radius-control);
+  --el-border-radius-small: var(--erp-radius-xs);
+  --el-border-radius-round: 20px;
+
+  --el-box-shadow: var(--erp-shadow-dialog);
+  --el-box-shadow-light: var(--erp-shadow-float);
+  --el-box-shadow-lighter: var(--erp-shadow-float);
+  --el-box-shadow-dark: var(--erp-shadow-dialog);
+
+  --el-transition-duration: var(--erp-duration);
+  --el-transition-duration-fast: var(--erp-duration-fast);
+  --el-component-size: var(--erp-control-height);
+}

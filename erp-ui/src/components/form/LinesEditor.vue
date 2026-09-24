@@ -422,7 +422,7 @@ defineExpose({ validate, validRows, addRow, batchAdd })
 .toolbar :deep(.el-button + .el-button) { margin-left: 0; }
 .lines-table :deep(.el-table__cell) { padding: 2px 0; }
 .lines-table :deep(.cell) { padding: 0 4px; }
-.cell { min-height: 32px; display: flex; align-items: center; border-radius: 4px; }
+.cell { min-height: 32px; display: flex; align-items: center; border-radius: var(--erp-radius-xs); }
 .cell > * { width: 100%; }
 .cell .ro { padding: 0 7px; }
 .has-error { box-shadow: 0 0 0 1px var(--el-color-danger) inset; background: var(--el-color-danger-light-9); }

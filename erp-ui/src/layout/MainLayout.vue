@@ -137,9 +137,12 @@ onBeforeUnmount(() => {
 
 <template>
   <el-container class="layout">
-    <el-aside :width="collapsed ? '64px' : '216px'" class="aside">
-      <div class="logo" :title="systemName">{{ collapsed ? systemName.slice(0, 1) : systemName }}</div>
-      <el-scrollbar>
+    <el-aside :width="collapsed ? 'var(--erp-sidebar-collapsed-width)' : 'var(--erp-sidebar-width)'" :class="['aside', { 'is-collapsed': collapsed }]">
+      <div class="brand" :title="systemName">
+        <span class="brand__mark">{{ systemName.slice(0, 1) }}</span>
+        <span v-show="!collapsed" class="brand__name">{{ systemName }}</span>
+      </div>
+      <el-scrollbar class="aside__menu">
         <el-menu :default-active="activeMenu" :collapse="collapsed" :collapse-transition="false" router unique-opened>
           <el-sub-menu v-for="m in visibleModules" :key="m.code" :index="m.code">
             <template #title>
@@ -155,20 +158,17 @@ onBeforeUnmount(() => {
     </el-aside>
     <el-container class="right">
       <el-header class="header">
-        <el-button text @click="collapsed = !collapsed">
-          <el-icon><component :is="collapsed ? 'Expand' : 'Fold'" /></el-icon>
-        </el-button>
-        <el-breadcrumb separator="/">
-          <el-breadcrumb-item v-if="route.meta.module">{{ route.meta.module }}</el-breadcrumb-item>
-          <el-breadcrumb-item>{{ tabs.customTitles[tabKeyOf(route)] ?? route.meta.title }}</el-breadcrumb-item>
-        </el-breadcrumb>
-        <div class="spacer" />
+        <ErpIconButton :icon="collapsed ? 'Expand' : 'Fold'" :tooltip="collapsed ? '展开侧边栏' : '收起侧边栏'" @click="collapsed = !collapsed" />
         <MenuSearch :modules="visibleModules" />
+        <div class="erp-spacer" />
         <TodoBell />
-        <el-dropdown trigger="click">
-          <span class="user">
-            <el-icon><UserFilled /></el-icon>{{ store.user?.realName ?? store.user?.username }}<el-icon><ArrowDown /></el-icon>
-          </span>
+        <span class="header__divider" />
+        <el-dropdown trigger="click" placement="bottom-end">
+          <button type="button" class="user">
+            <span class="user__avatar">{{ (store.user?.realName ?? store.user?.username ?? '?').slice(0, 1) }}</span>
+            <span class="user__name">{{ store.user?.realName ?? store.user?.username }}</span>
+            <el-icon class="user__arrow"><ArrowDown /></el-icon>
+          </button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item icon="User" @click="router.push('/profile')">个人中心</el-dropdown-item>
@@ -193,13 +193,57 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .layout { height: 100vh; }
-.aside { background: var(--el-bg-color); border-right: 1px solid var(--el-border-color-light); transition: width .2s; display: flex; flex-direction: column; overflow: hidden; }
-.aside .el-menu { border-right: none; }
-.logo { height: 56px; line-height: 56px; text-align: center; font-weight: 600; font-size: 18px; color: var(--el-color-primary); flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 8px; }
+
+/* ---------- 侧边栏 ---------- */
+.aside {
+  background: var(--erp-color-sidebar); border-right: 1px solid var(--erp-color-border); display: flex; flex-direction: column;
+  overflow: hidden; transition: width var(--erp-duration) var(--erp-ease);
+}
+.brand { height: var(--erp-header-height); display: flex; align-items: center; gap: 10px; padding: 0 18px; flex-shrink: 0; overflow: hidden; }
+.aside.is-collapsed .brand { padding: 0; justify-content: center; }
+.brand__mark {
+  width: 28px; height: 28px; border-radius: var(--erp-radius-control); background: var(--erp-color-text); color: var(--erp-color-surface);
+  display: inline-flex; align-items: center; justify-content: center; font-size: var(--erp-font-size-body); font-weight: var(--erp-font-weight-semibold); flex-shrink: 0;
+}
+.brand__name { font-size: var(--erp-font-size-section-title); font-weight: var(--erp-font-weight-semibold); color: var(--erp-color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aside__menu { flex: 1; }
+.aside :deep(.el-menu) { border-right: none; padding: 4px 8px 16px; }
+.aside :deep(.el-menu--collapse) { width: 100%; padding: 4px 8px; }
+.aside :deep(.el-sub-menu__title) {
+  border-radius: var(--erp-radius-control); color: var(--erp-color-text); font-weight: var(--erp-font-weight-medium); height: 40px; line-height: 40px;
+  padding-left: 12px !important;
+}
+.aside :deep(.el-sub-menu__title .el-icon) { font-size: var(--erp-icon-size); color: var(--erp-color-text-secondary); margin-right: 10px; }
+.aside :deep(.el-sub-menu.is-active > .el-sub-menu__title .el-icon) { color: var(--el-color-primary); }
+.aside :deep(.el-sub-menu__title:hover), .aside :deep(.el-menu-item:hover) { background: var(--erp-color-hover); }
+.aside :deep(.el-menu-item) {
+  height: 36px; line-height: 36px; margin: 2px 0; border-radius: var(--erp-radius-control); padding-left: 38px !important;
+  color: var(--erp-color-text-secondary); transition: background-color var(--erp-duration-fast) var(--erp-ease), color var(--erp-duration-fast) var(--erp-ease);
+}
+.aside :deep(.el-menu-item.is-active) { background: var(--erp-color-primary-bg); color: var(--el-color-primary); font-weight: var(--erp-font-weight-medium); }
+.aside :deep(.el-menu--collapse .el-sub-menu__title) { padding: 0 !important; justify-content: center; }
+.aside :deep(.el-menu--collapse .el-sub-menu__title .el-icon) { margin: 0; }
+
+/* ---------- 头部 ---------- */
 .right { min-width: 0; }
-.header { height: 56px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--el-border-color-light); background: var(--el-bg-color); }
-.spacer { flex: 1; }
-.user { cursor: pointer; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0; }
-.header .el-breadcrumb { white-space: nowrap; flex-shrink: 0; }
-.main { background: var(--el-bg-color-page); padding: 16px; }
+.header {
+  height: var(--erp-header-height); display: flex; align-items: center; gap: var(--erp-space-2); padding: 0 16px 0 12px;
+  border-bottom: 1px solid var(--erp-color-border); background: var(--erp-color-surface);
+}
+.header__divider { width: 1px; height: 20px; background: var(--erp-color-border); margin: 0 4px; }
+.user {
+  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 4px; border: none; border-radius: var(--erp-radius-control);
+  background: transparent; cursor: pointer; color: var(--erp-color-text); font-family: inherit; font-size: var(--erp-font-size-body);
+  transition: background-color var(--erp-duration-fast) var(--erp-ease);
+}
+.user:hover { background: var(--erp-color-hover); }
+.user__avatar {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--erp-color-active); color: var(--erp-color-text-secondary);
+  display: inline-flex; align-items: center; justify-content: center; font-size: var(--erp-font-size-caption); font-weight: var(--erp-font-weight-medium);
+}
+.user__name { white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+.user__arrow { color: var(--erp-color-text-tertiary); font-size: var(--erp-icon-size-sm); }
+
+/* ---------- 内容区 ---------- */
+.main { background: var(--erp-color-bg); padding: var(--erp-page-padding-y) var(--erp-page-padding-x) var(--erp-space-6); }
 </style>

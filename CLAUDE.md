@@ -8,7 +8,7 @@
 - `docs/architecture/后端架构设计.md`：分层、依赖规则、健壮性约定、接口约定
 - `docs/requirements/README.md`（需求编写约定）、`docs/requirements/00-总体需求与通用规范.md`
 - 对应模块的需求目录 `docs/requirements/<编号>-<模块>/`：先读 `README.md`，再读要实现的功能点文件
-- `docs/ui/UI设计规范.md`：页面模板 T1～T8、公共组件、交互与显示格式（前端必须遵守）
+- `docs/ui/UI设计规范.md`：Design System（token、字号、颜色、图标）、页面模板 T1～T8、公共组件、交互与显示格式（前端必须遵守）
 
 ## 常用命令
 
@@ -32,4 +32,5 @@ cd erp-ui && npm run build                     # 前端类型检查 + 构建
 8. Controller 方法必须声明 `@PreAuthorize("@ss.has('...')")`，权限标识与需求文档一致。
 9. 前端页面放在 `erp-ui/src/modules/<code>/`，在该目录的 `index.ts` 注册菜单，不改公共路由。
 10. 参考实现：后端 `erp-modules/erp-module-engineering`（物料），前端 `erp-ui/src/modules/engineering`。
-11. 提交前 `mvn -B verify` 与 `npm run build` 必须通过。
+11. 前端页面以 `ErpPage` 为根、内容用 `ErpPanel` + 公共组件；样式只用 `--erp-*` token，不写颜色/字号/阴影字面量，图标只用 `components/icons.ts` 中的 Lucide 图标（`npm run build` 自动执行 `lint:style` 检查）。
+12. 提交前 `mvn -B verify` 与 `npm run build` 必须通过。

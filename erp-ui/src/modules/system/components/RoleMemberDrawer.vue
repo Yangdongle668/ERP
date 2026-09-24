@@ -53,7 +53,7 @@ defineExpose({ open })
       <UserSelect v-model="adding" multiple placeholder="选择要添加的用户" class="users" />
       <el-button type="primary" icon="Plus" :disabled="!adding.length" @click="add">添加成员</el-button>
     </div>
-    <el-table v-loading="loading" :data="members" border>
+    <el-table v-loading="loading" :data="members">
       <el-table-column prop="username" label="用户名" width="140" />
       <el-table-column prop="realName" label="姓名" width="120" />
       <el-table-column prop="deptName" label="主部门" min-width="160" />
@@ -65,7 +65,7 @@ defineExpose({ open })
           </el-popconfirm>
         </template>
       </el-table-column>
-      <template #empty><el-empty description="暂无成员" :image-size="60" /></template>
+      <template #empty><ErpEmpty description="暂无成员" compact /></template>
     </el-table>
   </el-drawer>
 </template>

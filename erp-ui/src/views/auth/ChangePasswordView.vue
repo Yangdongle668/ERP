@@ -24,17 +24,19 @@ async function logout() {
 
 <template>
   <div class="page">
-    <el-card class="box">
-      <h3>{{ title }}</h3>
+    <section class="box">
+      <h1 class="box__title">{{ title }}</h1>
+      <p class="box__desc">为了账号安全，修改密码后才能继续使用系统</p>
       <PasswordForm @changed="onChanged">
         <template #extra-buttons><el-button @click="logout">退出登录</el-button></template>
       </PasswordForm>
-    </el-card>
+    </section>
   </div>
 </template>
 
 <style scoped>
-.page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--el-bg-color-page); padding: 16px; }
-.box { width: 100%; max-width: 560px; }
-h3 { margin: 0 0 20px; }
+.page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--erp-color-bg); padding: 16px; }
+.box { width: 100%; max-width: 560px; padding: 32px; background: var(--erp-color-surface); border: 1px solid var(--erp-color-border); border-radius: var(--erp-radius-dialog); }
+.box__title { margin: 0; font-size: var(--erp-font-size-page-title); font-weight: var(--erp-font-weight-semibold); line-height: 28px; }
+.box__desc { margin: 4px 0 24px; font-size: var(--erp-font-size-secondary); color: var(--erp-color-text-secondary); }
 </style>

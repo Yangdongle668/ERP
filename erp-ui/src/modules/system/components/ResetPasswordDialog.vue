@@ -73,5 +73,5 @@ defineExpose({ open })
 </template>
 
 <style scoped>
-.pwd { font-family: monospace; font-size: 20px; margin-bottom: 12px; letter-spacing: 1px; }
+.pwd { font-family: var(--erp-font-family-mono); font-size: var(--erp-font-size-page-title); margin-bottom: 12px; letter-spacing: 1px; }
 </style>

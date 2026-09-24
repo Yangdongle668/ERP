@@ -63,5 +63,5 @@ async function print(templateId?: string) {
 </template>
 
 <style scoped>
-.def { color: var(--el-text-color-secondary); }
+.def { color: var(--erp-color-text-secondary); }
 </style>

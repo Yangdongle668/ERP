@@ -97,17 +97,14 @@ async function save(andNew = false) {
 </script>
 
 <template>
-  <div>
-    <DocPageHeader :title="id ? `编辑用户 ${form.username}` : '新建用户'" @back="back">
-      <template #actions-suffix>
-        <el-button @click="back">取消</el-button>
-        <el-button v-if="!id" :loading="saving" @click="save(true)">保存并新建</el-button>
-        <el-button type="primary" :loading="saving" @click="save()">保存</el-button>
-      </template>
-    </DocPageHeader>
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
-      <el-card>
-        <div class="group-title">基本信息</div>
+  <ErpPage :title="id ? `编辑用户 ${form.username}` : '新建用户'" back sticky :on-back="back">
+    <template #actions>
+      <el-button @click="back">取消</el-button>
+      <el-button v-if="!id" :loading="saving" @click="save(true)">保存并新建</el-button>
+      <el-button type="primary" :loading="saving" @click="save()">保存</el-button>
+    </template>
+    <el-form ref="formRef" :model="form" :rules="rules" label-width="110px" class="erp-stack">
+      <ErpPanel title="基本信息">
         <el-row :gutter="16">
           <el-col :xl="8" :span="12">
             <el-form-item label="用户名" prop="username">
@@ -133,9 +130,8 @@ async function save(andNew = false) {
           </el-col>
           <el-col :span="24"><el-form-item label="备注"><el-input v-model="form.remark" type="textarea" :rows="2" maxlength="256" show-word-limit /></el-form-item></el-col>
         </el-row>
-      </el-card>
-      <el-card>
-        <div class="group-title">组织与权限</div>
+      </ErpPanel>
+      <ErpPanel title="组织与权限">
         <el-row :gutter="16">
           <el-col :xl="8" :span="12"><el-form-item label="主部门" prop="deptId"><OrgTreeSelect v-model="form.deptId" /></el-form-item></el-col>
           <el-col :xl="8" :span="12">
@@ -167,7 +163,7 @@ async function save(andNew = false) {
             </el-col>
           </template>
         </el-row>
-      </el-card>
+      </ErpPanel>
     </el-form>
-  </div>
+  </ErpPage>
 </template>

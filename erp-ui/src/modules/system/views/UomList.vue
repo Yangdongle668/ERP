@@ -127,40 +127,41 @@ onMounted(load)
 </script>
 
 <template>
-  <el-card>
-    <div class="group-title">计量单位</div>
-    <ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="load" @reset="reset" />
-    <ErpTable :columns="columns" :data="list" :loading="loading" storage-key="system.uom" :actions-width="170" @refresh="load">
-      <template #toolbar><el-button v-perm="'system:uom:create'" type="primary" icon="Plus" @click="openUom()">新建</el-button></template>
-      <template #actions="{ row }">
-        <RowActions :actions="[
-          { label: '编辑', permission: 'system:uom:update', handler: () => openUom(asUom(row)) },
-          { label: '停用', permission: 'system:uom:update', visible: asUom(row).status === 'ENABLED', handler: () => uomAction(asUom(row), 'disable') },
-          { label: '启用', permission: 'system:uom:update', visible: asUom(row).status === 'DISABLED', handler: () => uomAction(asUom(row), 'enable') },
-          { label: '删除', permission: 'system:uom:delete', danger: true, visible: !asUom(row).builtin, confirm: `确定删除单位「${asUom(row).code} ${asUom(row).name}」吗？删除后不可恢复。`, handler: () => uomAction(asUom(row), 'remove') }
-        ]" />
-      </template>
-    </ErpTable>
-  </el-card>
-  <el-card>
-    <div class="conv-head">
-      <span class="group-title">通用换算</span>
-      <el-button v-perm="'system:uom:update'" type="primary" icon="Plus" @click="openConv()">新建换算</el-button>
-    </div>
-    <el-table :data="conversions" border>
-      <el-table-column label="源单位" width="160"><template #default="{ row }">1 {{ row.fromUom }}</template></el-table-column>
-      <el-table-column label="" width="50" align="center">=</el-table-column>
-      <el-table-column label="目标单位数量" min-width="200"><template #default="{ row }">{{ row.rate }} {{ row.toUom }}</template></el-table-column>
-      <el-table-column label="操作" width="140">
-        <template #default="{ row }">
-          <el-button v-perm="'system:uom:update'" link type="primary" @click="openConv(row as ConversionRow)">编辑</el-button>
-          <el-popconfirm title="确定删除该换算吗？" @confirm="removeConv(row as ConversionRow)">
-            <template #reference><el-button v-perm="'system:uom:update'" link type="danger">删除</el-button></template>
-          </el-popconfirm>
+  <ErpPage description="数量单位与精度；通用换算用于所有物料（物料专属换算在物料中维护）">
+    <ErpPanel title="计量单位">
+      <template #filter><ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="load" @reset="reset" /></template>
+      <ErpTable :columns="columns" :data="list" :loading="loading" storage-key="system.uom" :actions-width="170" @refresh="load">
+        <template #toolbar><el-button v-perm="'system:uom:create'" type="primary" icon="Plus" @click="openUom()">新建单位</el-button></template>
+        <template #actions="{ row }">
+          <RowActions :actions="[
+            { label: '编辑', permission: 'system:uom:update', handler: () => openUom(asUom(row)) },
+            { label: '停用', permission: 'system:uom:update', visible: asUom(row).status === 'ENABLED', handler: () => uomAction(asUom(row), 'disable') },
+            { label: '启用', permission: 'system:uom:update', visible: asUom(row).status === 'DISABLED', handler: () => uomAction(asUom(row), 'enable') },
+            { label: '删除', permission: 'system:uom:delete', danger: true, visible: !asUom(row).builtin, confirm: `确定删除单位「${asUom(row).code} ${asUom(row).name}」吗？删除后不可恢复。`, handler: () => uomAction(asUom(row), 'remove') }
+          ]" />
         </template>
-      </el-table-column>
-    </el-table>
-  </el-card>
+      </ErpTable>
+    </ErpPanel>
+
+    <ErpPanel title="通用换算" description="双向生效：1 A = x B 同时得到 1 B = 1/x A">
+      <template #extra>
+        <el-button v-perm="'system:uom:update'" icon="Plus" @click="openConv()">新建换算</el-button>
+      </template>
+      <el-table :data="conversions">
+        <el-table-column label="换算关系" min-width="260">
+          <template #default="{ row }"><span class="num">1 {{ row.fromUom }}</span><span class="eq">=</span><span class="num">{{ row.rate }} {{ row.toUom }}</span></template>
+        </el-table-column>
+        <el-table-column label="操作" width="140">
+          <template #default="{ row }">
+            <RowActions :actions="[
+              { label: '编辑', permission: 'system:uom:update', handler: () => openConv(row as ConversionRow) },
+              { label: '删除', permission: 'system:uom:update', danger: true, confirm: '确定删除该换算吗？', handler: () => removeConv(row as ConversionRow) }
+            ]" />
+          </template>
+        </el-table-column>
+        <template #empty><ErpEmpty description="暂无通用换算" compact /></template>
+      </el-table>
+    </ErpPanel>
 
   <el-dialog v-model="visible" :title="editing ? '编辑计量单位' : '新建计量单位'" width="640px" :close-on-click-modal="false" append-to-body>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
@@ -194,9 +195,9 @@ onMounted(load)
       <el-button type="primary" @click="saveConv">保存</el-button>
     </template>
   </el-dialog>
+  </ErpPage>
 </template>
 
 <style scoped>
-.conv-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.conv-head .group-title { margin: 0; }
+.eq { margin: 0 12px; color: var(--erp-color-text-tertiary); }
 </style>

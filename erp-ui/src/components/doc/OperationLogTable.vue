@@ -25,7 +25,7 @@ defineExpose({ reload: load })
 </script>
 
 <template>
-  <el-table v-loading="loading" :data="list" border>
+  <el-table v-loading="loading" :data="list">
     <el-table-column label="时间" width="170"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
     <el-table-column prop="operatorName" label="操作人" width="120" />
     <el-table-column prop="actionName" label="动作" width="120" />
@@ -38,6 +38,6 @@ defineExpose({ reload: load })
       </template>
     </el-table-column>
     <el-table-column prop="reason" label="原因" min-width="200" show-overflow-tooltip />
-    <template #empty><el-empty description="暂无操作记录" :image-size="60" /></template>
+    <template #empty><ErpEmpty description="暂无操作记录" compact /></template>
   </el-table>
 </template>

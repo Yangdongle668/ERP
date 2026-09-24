@@ -121,7 +121,7 @@ defineExpose({ open })
       <div class="module-head">
         <el-icon class="caret" @click="toggleCollapse(m.code)"><component :is="collapsed.has(m.code) ? 'ArrowRight' : 'ArrowDown'" /></el-icon>
         <el-checkbox :model-value="moduleState(m).all" :indeterminate="moduleState(m).some" @change="(v: any) => toggleModule(m, !!v)">
-          <b>{{ m.name }}</b>
+          <span class="module-name">{{ m.name }}</span>
         </el-checkbox>
       </div>
       <div v-show="!collapsed.has(m.code)">
@@ -137,7 +137,7 @@ defineExpose({ open })
               :title="p.code"
               @change="(v: any) => toggle(g, p.code, !!v)"
             >
-              {{ p.name }}<el-tag v-if="p.type === 'FIELD'" size="small" type="warning" class="field">字段</el-tag>
+              {{ p.name }}<ErpBadge v-if="p.type === 'FIELD'" type="warning" :dot="false" class="field">字段</ErpBadge>
             </el-checkbox>
           </div>
         </div>
@@ -153,11 +153,13 @@ defineExpose({ open })
 <style scoped>
 .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .search { flex: 1; }
-.module { border-bottom: 1px solid var(--el-border-color-lighter); padding: 8px 0; }
+.module { border-bottom: 1px solid var(--erp-color-border-light); padding: 8px 0; }
 .module-head { display: flex; align-items: center; gap: 4px; }
 .caret { cursor: pointer; }
 .group { display: flex; align-items: flex-start; padding: 4px 0 4px 24px; }
 .group-name { width: 150px; flex-shrink: 0; }
 .perms { display: flex; flex-wrap: wrap; column-gap: 4px; }
-.field { margin-left: 2px; }
+.field { margin-left: 6px; }
+.module-name { font-weight: var(--erp-font-weight-semibold); }
+.caret { color: var(--erp-color-text-tertiary); }
 </style>

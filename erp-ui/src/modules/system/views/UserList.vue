@@ -46,7 +46,7 @@ const columns: TableColumn<UserRow>[] = [
   { prop: 'roleNames', label: '角色', minWidth: 200, formatter: (r) => r.roleNames.join('，') || '-' },
   { prop: 'position', label: '岗位', width: 100, type: 'dict', dictType: 'sys_position' },
   { prop: 'mobile', label: '手机号', width: 120 },
-  { prop: 'status', label: '状态', width: 110, slot: true, align: 'center' },
+  { prop: 'status', label: '状态', width: 150, slot: true },
   { prop: 'lastLoginAt', label: '最近登录', width: 150, type: 'datetime', sortable: true },
   { prop: 'createdAt', label: '创建时间', width: 150, type: 'datetime', sortable: true, hidden: true }
 ]
@@ -112,84 +112,88 @@ const isSelf = (row: UserRow) => row.id === userStore.user?.id
 </script>
 
 <template>
-  <div class="user-page">
-    <el-card class="org-panel">
-      <el-input v-model="orgKeyword" placeholder="搜索部门" clearable prefix-icon="Search" @input="treeRef?.filter(orgKeyword)" />
-      <el-scrollbar class="tree-scroll">
-        <el-tree
-          ref="treeRef"
-          :data="baseData.orgTree.data ?? []"
-          :props="{ label: 'name', children: 'children' }"
-          node-key="id"
-          :current-node-key="query.deptId"
-          highlight-current
-          default-expand-all
-          :expand-on-click-node="false"
-          :filter-node-method="filterNode"
-          @node-click="onNode"
-        />
-      </el-scrollbar>
-    </el-card>
-    <el-card class="main">
-      <ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="search" @reset="reset">
-        <template #field-roleId>
-          <el-select v-model="query.roleId" placeholder="全部" clearable class="w200">
-            <el-option v-for="r in roles" :key="r.id" :value="r.id" :label="r.name" />
-          </el-select>
-        </template>
-      </ErpSearchForm>
-      <ErpTable
-        ref="tableRef"
-        :columns="columns"
-        :data="list"
-        :loading="loading"
-        selection
-        storage-key="system.user"
-        :actions-width="230"
-        @selection-change="onSelectionChange"
-        @sort-change="onSort"
-        @refresh="load"
-      >
-        <template #toolbar>
-          <el-button v-perm="'system:user:create'" type="primary" icon="Plus" @click="router.push({ path: '/system/user/new', query: { deptId: query.deptId } })">新建</el-button>
-          <el-tooltip :disabled="!!selection.length" content="请先勾选数据" placement="top">
-            <span><el-button v-perm="'system:user:update'" :disabled="!selection.length" @click="batchDisable">批量停用</el-button></span>
-          </el-tooltip>
-        </template>
-        <template #toolbar-right>
-          <el-tooltip content="导入" placement="top"><el-button v-perm="'system:user:import'" icon="Upload" circle @click="importRef?.open()" /></el-tooltip>
-          <ExportButton url="/system/users/export" :params="() => userQueryParams({ ...query })" :columns="exportColumns" filename="用户" permission="system:user:export" />
-        </template>
-        <template #col-status="{ row }">
-          <StatusTag :value="asUser(row).status" :map="ENABLE_STATUS" />
-          <el-tag v-if="asUser(row).locked" type="warning" class="locked">已锁定</el-tag>
-        </template>
-        <template #actions="{ row }">
-          <RowActions
-            :actions="[
-              { label: '编辑', permission: 'system:user:update', handler: () => router.push(`/system/user/${asUser(row).id}/edit`) },
-              { label: '重置密码', permission: 'system:user:reset-password', handler: () => resetRef?.open(asUser(row)) },
-              { label: '停用', permission: 'system:user:update', visible: asUser(row).status === 'ENABLED' && !asUser(row).admin && !isSelf(asUser(row)), handler: () => changeStatus(asUser(row), 'disable') },
-              { label: '启用', permission: 'system:user:update', visible: asUser(row).status === 'DISABLED', handler: () => changeStatus(asUser(row), 'enable') },
-              { label: '解锁', permission: 'system:user:update', visible: asUser(row).locked, handler: () => unlock(asUser(row)) },
-              { label: '强制下线', permission: 'system:user:update', visible: asUser(row).status === 'ENABLED' && !isSelf(asUser(row)), confirm: '强制下线后该用户需要重新登录，确定吗？', handler: () => kick(asUser(row)) }
-            ]"
+  <ErpPage description="维护登录账号、所属部门与角色；停用后立即下线且不能登录">
+    <div class="erp-split">
+      <ErpPanel title="组织" class="org-panel" flush>
+        <div class="org-search">
+          <el-input v-model="orgKeyword" placeholder="搜索部门" clearable prefix-icon="Search" @input="treeRef?.filter(orgKeyword)" />
+        </div>
+        <el-scrollbar class="tree-scroll">
+          <el-tree
+            ref="treeRef"
+            :data="baseData.orgTree.data ?? []"
+            :props="{ label: 'name', children: 'children' }"
+            node-key="id"
+            :current-node-key="query.deptId"
+            highlight-current
+            default-expand-all
+            :expand-on-click-node="false"
+            :filter-node-method="filterNode"
+            @node-click="onNode"
           />
+        </el-scrollbar>
+      </ErpPanel>
+
+      <ErpPanel class="erp-split-main">
+        <template #filter>
+          <ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="search" @reset="reset">
+            <template #field-roleId>
+              <el-select v-model="query.roleId" placeholder="全部" clearable class="w200">
+                <el-option v-for="r in roles" :key="r.id" :value="r.id" :label="r.name" />
+              </el-select>
+            </template>
+          </ErpSearchForm>
         </template>
-      </ErpTable>
-      <ErpPagination v-model:page-no="query.pageNo" v-model:page-size="query.pageSize" :total="total" @change="load" />
-    </el-card>
+        <ErpTable
+          ref="tableRef"
+          :columns="columns"
+          :data="list"
+          :loading="loading"
+          selection
+          storage-key="system.user"
+          :actions-width="220"
+          @selection-change="onSelectionChange"
+          @sort-change="onSort"
+          @refresh="load"
+        >
+          <template #toolbar>
+            <el-button v-perm="'system:user:create'" type="primary" icon="Plus" @click="router.push({ path: '/system/user/new', query: { deptId: query.deptId } })">新建用户</el-button>
+            <el-button v-perm="'system:user:update'" :disabled="!selection.length" @click="batchDisable">批量停用</el-button>
+          </template>
+          <template #toolbar-right>
+            <ErpIconButton icon="Upload" tooltip="导入" permission="system:user:import" @click="importRef?.open()" />
+            <ExportButton url="/system/users/export" :params="() => userQueryParams({ ...query })" :columns="exportColumns" filename="用户" permission="system:user:export" />
+          </template>
+          <template #col-status="{ row }">
+            <span class="status-cell">
+              <StatusTag :value="asUser(row).status" :map="ENABLE_STATUS" />
+              <ErpBadge v-if="asUser(row).locked" type="warning">已锁定</ErpBadge>
+            </span>
+          </template>
+          <template #actions="{ row }">
+            <RowActions
+              :actions="[
+                { label: '编辑', permission: 'system:user:update', handler: () => router.push(`/system/user/${asUser(row).id}/edit`) },
+                { label: '重置密码', permission: 'system:user:reset-password', handler: () => resetRef?.open(asUser(row)) },
+                { label: '停用', permission: 'system:user:update', visible: asUser(row).status === 'ENABLED' && !asUser(row).admin && !isSelf(asUser(row)), handler: () => changeStatus(asUser(row), 'disable') },
+                { label: '启用', permission: 'system:user:update', visible: asUser(row).status === 'DISABLED', handler: () => changeStatus(asUser(row), 'enable') },
+                { label: '解锁', permission: 'system:user:update', visible: asUser(row).locked, handler: () => unlock(asUser(row)) },
+                { label: '强制下线', permission: 'system:user:update', visible: asUser(row).status === 'ENABLED' && !isSelf(asUser(row)), confirm: '强制下线后该用户需要重新登录，确定吗？', handler: () => kick(asUser(row)) }
+              ]"
+            />
+          </template>
+        </ErpTable>
+        <ErpPagination v-model:page-no="query.pageNo" v-model:page-size="query.pageSize" :total="total" @change="load" />
+      </ErpPanel>
+    </div>
     <ImportDialog ref="importRef" title="导入用户" base="/system/users" template-name="用户" @done="load" />
     <ResetPasswordDialog ref="resetRef" />
-  </div>
+  </ErpPage>
 </template>
 
 <style scoped>
-.user-page { display: flex; gap: 12px; align-items: flex-start; }
-.org-panel { width: 240px; flex-shrink: 0; }
-.org-panel + .main { margin-top: 0; }
-.tree-scroll { height: calc(100vh - 220px); margin-top: 8px; }
-.main { flex: 1; min-width: 0; }
-.w200 { width: 200px; }
-.locked { margin-left: 4px; }
+.org-panel { width: 248px; flex-shrink: 0; }
+.org-search { padding: 12px 12px 8px; }
+.tree-scroll { height: calc(100vh - 290px); min-height: 240px; padding: 0 8px 12px; }
+.status-cell { display: inline-flex; gap: 6px; align-items: center; }
 </style>

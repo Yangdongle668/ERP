@@ -126,7 +126,8 @@ const asOper = (r: unknown) => r as OperLogRow
 </script>
 
 <template>
-  <el-card>
+  <ErpPage description="登录与操作审计；时间默认今天，超过保留天数的日志每天凌晨自动清理">
+  <ErpPanel class="log-panel">
     <el-tabs v-model="tab" @tab-change="onTab">
       <el-tab-pane label="登录日志" name="login">
         <ErpSearchForm v-model="login.query" :fields="loginFields" :loading="login.loading.value" @search="login.search" @reset="login.reset" />
@@ -148,7 +149,7 @@ const asOper = (r: unknown) => r as OperLogRow
             <span :class="{ slow: asOper(row).durationMs > 3000 }">{{ asOper(row).durationMs }}</span>
           </template>
           <template #col-traceId="{ row }">
-            <el-link v-if="asOper(row).traceId" type="primary" underline="never" @click="copy(asOper(row).traceId)">{{ asOper(row).traceId }}</el-link>
+            <el-link v-if="asOper(row).traceId" type="primary" underline="never" class="mono" @click="copy(asOper(row).traceId)">{{ asOper(row).traceId }}</el-link>
           </template>
           <template #actions="{ row }">
             <el-button link type="primary" @click="openDetail(asOper(row))">详情</el-button>
@@ -157,11 +158,11 @@ const asOper = (r: unknown) => r as OperLogRow
         <ErpPagination v-model:page-no="oper.query.pageNo" v-model:page-size="oper.query.pageSize" :total="oper.total.value" @change="oper.load" />
       </el-tab-pane>
     </el-tabs>
-  </el-card>
+  </ErpPanel>
 
   <el-drawer v-model="detailVisible" title="操作日志详情" size="640px" append-to-body>
     <template v-if="detail">
-      <el-descriptions :column="2" border>
+      <el-descriptions :column="2" border class="detail">
         <el-descriptions-item label="时间">{{ formatDateTime(detail.createdAt) }}</el-descriptions-item>
         <el-descriptions-item label="操作人">{{ detail.realName || '-' }}（{{ detail.username || '-' }}）</el-descriptions-item>
         <el-descriptions-item label="模块">{{ detail.moduleName || detail.moduleCode || '-' }}</el-descriptions-item>
@@ -183,11 +184,13 @@ const asOper = (r: unknown) => r as OperLogRow
       <el-empty v-else description="无参数" :image-size="60" />
     </template>
   </el-drawer>
+  </ErpPage>
 </template>
 
 <style scoped>
-.slow { color: var(--el-color-warning); font-weight: 500; }
+.log-panel :deep(.el-tabs__header) { margin: -8px 0 16px; }
+.slow { color: var(--el-color-warning); font-weight: var(--erp-font-weight-medium); }
 .error { color: var(--el-color-danger); }
 .params-title { margin-top: 16px; }
-.params { background: var(--el-fill-color-light); padding: 12px; border-radius: 4px; font-size: 12px; max-height: 60vh; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+.params { font-family: var(--erp-font-family-mono); background: var(--erp-color-surface-subtle); border: 1px solid var(--erp-color-border); padding: 12px; border-radius: var(--erp-radius-xs); font-size: var(--erp-font-size-caption); max-height: 60vh; overflow: auto; white-space: pre-wrap; word-break: break-all; }
 </style>

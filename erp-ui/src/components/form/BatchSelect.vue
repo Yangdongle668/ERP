@@ -46,7 +46,7 @@ function onChange(v: string | undefined) {
     @update:model-value="onChange"
   >
     <el-option v-for="(b, i) in sorted" :key="b.batchNo" :value="b.batchNo" :label="b.batchNo" :disabled="b.frozen">
-      <span class="no">{{ b.batchNo }}<el-tag v-if="i === 0" size="small" type="success" class="tag">推荐</el-tag><el-tag v-if="b.frozen" size="small" type="danger" class="tag">冻结</el-tag></span>
+      <span class="no">{{ b.batchNo }}<ErpBadge v-if="i === 0" type="success" :dot="false" class="tag">推荐</ErpBadge><ErpBadge v-if="b.frozen" type="danger" :dot="false" class="tag">冻结</ErpBadge></span>
       <span class="meta">可用 {{ formatQty(b.availableQty, precision) }} · 生产 {{ formatDate(b.productionDate) }} · 到期 {{ formatDate(b.expiryDate) }}</span>
     </el-option>
   </el-select>
@@ -55,5 +55,5 @@ function onChange(v: string | undefined) {
 <style scoped>
 .no { display: inline-block; min-width: 160px; }
 .tag { margin-left: 4px; }
-.meta { color: var(--el-text-color-secondary); font-size: 12px; }
+.meta { color: var(--erp-color-text-secondary); font-size: var(--erp-font-size-caption); }
 </style>

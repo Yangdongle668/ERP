@@ -104,38 +104,62 @@ async function submit() {
 
 <template>
   <div class="login">
-    <el-card class="box">
-      <h2>{{ systemName }}</h2>
-      <el-form ref="formRef" :model="form" :rules="rules" size="large" @keyup.enter="submit">
-        <el-form-item prop="username">
-          <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" autocomplete="username" @blur="checkCaptcha" />
-        </el-form-item>
-        <el-form-item prop="password" :class="{ caps: capsLock }">
-          <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password autocomplete="current-password" @keyup="onKey" @keydown="onKey" />
-          <div v-if="capsLock" class="caps-tip">大写锁定已打开</div>
-        </el-form-item>
-        <el-form-item v-if="captcha.required" prop="captchaCode">
-          <div class="captcha">
-            <el-input v-model="form.captchaCode" placeholder="验证码" prefix-icon="Key" maxlength="4" />
-            <img v-if="captcha.image" :src="captcha.image" alt="验证码" title="看不清？点击刷新" @click="refreshCaptcha" />
-          </div>
-        </el-form-item>
-        <el-checkbox v-model="remember" class="remember">记住用户名</el-checkbox>
-        <div v-if="error" class="error">{{ error }}</div>
-        <el-button type="primary" :loading="loading" class="full" @click="submit">登 录</el-button>
-      </el-form>
-    </el-card>
+    <div class="login__main">
+      <div class="brand">
+        <span class="brand__mark">{{ systemName.slice(0, 1) }}</span>
+        <div>
+          <div class="brand__name">{{ systemName }}</div>
+          <div class="brand__sub">企业资源计划 · 制造管理平台</div>
+        </div>
+      </div>
+      <section class="box">
+        <h1 class="box__title">登录</h1>
+        <p class="box__desc">使用管理员分配的账号登录</p>
+        <el-form ref="formRef" :model="form" :rules="rules" size="large" @keyup.enter="submit">
+          <el-form-item prop="username">
+            <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" autocomplete="username" @blur="checkCaptcha" />
+          </el-form-item>
+          <el-form-item prop="password" :class="{ caps: capsLock }">
+            <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" show-password autocomplete="current-password" @keyup="onKey" @keydown="onKey" />
+            <div v-if="capsLock" class="caps-tip"><el-icon><Warning /></el-icon>大写锁定已打开</div>
+          </el-form-item>
+          <el-form-item v-if="captcha.required" prop="captchaCode">
+            <div class="captcha">
+              <el-input v-model="form.captchaCode" placeholder="验证码" prefix-icon="Key" maxlength="4" />
+              <img v-if="captcha.image" :src="captcha.image" alt="验证码" title="看不清？点击刷新" @click="refreshCaptcha" />
+            </div>
+          </el-form-item>
+          <el-checkbox v-model="remember" class="remember">记住用户名</el-checkbox>
+          <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="error" />
+          <el-button type="primary" :loading="loading" class="full" @click="submit">登录</el-button>
+        </el-form>
+      </section>
+    </div>
+    <footer class="login__footer">忘记密码请联系系统管理员重置</footer>
   </div>
 </template>
 
 <style scoped>
-.login { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--el-bg-color-page); padding: 16px; }
-.box { width: 100%; max-width: 380px; }
-h2 { text-align: center; margin: 8px 0 24px; }
+.login { min-height: 100vh; display: flex; flex-direction: column; background: var(--erp-color-bg); padding: 16px; }
+.login__main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; }
+.brand { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 400px; }
+.brand__mark {
+  width: 36px; height: 36px; border-radius: var(--erp-radius-card); background: var(--erp-color-text); color: var(--erp-color-surface);
+  display: inline-flex; align-items: center; justify-content: center; font-size: var(--erp-font-size-section-title); font-weight: var(--erp-font-weight-semibold);
+}
+.brand__name { font-size: var(--erp-font-size-section-title); font-weight: var(--erp-font-weight-semibold); line-height: 22px; }
+.brand__sub { font-size: var(--erp-font-size-caption); color: var(--erp-color-text-tertiary); }
+.box {
+  width: 100%; max-width: 400px; padding: 32px; background: var(--erp-color-surface); border: 1px solid var(--erp-color-border);
+  border-radius: var(--erp-radius-dialog);
+}
+.box__title { margin: 0; font-size: var(--erp-font-size-page-title); font-weight: var(--erp-font-weight-semibold); line-height: 28px; }
+.box__desc { margin: 4px 0 24px; font-size: var(--erp-font-size-secondary); color: var(--erp-color-text-secondary); }
 .full { width: 100%; }
-.remember { margin-bottom: 12px; }
-.error { color: var(--el-color-danger); font-size: 13px; margin-bottom: 8px; }
-.caps-tip { font-size: 12px; color: var(--el-color-warning); line-height: 1.4; margin-top: 2px; }
+.remember { margin-bottom: 16px; }
+.error { margin-bottom: 16px; }
+.caps-tip { display: flex; align-items: center; gap: 4px; font-size: var(--erp-font-size-caption); color: var(--el-color-warning); line-height: 18px; margin-top: 4px; }
 .captcha { display: flex; gap: 8px; width: 100%; }
-.captcha img { height: 40px; cursor: pointer; border: 1px solid var(--el-border-color); border-radius: 4px; }
+.captcha img { height: 40px; cursor: pointer; border: 1px solid var(--erp-color-border); border-radius: var(--erp-radius-control); }
+.login__footer { text-align: center; font-size: var(--erp-font-size-caption); color: var(--erp-color-text-tertiary); padding: 8px 0; }
 </style>

@@ -1,0 +1,298 @@
+/*
+ * Element Plus 组件主题（UI 设计规范第 2、5 节）。
+ * 只在这里调整 Element 组件外观；业务页面不得覆盖 Element 组件样式。
+ */
+
+/* ---------- Button ---------- */
+.el-button {
+  --el-button-font-weight: var(--erp-font-weight-regular);
+  --el-button-border-color: var(--erp-color-border-strong);
+  --el-button-hover-bg-color: var(--erp-color-hover);
+  --el-button-hover-text-color: var(--erp-color-text);
+  --el-button-hover-border-color: var(--erp-color-border-strong);
+  --el-button-active-bg-color: var(--erp-color-active);
+  --el-button-active-border-color: var(--el-border-color-darker);
+  --el-button-active-text-color: var(--erp-color-text);
+  transition: background-color var(--erp-duration-fast) var(--erp-ease), border-color var(--erp-duration-fast) var(--erp-ease),
+    color var(--erp-duration-fast) var(--erp-ease);
+}
+.el-button--primary {
+  --el-button-hover-bg-color: var(--el-color-primary-dark-2);
+  --el-button-hover-border-color: var(--el-color-primary-dark-2);
+  --el-button-hover-text-color: var(--el-color-white);
+  --el-button-active-bg-color: var(--el-color-primary-dark-2);
+  --el-button-active-border-color: var(--el-color-primary-dark-2);
+  --el-button-active-text-color: var(--el-color-white);
+  --el-button-font-weight: var(--erp-font-weight-medium);
+}
+.el-button--danger:not(.is-link):not(.is-text):not(.is-plain) {
+  --el-button-hover-bg-color: var(--el-color-danger-dark-2);
+  --el-button-hover-border-color: var(--el-color-danger-dark-2);
+  --el-button-hover-text-color: var(--el-color-white);
+}
+.el-button--primary.is-plain, .el-button--danger.is-plain {
+  --el-button-bg-color: var(--erp-color-surface);
+}
+.el-button.is-link, .el-button.is-text { --el-button-font-weight: var(--erp-font-weight-regular); }
+.el-button.is-link { padding: 2px 0; height: auto; }
+.el-button.is-text:not(.is-disabled):hover { background-color: var(--erp-color-hover); }
+.el-button:focus-visible { outline: 2px solid var(--el-color-primary-light-5); outline-offset: 1px; }
+.el-button .el-icon + span, .el-button span + .el-icon { margin-left: 4px; }
+.el-button.is-disabled, .el-button.is-disabled:hover {
+  --el-button-disabled-bg-color: var(--erp-color-surface-subtle);
+  --el-button-disabled-border-color: var(--erp-color-border);
+  --el-button-disabled-text-color: var(--erp-color-text-disabled);
+}
+.el-button--primary.is-disabled, .el-button--primary.is-disabled:hover {
+  --el-button-disabled-bg-color: var(--el-color-primary-light-5);
+  --el-button-disabled-border-color: var(--el-color-primary-light-5);
+  --el-button-disabled-text-color: var(--el-color-white);
+}
+.el-button + .el-button { margin-left: var(--erp-space-2); }
+
+/* ---------- Input / Select / DatePicker ---------- */
+.el-input, .el-select, .el-textarea, .el-date-editor, .el-input-number, .el-cascader {
+  --el-input-border-color: var(--erp-color-border-strong);
+  --el-input-hover-border-color: var(--el-border-color-hover);
+  --el-input-focus-border-color: var(--el-color-primary);
+  --el-input-border-radius: var(--erp-radius-control);
+  --el-select-border-color-hover: var(--el-border-color-hover);
+  --el-select-input-focus-border-color: var(--el-color-primary);
+}
+.el-input__wrapper, .el-textarea__inner, .el-select__wrapper {
+  transition: box-shadow var(--erp-duration-fast) var(--erp-ease), background-color var(--erp-duration-fast) var(--erp-ease);
+}
+.el-input__wrapper.is-focus, .el-select__wrapper.is-focused, .el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px var(--el-color-primary) inset, 0 0 0 3px var(--erp-color-focus-ring) !important;
+}
+.el-input.is-disabled .el-input__wrapper, .el-select__wrapper.is-disabled, .el-textarea.is-disabled .el-textarea__inner {
+  background-color: var(--erp-color-surface-subtle);
+}
+.el-form-item.is-error .el-input__wrapper.is-focus, .el-form-item.is-error .el-select__wrapper.is-focused {
+  box-shadow: 0 0 0 1px var(--el-color-danger) inset, 0 0 0 3px var(--el-color-danger-light-9) !important;
+}
+.el-input-number .el-input__inner { text-align: left; }
+.el-input-number.is-controls-right .el-input__inner, .el-input-number .el-input__inner { font-variant-numeric: tabular-nums; }
+.el-checkbox { --el-checkbox-border-radius: var(--erp-radius-xs); --el-checkbox-font-weight: var(--erp-font-weight-regular); }
+.el-radio { --el-radio-font-weight: var(--erp-font-weight-regular); }
+
+/* ---------- Form ---------- */
+.el-form-item { margin-bottom: var(--erp-space-5); }
+.el-form-item__label { color: var(--erp-color-text-secondary); }
+.el-form-item__error { padding-top: 2px; }
+.el-form--inline .el-form-item { margin-right: var(--erp-space-4); }
+
+/* ---------- Card（只用于有独立信息边界的内容） ---------- */
+.el-card {
+  --el-card-border-color: var(--erp-color-border);
+  --el-card-border-radius: var(--erp-radius-card);
+  --el-card-padding: var(--erp-space-5);
+  box-shadow: none !important;
+}
+
+/* ---------- Table ---------- */
+.el-table {
+  --el-table-border-color: var(--erp-color-border-light);
+  --el-table-border: 1px solid var(--erp-color-border-light);
+  --el-table-header-bg-color: var(--erp-color-surface-subtle);
+  --el-table-header-text-color: var(--erp-color-text-secondary);
+  --el-table-text-color: var(--erp-color-text);
+  --el-table-row-hover-bg-color: var(--erp-color-hover);
+  --el-table-current-row-bg-color: var(--erp-color-primary-bg);
+  --el-table-fixed-box-shadow: 0 0 8px rgba(31, 35, 41, 0.08);
+  font-size: var(--erp-font-size-body);
+}
+.el-table th.el-table__cell { font-weight: var(--erp-font-weight-medium); font-size: var(--erp-font-size-secondary); }
+.el-table th.el-table__cell > .cell { line-height: 20px; }
+.el-table .el-table__cell { padding: 8px 0; }
+.el-table .cell { padding: 0 12px; line-height: 22px; }
+.el-table--border .el-table__inner-wrapper::after, .el-table--border::after, .el-table--border::before,
+.el-table__inner-wrapper::before { background-color: var(--erp-color-border); }
+.el-table--border { border-color: var(--erp-color-border); }
+.el-table tr, .el-table .el-table__cell { transition: background-color var(--erp-duration-fast) var(--erp-ease); }
+.el-table__body tr.el-table__row--striped td.el-table__cell { background: var(--erp-color-surface); }
+.el-table .caret-wrapper { height: 20px; }
+.el-table .sort-caret.ascending { top: -1px; }
+.el-table .sort-caret.descending { bottom: 1px; }
+.el-table__empty-block { min-height: 160px; }
+.el-table__empty-text { width: 100%; line-height: 1.5; color: var(--erp-color-text-tertiary); }
+.el-table__footer-wrapper td.el-table__cell { background: var(--erp-color-surface-subtle); font-weight: var(--erp-font-weight-medium); }
+.el-table .el-checkbox { height: 22px; }
+
+/* ---------- Tag / Badge ---------- */
+.el-tag {
+  --el-tag-border-radius: var(--erp-radius-xs);
+  --el-tag-font-size: var(--erp-font-size-caption);
+  height: 22px;
+  padding: 0 8px;
+  border-color: transparent;
+}
+.el-tag.el-tag--info { --el-tag-text-color: var(--erp-color-text-secondary); --el-tag-bg-color: var(--erp-color-hover); }
+.el-select .el-tag { border-color: transparent; }
+.el-badge__content { border: none; font-size: 11px; height: 16px; padding: 0 5px; }
+
+/* ---------- Tabs ---------- */
+.el-tabs { --el-tabs-header-height: 44px; }
+.el-tabs__item { font-size: var(--erp-font-size-body); color: var(--erp-color-text-secondary); padding: 0 16px; }
+.el-tabs--top .el-tabs__item.is-top:nth-child(2) { padding-left: 0; }
+.el-tabs__item:hover { color: var(--erp-color-text); }
+.el-tabs__item.is-active { color: var(--erp-color-text); font-weight: var(--erp-font-weight-medium); }
+.el-tabs__active-bar { background-color: var(--el-color-primary); height: 2px; }
+.el-tabs__nav-wrap::after { height: 1px; background-color: var(--erp-color-border); }
+.el-tabs__header { margin-bottom: var(--erp-space-4); }
+
+/* ---------- Dialog / MessageBox / Drawer ---------- */
+.el-overlay { background-color: var(--erp-color-mask); }
+.el-dialog {
+  --el-dialog-border-radius: var(--erp-radius-dialog);
+  --el-dialog-padding-primary: 0;
+  --el-dialog-title-font-size: var(--erp-font-size-section-title);
+  --el-dialog-box-shadow: var(--erp-shadow-dialog);
+  padding: 0;
+}
+.el-dialog__header { padding: 16px 24px; margin: 0; border-bottom: 1px solid var(--erp-color-border); }
+.el-dialog__title { font-weight: var(--erp-font-weight-semibold); color: var(--erp-color-text); }
+.el-dialog__headerbtn { top: 6px; right: 8px; width: 40px; height: 40px; }
+.el-dialog__body { padding: 20px 24px; color: var(--erp-color-text); }
+.el-dialog__footer { padding: 12px 24px; border-top: 1px solid var(--erp-color-border); }
+.el-message-box {
+  --el-messagebox-border-radius: var(--erp-radius-dialog);
+  --el-messagebox-title-color: var(--erp-color-text);
+  --el-messagebox-font-size: var(--erp-font-size-section-title);
+  --el-messagebox-content-font-size: var(--erp-font-size-body);
+  --el-messagebox-content-color: var(--erp-color-text-secondary);
+  --el-messagebox-padding-primary: 20px;
+  box-shadow: var(--erp-shadow-dialog);
+  border: none;
+}
+.el-message-box__title { font-weight: var(--erp-font-weight-semibold); }
+.el-message-box__btns { padding-top: 16px; }
+.el-drawer { --el-drawer-padding-primary: 24px; box-shadow: var(--erp-shadow-dialog); }
+.el-drawer__header { margin-bottom: 0; padding: 16px 24px; border-bottom: 1px solid var(--erp-color-border); color: var(--erp-color-text); }
+.el-drawer__title { font-size: var(--erp-font-size-section-title); font-weight: var(--erp-font-weight-semibold); }
+.el-drawer__body { padding: 20px 24px; }
+.el-drawer__footer { padding: 12px 24px; border-top: 1px solid var(--erp-color-border); }
+
+/* ---------- Toast（ElMessage） ---------- */
+.el-message {
+  --el-message-bg-color: var(--erp-color-surface);
+  --el-message-border-color: var(--erp-color-border);
+  --el-message-text-color: var(--erp-color-text);
+  --el-message-padding: 10px 16px;
+  border-radius: var(--erp-radius-card);
+  box-shadow: var(--erp-shadow-float);
+  min-width: 0;
+  gap: 8px;
+}
+.el-message--success, .el-message--warning, .el-message--info, .el-message--error {
+  --el-message-bg-color: var(--erp-color-surface);
+  --el-message-border-color: var(--erp-color-border);
+}
+.el-message .el-message__content { color: var(--erp-color-text); font-size: var(--erp-font-size-body); line-height: 22px; }
+.el-message .el-message__icon { font-size: 16px; }
+.el-message--info .el-message__icon { color: var(--el-color-primary); }
+.el-notification { border-radius: var(--erp-radius-card); box-shadow: var(--erp-shadow-float); border-color: var(--erp-color-border); }
+
+/* ---------- Popper / Dropdown / Select 下拉 ---------- */
+.el-popper.is-light, .el-popper.is-light > .el-popper__arrow::before { border-color: var(--erp-color-border); }
+.el-popper.is-light { border-radius: var(--erp-radius-card); box-shadow: var(--erp-shadow-float); }
+.el-popper.is-dark { border-radius: var(--erp-radius-xs); font-size: var(--erp-font-size-caption); padding: 4px 8px; background: var(--erp-color-text); border-color: var(--erp-color-text); }
+.el-popper.is-dark > .el-popper__arrow::before { background: var(--erp-color-text); border-color: var(--erp-color-text); }
+.el-dropdown-menu { padding: 4px; }
+.el-dropdown-menu__item {
+  border-radius: var(--erp-radius-xs);
+  padding: 6px 12px;
+  line-height: 22px;
+  --el-dropdown-menuItem-hover-fill: var(--erp-color-hover);
+  --el-dropdown-menuItem-hover-color: var(--erp-color-text);
+}
+.el-dropdown-menu__item--divided { margin: 4px 0 0; border-top-color: var(--erp-color-border); }
+.el-select-dropdown__list { padding: 4px; }
+.el-select-dropdown__item { border-radius: var(--erp-radius-xs); height: 32px; line-height: 32px; padding: 0 12px; }
+.el-select-dropdown__item.is-hovering { background-color: var(--erp-color-hover); }
+.el-select-dropdown__item.is-selected { font-weight: var(--erp-font-weight-medium); color: var(--el-color-primary); }
+.el-picker-panel { border-radius: var(--erp-radius-card); }
+.el-popover.el-popper { padding: 12px; }
+
+/* ---------- Pagination ---------- */
+.el-pagination {
+  --el-pagination-font-size: var(--erp-font-size-secondary);
+  --el-pagination-button-bg-color: transparent;
+  --el-pagination-bg-color: transparent;
+  --el-pagination-hover-color: var(--el-color-primary);
+  --el-pagination-border-radius: var(--erp-radius-control);
+  --el-pagination-text-color: var(--erp-color-text-secondary);
+  font-weight: var(--erp-font-weight-regular);
+}
+.el-pagination.is-background .btn-next, .el-pagination.is-background .btn-prev, .el-pagination.is-background .el-pager li {
+  background-color: transparent;
+  border-radius: var(--erp-radius-control);
+  font-weight: var(--erp-font-weight-regular);
+  color: var(--erp-color-text);
+  min-width: 30px;
+}
+.el-pagination.is-background .el-pager li:not(.is-active):not(.is-disabled):hover,
+.el-pagination.is-background .btn-next:not(:disabled):hover, .el-pagination.is-background .btn-prev:not(:disabled):hover {
+  background-color: var(--erp-color-hover);
+  color: var(--erp-color-text);
+}
+.el-pagination.is-background .el-pager li.is-active {
+  background-color: var(--erp-color-primary-bg);
+  color: var(--el-color-primary);
+  font-weight: var(--erp-font-weight-medium);
+}
+.el-pagination__total { color: var(--erp-color-text-secondary); }
+
+/* ---------- Descriptions ---------- */
+.el-descriptions {
+  --el-descriptions-item-bordered-label-background: var(--erp-color-surface-subtle);
+}
+.el-descriptions__label { color: var(--erp-color-text-secondary); font-weight: var(--erp-font-weight-regular) !important; }
+.el-descriptions__body .el-descriptions__table.is-bordered .el-descriptions__cell { border-color: var(--erp-color-border); padding: 8px 12px; }
+.el-descriptions__title { font-size: var(--erp-font-size-section-title); font-weight: var(--erp-font-weight-semibold); }
+
+/* ---------- Menu（侧边栏） ---------- */
+.el-menu {
+  --el-menu-bg-color: var(--erp-color-sidebar);
+  --el-menu-text-color: var(--erp-color-text-secondary);
+  --el-menu-hover-text-color: var(--erp-color-text);
+  --el-menu-hover-bg-color: var(--erp-color-hover);
+  --el-menu-active-color: var(--el-color-primary);
+  --el-menu-item-height: 40px;
+  --el-menu-sub-item-height: 36px;
+  --el-menu-item-font-size: var(--erp-font-size-body);
+  --el-menu-base-level-padding: 16px;
+  --el-menu-level-padding: 16px;
+  --el-menu-icon-width: 20px;
+  --el-menu-border-color: transparent;
+}
+
+/* ---------- Loading / Skeleton / Empty ---------- */
+.el-loading-mask { background-color: rgba(255, 255, 255, 0.6); transition: opacity var(--erp-duration) var(--erp-ease); }
+.el-loading-spinner .path { stroke: var(--el-color-primary); stroke-width: 3; }
+.el-skeleton { --el-skeleton-color: var(--erp-color-hover); --el-skeleton-to-color: var(--erp-color-active); }
+.el-empty { --el-empty-description-margin-top: 8px; --el-empty-padding: 24px 0; }
+.el-empty__description p { font-size: var(--erp-font-size-secondary); color: var(--erp-color-text-tertiary); }
+
+/* ---------- Tree ---------- */
+.el-tree {
+  --el-tree-node-hover-bg-color: var(--erp-color-hover);
+  --el-tree-text-color: var(--erp-color-text);
+  --el-tree-node-content-height: 32px;
+}
+.el-tree-node__content { border-radius: var(--erp-radius-xs); }
+.el-tree--highlight-current .el-tree-node.is-current > .el-tree-node__content {
+  background-color: var(--erp-color-primary-bg);
+  color: var(--el-color-primary);
+  font-weight: var(--erp-font-weight-medium);
+}
+
+/* ---------- Steps / Timeline / Upload / Alert ---------- */
+.el-alert { border-radius: var(--erp-radius-control); padding: 8px 12px; }
+.el-alert__title { font-size: var(--erp-font-size-secondary); line-height: 20px; }
+.el-alert--info.is-light { background-color: var(--erp-color-surface-subtle); color: var(--erp-color-text-secondary); }
+.el-upload-dragger { border-radius: var(--erp-radius-card); border-color: var(--erp-color-border-strong); background: var(--erp-color-surface-subtle); }
+.el-upload-dragger:hover { border-color: var(--el-color-primary); }
+.el-switch { --el-switch-off-color: var(--el-border-color-darker); }
+.el-link { --el-link-font-weight: var(--erp-font-weight-regular); }
+.el-link.is-underline:hover::after { display: none; }

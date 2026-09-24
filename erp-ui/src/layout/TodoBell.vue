@@ -47,12 +47,12 @@ onBeforeUnmount(() => window.clearInterval(timer))
 <template>
   <el-popover placement="bottom-end" :width="360" trigger="click" @show="loadList(true)">
     <template #reference>
-      <span class="bell">
-        <el-badge :value="count" :max="99" :hidden="!count"><el-icon :size="18"><Bell /></el-icon></el-badge>
-      </span>
+      <button type="button" class="bell" aria-label="待办">
+        <el-badge :value="count" :max="99" :hidden="!count"><el-icon><Bell /></el-icon></el-badge>
+      </button>
     </template>
     <div class="todo-head">待办</div>
-    <el-empty v-if="!list.length" description="暂无待办" :image-size="50" />
+    <ErpEmpty v-if="!list.length" description="暂无待办" compact />
     <div v-for="t in list" :key="t.id" class="todo" @click="open(t)">
       <div class="title">{{ t.title }}</div>
       <div class="time">{{ formatDateTime(t.createdAt, true) }}</div>
@@ -62,11 +62,17 @@ onBeforeUnmount(() => window.clearInterval(timer))
 </template>
 
 <style scoped>
-.bell { cursor: pointer; display: inline-flex; align-items: center; padding: 0 4px; }
-.todo-head { font-weight: 600; margin-bottom: 8px; }
-.todo { padding: 6px 4px; border-bottom: 1px solid var(--el-border-color-lighter); cursor: pointer; }
-.todo:hover { background: var(--el-fill-color-light); }
+.bell {
+  display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: none; padding: 0; cursor: pointer;
+  border-radius: var(--erp-radius-control); background: transparent; color: var(--erp-color-text-secondary); font-size: var(--erp-icon-size-lg);
+  transition: background-color var(--erp-duration-fast) var(--erp-ease);
+}
+.bell:hover { background: var(--erp-color-hover); color: var(--erp-color-text); }
+.bell :deep(.el-badge) { display: inline-flex; }
+.todo-head { font-size: var(--erp-font-size-body); font-weight: var(--erp-font-weight-semibold); padding: 0 4px 8px; border-bottom: 1px solid var(--erp-color-border); }
+.todo { padding: 8px 4px; border-bottom: 1px solid var(--erp-color-border-light); cursor: pointer; border-radius: var(--erp-radius-xs); }
+.todo:hover { background: var(--erp-color-hover); }
 .todo .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.todo .time { font-size: 12px; color: var(--el-text-color-secondary); }
-.all { text-align: center; margin-top: 6px; }
+.todo .time { font-size: var(--erp-font-size-caption); color: var(--erp-color-text-tertiary); }
+.all { text-align: center; margin-top: 8px; }
 </style>

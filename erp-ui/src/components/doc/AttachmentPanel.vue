@@ -58,7 +58,7 @@ defineExpose({ reload: load })
 <template>
   <div>
     <AttachmentUpload v-if="editable && bizId" :biz-type="bizType" :biz-id="bizId" :category="category" class="upload" @uploaded="load" />
-    <el-table v-loading="loading" :data="files" border>
+    <el-table v-loading="loading" :data="files">
       <el-table-column prop="fileName" label="文件名" min-width="220" show-overflow-tooltip />
       <el-table-column label="大小" width="100" align="right"><template #default="{ row }">{{ size(row.fileSize) }}</template></el-table-column>
       <el-table-column prop="createdByName" label="上传人" width="110" />
@@ -70,7 +70,7 @@ defineExpose({ reload: load })
           <el-button v-if="editable" link type="danger" @click="remove(asFile(row))">删除</el-button>
         </template>
       </el-table-column>
-      <template #empty><el-empty description="暂无附件" :image-size="60" /></template>
+      <template #empty><ErpEmpty description="暂无附件" compact /></template>
     </el-table>
   </div>
 </template>

@@ -130,7 +130,7 @@ defineExpose({ open })
         <el-button v-if="check.errorCount" link type="primary" icon="Download" @click="downloadReport">下载错误报告</el-button>
         <span v-if="check.errorCount && !allowPartial" class="bad">请修正错误后重新上传</span>
       </div>
-      <el-table :data="previewRows" border max-height="420" :row-class-name="rowClass">
+      <el-table :data="previewRows" max-height="420" :row-class-name="rowClass">
         <el-table-column prop="rowNo" label="行号" width="70" align="center" fixed="left" />
         <el-table-column v-if="check.rows.some((r) => r.action)" prop="action" label="操作" width="80" align="center" />
         <el-table-column v-for="c in check.columns" :key="c.key" :label="c.label" min-width="120" show-overflow-tooltip>
@@ -145,7 +145,7 @@ defineExpose({ open })
     <div v-else-if="step === 4 && result" class="result">
       <el-result :icon="result.failed ? 'warning' : 'success'" :title="`成功 ${result.success} 条，失败 ${result.failed} 条`">
         <template v-if="result.errors.length" #extra>
-          <el-table :data="result.errors" border max-height="240" class="errors">
+          <el-table :data="result.errors" max-height="240" class="errors">
             <el-table-column prop="rowNo" label="行号" width="80" />
             <el-table-column prop="message" label="原因" />
           </el-table>

@@ -60,39 +60,41 @@ const asRole = (r: unknown) => r as RoleRow
 </script>
 
 <template>
-  <el-card>
-    <ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="search" @reset="reset" />
-    <ErpTable :columns="columns" :data="list" :loading="loading" storage-key="system.role" :actions-width="240" @refresh="load">
-      <template #toolbar>
-        <el-button v-perm="'system:role:create'" type="primary" icon="Plus" @click="formRef?.open()">新建</el-button>
-      </template>
-      <template #col-name="{ row }">
-        {{ asRole(row).name }}<el-tag v-if="asRole(row).builtin" size="small" type="info" class="builtin">内置</el-tag>
-      </template>
-      <template #col-userCount="{ row }">
-        <el-link type="primary" underline="never" @click="memberRef?.open(asRole(row))">{{ asRole(row).userCount }}</el-link>
-      </template>
-      <template #actions="{ row }">
-        <RowActions
-          :actions="[
-            { label: '编辑', permission: 'system:role:update', visible: !asRole(row).builtin, handler: () => formRef?.open(asRole(row).id) },
-            { label: '功能权限', permission: 'system:role:grant', visible: !asRole(row).builtin, handler: () => permRef?.open(asRole(row)) },
-            { label: '成员', permission: 'system:role:query', handler: () => memberRef?.open(asRole(row)) },
-            { label: '复制', permission: 'system:role:create', handler: () => copy(asRole(row)) },
-            { label: '停用', permission: 'system:role:update', visible: !asRole(row).builtin && asRole(row).status === 'ENABLED', handler: () => changeStatus(asRole(row), 'disable') },
-            { label: '启用', permission: 'system:role:update', visible: !asRole(row).builtin && asRole(row).status === 'DISABLED', handler: () => changeStatus(asRole(row), 'enable') },
-            { label: '删除', permission: 'system:role:delete', danger: true, visible: !asRole(row).builtin, confirm: `确定删除角色「${asRole(row).code} ${asRole(row).name}」吗？删除后不可恢复。`, handler: () => remove(asRole(row)) }
-          ]"
-        />
-      </template>
-    </ErpTable>
-    <ErpPagination v-model:page-no="query.pageNo" v-model:page-size="query.pageSize" :total="total" @change="load" />
-  </el-card>
-  <RoleFormDialog ref="formRef" @saved="load" />
-  <RolePermissionDrawer ref="permRef" />
-  <RoleMemberDrawer ref="memberRef" @changed="load" />
+  <ErpPage description="角色决定用户可以使用的菜单、按钮与数据范围；内置角色不可修改">
+    <ErpPanel>
+      <template #filter><ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="search" @reset="reset" /></template>
+      <ErpTable :columns="columns" :data="list" :loading="loading" storage-key="system.role" :actions-width="240" @refresh="load">
+        <template #toolbar>
+          <el-button v-perm="'system:role:create'" type="primary" icon="Plus" @click="formRef?.open()">新建角色</el-button>
+        </template>
+        <template #col-name="{ row }">
+          <span class="name-cell">{{ asRole(row).name }}<ErpBadge v-if="asRole(row).builtin" :dot="false">内置</ErpBadge></span>
+        </template>
+        <template #col-userCount="{ row }">
+          <el-link type="primary" underline="never" @click="memberRef?.open(asRole(row))">{{ asRole(row).userCount }}</el-link>
+        </template>
+        <template #actions="{ row }">
+          <RowActions
+            :actions="[
+              { label: '编辑', permission: 'system:role:update', visible: !asRole(row).builtin, handler: () => formRef?.open(asRole(row).id) },
+              { label: '功能权限', permission: 'system:role:grant', visible: !asRole(row).builtin, handler: () => permRef?.open(asRole(row)) },
+              { label: '成员', permission: 'system:role:query', handler: () => memberRef?.open(asRole(row)) },
+              { label: '复制', permission: 'system:role:create', handler: () => copy(asRole(row)) },
+              { label: '停用', permission: 'system:role:update', visible: !asRole(row).builtin && asRole(row).status === 'ENABLED', handler: () => changeStatus(asRole(row), 'disable') },
+              { label: '启用', permission: 'system:role:update', visible: !asRole(row).builtin && asRole(row).status === 'DISABLED', handler: () => changeStatus(asRole(row), 'enable') },
+              { label: '删除', permission: 'system:role:delete', danger: true, visible: !asRole(row).builtin, confirm: `确定删除角色「${asRole(row).code} ${asRole(row).name}」吗？删除后不可恢复。`, handler: () => remove(asRole(row)) }
+            ]"
+          />
+        </template>
+      </ErpTable>
+      <ErpPagination v-model:page-no="query.pageNo" v-model:page-size="query.pageSize" :total="total" @change="load" />
+    </ErpPanel>
+    <RoleFormDialog ref="formRef" @saved="load" />
+    <RolePermissionDrawer ref="permRef" />
+    <RoleMemberDrawer ref="memberRef" @changed="load" />
+  </ErpPage>
 </template>
 
 <style scoped>
-.builtin { margin-left: 6px; }
+.name-cell { display: inline-flex; align-items: center; gap: 8px; }
 </style>

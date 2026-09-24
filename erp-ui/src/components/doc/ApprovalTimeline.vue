@@ -47,7 +47,7 @@ defineExpose({ reload: load })
 
 <template>
   <div v-loading="loading">
-    <el-empty v-if="!data.instances.length" description="暂无审批记录" :image-size="60" />
+    <ErpEmpty v-if="!data.instances.length" description="暂无审批记录" compact />
     <div v-for="ins in data.instances" :key="ins.id" class="instance">
       <div class="ins-head">{{ ins.initiatorName }} 于 {{ formatDateTime(ins.startedAt) }} 提交审批 · {{ INSTANCE_STATUS[ins.status] ?? ins.status }}</div>
       <el-timeline>
@@ -59,7 +59,7 @@ defineExpose({ reload: load })
           placement="top"
         >
           <b>{{ t.nodeName }}</b> · {{ t.assigneeName }}
-          <el-tag size="small" :type="TASK_STATUS[t.status]?.type ?? 'info'" class="tag">{{ TASK_STATUS[t.status]?.label ?? t.status }}</el-tag>
+          <ErpBadge :type="TASK_STATUS[t.status]?.type ?? 'info'" class="tag">{{ TASK_STATUS[t.status]?.label ?? t.status }}</ErpBadge>
           <div v-if="t.comment" class="comment">{{ t.comment }}</div>
         </el-timeline-item>
       </el-timeline>
@@ -68,8 +68,8 @@ defineExpose({ reload: load })
 </template>
 
 <style scoped>
-.instance + .instance { margin-top: 16px; border-top: 1px dashed var(--el-border-color); padding-top: 12px; }
-.ins-head { margin-bottom: 12px; color: var(--el-text-color-secondary); }
+.instance + .instance { margin-top: 16px; border-top: 1px dashed var(--erp-color-border); padding-top: 12px; }
+.ins-head { margin-bottom: 12px; color: var(--erp-color-text-secondary); }
 .tag { margin-left: 8px; }
-.comment { margin-top: 4px; color: var(--el-text-color-regular); white-space: pre-wrap; }
+.comment { margin-top: 4px; color: var(--erp-color-text); white-space: pre-wrap; }
 </style>

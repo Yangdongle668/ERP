@@ -56,13 +56,15 @@ function onEnter() {
       <UomSelect v-else-if="f.type === 'uom'" v-model="q[f.prop]" clearable class="w200" />
       <CurrencySelect v-else-if="f.type === 'currency'" v-model="q[f.prop]" clearable class="w200" />
       <el-input-number v-else-if="f.type === 'number'" v-model="q[f.prop]" :controls="false" :placeholder="f.placeholder" class="w200" />
-      <el-input v-else :model-value="q[f.prop]" :placeholder="f.placeholder ?? `请输入${f.label}`" clearable class="w200" @update:model-value="setUpper(f, $event)" @keyup.enter="onEnter" />
+      <el-input v-else :model-value="q[f.prop]" :placeholder="f.placeholder ?? `请输入${f.label}`" clearable class="w200" @update:model-value="setUpper(f, $event)" @keyup.enter="onEnter">
+        <template v-if="f === fields[0]" #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
     </el-form-item>
     <el-form-item class="buttons">
-      <el-button type="primary" icon="Search" :loading="loading" native-type="submit">查询</el-button>
-      <el-button icon="Refresh" @click="emit('reset')">重置</el-button>
-      <el-button v-if="collapsible" link type="primary" @click="expanded = !expanded">
-        {{ expanded ? '收起' : '展开' }}<el-icon class="arrow"><component :is="expanded ? 'ArrowUp' : 'ArrowDown'" /></el-icon>
+      <el-button type="primary" :loading="loading" native-type="submit">查询</el-button>
+      <el-button @click="emit('reset')">重置</el-button>
+      <el-button v-if="collapsible" link type="primary" class="toggle" @click="expanded = !expanded">
+        {{ expanded ? '收起' : `展开（${fields.length - visibleCount}）` }}<el-icon class="arrow"><component :is="expanded ? 'ArrowUp' : 'ArrowDown'" /></el-icon>
       </el-button>
       <slot name="extra" />
     </el-form-item>
@@ -70,8 +72,12 @@ function onEnter() {
 </template>
 
 <style scoped>
-.erp-search-form { margin-bottom: 4px; }
-.erp-search-form :deep(.el-form-item) { margin-right: 16px; margin-bottom: 12px; }
+.erp-search-form { display: flex; flex-wrap: wrap; column-gap: 24px; }
+.erp-search-form :deep(.el-form-item) { margin-right: 0; margin-bottom: 16px; }
+.erp-search-form :deep(.el-form-item__label) { padding-right: 8px; }
+.erp-search-form .buttons :deep(.el-form-item__content) { gap: 8px; flex-wrap: nowrap; }
+.erp-search-form .buttons :deep(.el-button + .el-button) { margin-left: 0; }
+.toggle { margin-left: 4px; }
 .w200 { width: 200px; }
 .w260 { width: 260px; }
 .w360 { width: 360px; }

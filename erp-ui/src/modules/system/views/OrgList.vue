@@ -28,7 +28,7 @@ const fields: SearchField[] = [
 const columns: TableColumn<OrgNode>[] = [
   { prop: 'name', label: '名称', minWidth: 280, slot: true },
   { prop: 'code', label: '编码', width: 140 },
-  { prop: 'orgType', label: '类型', width: 80, type: 'enum', options: [{ value: 'COMPANY', label: '公司' }, { value: 'DEPT', label: '部门' }], align: 'center' },
+  { prop: 'orgType', label: '类型', width: 80, type: 'enum', options: [{ value: 'COMPANY', label: '公司' }, { value: 'DEPT', label: '部门' }] },
   { prop: 'leaderName', label: '负责人', width: 120 },
   { prop: 'userCount', label: '人数', width: 80, align: 'right', slot: true },
   { prop: 'sort', label: '排序', width: 70, align: 'right' },
@@ -82,47 +82,50 @@ onMounted(load)
 </script>
 
 <template>
-  <el-card>
-    <ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="load" @reset="reset" />
-    <ErpTable
-      :key="tableKey"
-      :columns="columns"
-      :data="list"
-      :loading="loading"
-      :tree-props="{ children: 'children' }"
-      :default-expand-all="expandAll"
-      :actions-width="220"
-      storage-key="system.org"
-      @refresh="load"
-    >
-      <template #toolbar>
-        <el-button v-perm="'system:org:create'" type="primary" icon="Plus" @click="formRef?.open({ orgType: 'COMPANY' })">新建公司</el-button>
-        <el-button :icon="expandAll ? 'Fold' : 'Expand'" @click="toggleExpand">{{ expandAll ? '收起全部' : '展开全部' }}</el-button>
-      </template>
-      <template #col-name="{ row }">
-        <el-icon class="org-icon"><component :is="asOrg(row).orgType === 'COMPANY' ? 'OfficeBuilding' : 'Folder'" /></el-icon>{{ asOrg(row).name }}
-      </template>
-      <template #col-userCount="{ row }">
-        <el-link v-if="asOrg(row).userCount" type="primary" underline="never" @click="router.push({ path: '/system/user', query: { deptId: asOrg(row).id } })">{{ asOrg(row).userCount }}</el-link>
-        <span v-else>0</span>
-      </template>
-      <template #actions="{ row }">
-        <RowActions
-          :actions="[
-            { label: '新增下级', permission: 'system:org:create', visible: asOrg(row).status === 'ENABLED', handler: () => formRef?.open({ parent: asOrg(row) }) },
-            { label: '编辑', permission: 'system:org:update', handler: () => formRef?.open({ id: asOrg(row).id }) },
-            { label: '停用', permission: 'system:org:update', visible: asOrg(row).status === 'ENABLED', handler: () => changeStatus(asOrg(row), 'disable') },
-            { label: '启用', permission: 'system:org:update', visible: asOrg(row).status === 'DISABLED', handler: () => changeStatus(asOrg(row), 'enable') },
-            { label: '删除', permission: 'system:org:delete', danger: true, confirm: `确定删除组织「${asOrg(row).code} ${asOrg(row).name}」吗？删除后不可恢复。`, handler: () => remove(asOrg(row)) }
-          ]"
-        />
-      </template>
-    </ErpTable>
-    <el-empty v-if="!loading && !hasCompany" description="暂无组织" />
-  </el-card>
-  <OrgFormDialog ref="formRef" @saved="saved" />
+  <ErpPage description="公司与部门的树形结构；用户、单据的数据范围按组织控制">
+    <ErpPanel>
+      <template #filter><ErpSearchForm v-model="query" :fields="fields" :loading="loading" @search="load" @reset="reset" /></template>
+      <ErpTable
+        :key="tableKey"
+        :columns="columns"
+        :data="list"
+        :loading="loading"
+        :tree-props="{ children: 'children' }"
+        :default-expand-all="expandAll"
+        :actions-width="220"
+        storage-key="system.org"
+        :empty-text="hasCompany ? '没有符合条件的组织' : '暂无组织，请先新建公司'"
+        @refresh="load"
+      >
+        <template #toolbar>
+          <el-button v-perm="'system:org:create'" type="primary" icon="Plus" @click="formRef?.open({ orgType: 'COMPANY' })">新建公司</el-button>
+          <el-button @click="toggleExpand">{{ expandAll ? '收起全部' : '展开全部' }}</el-button>
+        </template>
+        <template #col-name="{ row }">
+          <span class="name-cell"><el-icon class="org-icon"><component :is="asOrg(row).orgType === 'COMPANY' ? 'OfficeBuilding' : 'Folder'" /></el-icon>{{ asOrg(row).name }}</span>
+        </template>
+        <template #col-userCount="{ row }">
+          <el-link v-if="asOrg(row).userCount" type="primary" underline="never" @click="router.push({ path: '/system/user', query: { deptId: asOrg(row).id } })">{{ asOrg(row).userCount }}</el-link>
+          <span v-else class="text-muted">0</span>
+        </template>
+        <template #actions="{ row }">
+          <RowActions
+            :actions="[
+              { label: '新增下级', permission: 'system:org:create', visible: asOrg(row).status === 'ENABLED', handler: () => formRef?.open({ parent: asOrg(row) }) },
+              { label: '编辑', permission: 'system:org:update', handler: () => formRef?.open({ id: asOrg(row).id }) },
+              { label: '停用', permission: 'system:org:update', visible: asOrg(row).status === 'ENABLED', handler: () => changeStatus(asOrg(row), 'disable') },
+              { label: '启用', permission: 'system:org:update', visible: asOrg(row).status === 'DISABLED', handler: () => changeStatus(asOrg(row), 'enable') },
+              { label: '删除', permission: 'system:org:delete', danger: true, confirm: `确定删除组织「${asOrg(row).code} ${asOrg(row).name}」吗？删除后不可恢复。`, handler: () => remove(asOrg(row)) }
+            ]"
+          />
+        </template>
+      </ErpTable>
+    </ErpPanel>
+    <OrgFormDialog ref="formRef" @saved="saved" />
+  </ErpPage>
 </template>
 
 <style scoped>
-.org-icon { margin-right: 4px; vertical-align: -2px; color: var(--el-color-primary); }
+.name-cell { display: inline-flex; align-items: center; gap: 6px; }
+.org-icon { color: var(--erp-color-text-tertiary); font-size: var(--erp-icon-size); }
 </style>

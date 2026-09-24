@@ -32,5 +32,5 @@ const label = (u: UserSimple) => (u.deptName ? `${u.realName}（${u.deptName}）
 </template>
 
 <style scoped>
-.sub { margin-left: 8px; color: var(--el-text-color-secondary); font-size: 12px; }
+.sub { margin-left: 8px; color: var(--erp-color-text-secondary); font-size: var(--erp-font-size-caption); }
 </style>

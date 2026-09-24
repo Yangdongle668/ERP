@@ -41,5 +41,5 @@ function onChange(v: string | undefined) {
 </template>
 
 <style scoped>
-.en { float: right; margin-left: 12px; color: var(--el-text-color-secondary); font-size: 12px; }
+.en { float: right; margin-left: 12px; color: var(--erp-color-text-secondary); font-size: var(--erp-font-size-caption); }
 </style>

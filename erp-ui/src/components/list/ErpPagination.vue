@@ -20,12 +20,13 @@ function onSize(s: number) {
 
 <template>
   <div class="erp-pagination">
+    <span class="erp-pagination__total">共 <span class="num">{{ (Number(total) || 0).toLocaleString('zh-CN') }}</span> 条</span>
     <el-pagination
       :current-page="pageNo"
       :page-size="pageSize"
       :total="Number(total) || 0"
       :page-sizes="[20, 50, 100, 200]"
-      layout="total, sizes, prev, pager, next, jumper"
+      layout="sizes, prev, pager, next, jumper"
       background
       @current-change="onPage"
       @size-change="onSize"
@@ -34,5 +35,6 @@ function onSize(s: number) {
 </template>
 
 <style scoped>
-.erp-pagination { margin-top: 12px; display: flex; justify-content: flex-end; }
+.erp-pagination { margin-top: 16px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.erp-pagination__total { font-size: var(--erp-font-size-secondary); color: var(--erp-color-text-secondary); }
 </style>

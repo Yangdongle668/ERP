@@ -41,7 +41,8 @@ function onPasswordChanged(resp: LoginResp) {
 </script>
 
 <template>
-  <el-card>
+  <ErpPage description="查看账号信息，修改联系方式、界面语言与登录密码">
+  <ErpPanel class="profile-panel">
     <el-tabs v-model="tab">
       <el-tab-pane label="基本信息" name="info">
         <el-descriptions :column="2" border class="desc">
@@ -68,10 +69,12 @@ function onPasswordChanged(resp: LoginResp) {
         <PasswordForm @changed="onPasswordChanged" />
       </el-tab-pane>
     </el-tabs>
-  </el-card>
+  </ErpPanel>
+  </ErpPage>
 </template>
 
 <style scoped>
-.desc { max-width: 800px; margin-bottom: 20px; }
+.profile-panel :deep(.el-tabs__header) { margin: -8px 0 20px; }
+.desc { max-width: 800px; margin-bottom: 24px; }
 .form { max-width: 480px; }
 </style>

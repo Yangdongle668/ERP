@@ -87,5 +87,5 @@ defineExpose({ open })
 </template>
 
 <style scoped>
-.count { margin-right: 12px; color: var(--el-text-color-secondary); }
+.count { margin-right: 12px; color: var(--erp-color-text-secondary); }
 </style>

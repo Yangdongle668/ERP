@@ -4,6 +4,8 @@ import type { TableInstance } from 'element-plus'
 import type { TableColumn } from '../types'
 import StatusTag from '../form/StatusTag.vue'
 import DictTag from '../form/DictTag.vue'
+import ErpEmpty from '../base/ErpEmpty.vue'
+import ErpIconButton from '../base/ErpIconButton.vue'
 import { useUserStore } from '@/stores/user'
 import { useBaseDataStore } from '@/stores/baseData'
 import {
@@ -14,7 +16,10 @@ import {
  * 表格封装（UI 设计规范 T1 表格）：列配置、列设置（显示/隐藏、顺序，按用户 + 页面保存在本地）、
  * 数字格式与对齐、状态/字典标签、合计行、操作列、工具栏（左侧业务按钮，右侧导入导出 + 列设置 + 刷新）。
  *
- * 插槽：toolbar（左侧按钮）、toolbar-right（导入导出等图标按钮）、col-<prop>（自定义单元格）、actions（操作列）
+ * 插槽：toolbar（左侧按钮）、toolbar-right（导入导出等 ErpIconButton）、col-<prop>（自定义单元格）、actions（操作列）、empty（空状态操作）
+ *
+ * 视觉（UI 设计规范 5.1 Table）：无斑马纹、只有横向分割线；表头浅灰；悬停整行高亮；首次加载显示骨架行，
+ * 刷新时保留数据并显示遮罩；勾选后工具栏显示“已选 N 项”；密度可切换（默认 / 紧凑，全站记忆）。
  */
 const props = withDefaults(defineProps<{
   columns: TableColumn<T>[]
@@ -36,7 +41,9 @@ const props = withDefaults(defineProps<{
   /** 树形表格 */
   treeProps?: { children?: string; hasChildren?: string }
   defaultExpandAll?: boolean
-}>(), { rowKey: 'id', actionsWidth: 0, border: true })
+  /** 空状态说明 */
+  emptyText?: string
+}>(), { rowKey: 'id', actionsWidth: 0, border: false, emptyText: '暂无数据' })
 
 const emit = defineEmits<{
   'selection-change': [rows: T[]]
@@ -125,8 +132,8 @@ const NUMERIC = new Set(['qty', 'amount', 'price', 'rate', 'percent'])
 
 function alignOf(c: TableColumn<T>) {
   if (c.align) return c.align
+  // 数字右对齐（便于比较位数），其余左对齐（状态徽标、日期左对齐更整齐）
   if (c.type && NUMERIC.has(c.type)) return 'right'
-  if (c.type && ['status', 'dict', 'date', 'datetime', 'bool'].includes(c.type)) return 'center'
   return 'left'
 }
 
@@ -170,6 +177,38 @@ function summaryMethod({ columns }: { columns: { property?: string }[] }): (stri
   })
 }
 
+// ---------- 勾选 ----------
+const selectedCount = ref(0)
+function onSelection(rows: T[]) {
+  selectedCount.value = rows.length
+  emit('selection-change', rows)
+}
+function clearSelection() {
+  tableRef.value?.clearSelection()
+}
+
+// ---------- 密度（全站记忆） ----------
+const DENSITY_KEY = 'erp.table.density'
+const compact = ref(readDensity())
+function readDensity() {
+  try {
+    return localStorage.getItem(DENSITY_KEY) === 'compact'
+  } catch {
+    return false
+  }
+}
+function toggleDensity() {
+  compact.value = !compact.value
+  try {
+    localStorage.setItem(DENSITY_KEY, compact.value ? 'compact' : 'default')
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 首次加载（还没有数据）显示骨架行，之后刷新保留数据并显示遮罩 */
+const skeleton = computed(() => props.loading && props.data.length === 0)
+
 // ---------- 事件 ----------
 function onSort({ prop, order }: { prop: string | null; order: string | null }) {
   emit('sort-change', { prop: order && prop ? prop : undefined, order: order === 'ascending' ? 'asc' : order === 'descending' ? 'desc' : undefined })
@@ -177,18 +216,23 @@ function onSort({ prop, order }: { prop: string | null; order: string | null }) 
 
 watch(() => props.data, () => nextTick(() => tableRef.value?.setScrollTop(0)))
 
-defineExpose({ getVisibleColumns, clearSelection: () => tableRef.value?.clearSelection(), table: tableRef })
+defineExpose({ getVisibleColumns, clearSelection, table: tableRef })
 </script>
 
 <template>
-  <div class="erp-table">
-    <div v-if="!noToolbar" class="toolbar">
-      <div class="left"><slot name="toolbar" /></div>
+  <div :class="['erp-table', { 'is-compact': compact }]">
+    <div v-if="!noToolbar" class="erp-table__toolbar">
+      <div class="left">
+        <slot name="toolbar" />
+        <span v-if="selection && selectedCount" class="selection-bar">
+          已选 <b class="num">{{ selectedCount }}</b> 项<span class="dot">·</span><el-button link type="primary" @click="clearSelection">取消选择</el-button>
+        </span>
+      </div>
       <div class="right">
         <slot name="toolbar-right" />
         <el-popover v-if="storageKey" placement="bottom-end" :width="260" trigger="click">
           <template #reference>
-            <span><el-tooltip content="列设置" placement="top"><el-button icon="Setting" circle /></el-tooltip></span>
+            <span><ErpIconButton icon="Columns" tooltip="列设置" /></span>
           </template>
           <div class="col-settings">
             <div class="col-head">
@@ -199,35 +243,35 @@ defineExpose({ getVisibleColumns, clearSelection: () => tableRef.value?.clearSel
               <div v-for="(s, i) in settings" :key="s.key" class="col-row">
                 <el-checkbox v-model="s.visible" @change="saveSettings">{{ labelOf(s.key) }}</el-checkbox>
                 <span class="ops">
-                  <el-button link icon="Top" :disabled="i === 0" @click="move(i, -1)" />
-                  <el-button link icon="Bottom" :disabled="i === settings.length - 1" @click="move(i, 1)" />
+                  <el-button link icon="Up" :disabled="i === 0" aria-label="上移" @click="move(i, -1)" />
+                  <el-button link icon="Down" :disabled="i === settings.length - 1" aria-label="下移" @click="move(i, 1)" />
                 </span>
               </div>
             </el-scrollbar>
           </div>
         </el-popover>
-        <el-tooltip content="刷新" placement="top"><el-button icon="Refresh" circle @click="emit('refresh')" /></el-tooltip>
+        <ErpIconButton icon="Operation" :tooltip="compact ? '切换为默认行高' : '切换为紧凑行高'" :active="compact" @click="toggleDensity" />
+        <ErpIconButton icon="Refresh" tooltip="刷新" :loading="loading && !skeleton" @click="emit('refresh')" />
       </div>
     </div>
 
     <el-table
       ref="tableRef"
-      v-loading="loading"
+      v-loading="loading && !skeleton"
       :data="data"
       :row-key="rowKey"
       :border="border"
-      stripe
       :height="height"
       :max-height="maxHeight"
-      :show-summary="hasSummary"
+      :show-summary="hasSummary && !skeleton"
       :summary-method="summaryMethod"
       :tree-props="treeProps"
       :default-expand-all="defaultExpandAll"
-      @selection-change="emit('selection-change', $event)"
+      @selection-change="onSelection"
       @sort-change="onSort"
       @row-click="emit('row-click', $event)"
     >
-      <el-table-column v-if="selection" type="selection" width="44" fixed="left" reserve-selection />
+      <el-table-column v-if="selection" type="selection" width="44" fixed="left" reserve-selection align="center" />
       <el-table-column
         v-for="c in visibleColumns"
         :key="colKey(c)"
@@ -246,25 +290,39 @@ defineExpose({ getVisibleColumns, clearSelection: () => tableRef.value?.clearSel
           <StatusTag v-else-if="c.type === 'status'" :value="valueOf(row, c)" :map="c.statusMap" />
           <DictTag v-else-if="c.type === 'dict'" :type="c.dictType!" :value="valueOf(row, c)" />
           <el-link v-else-if="c.type === 'link'" type="primary" underline="never" @click.stop="c.onClick?.(row)">{{ textOf(row, c) }}</el-link>
-          <span v-else :class="{ num: c.type && NUMERIC.has(c.type), neg: negative(row, c) }">{{ textOf(row, c) }}</span>
+          <span v-else :class="{ num: c.type && NUMERIC.has(c.type), neg: negative(row, c), 'text-muted': textOf(row, c) === '-' }">{{ textOf(row, c) }}</span>
         </template>
       </el-table-column>
       <el-table-column v-if="$slots.actions" label="操作" :width="actionsWidth || 180" fixed="right" align="left">
         <template #default="{ row }"><slot name="actions" :row="row" /></template>
       </el-table-column>
-      <template #empty><el-empty description="暂无数据" :image-size="80" /></template>
+      <template #empty>
+        <div v-if="skeleton" class="erp-table__skeleton">
+          <el-skeleton v-for="i in 6" :key="i" animated :rows="0" :loading="true">
+            <template #template><el-skeleton-item variant="text" :style="{ width: `${[92, 76, 88, 64, 84, 70][i - 1]}%` }" /></template>
+          </el-skeleton>
+        </div>
+        <ErpEmpty v-else :description="emptyText"><slot name="empty" /></ErpEmpty>
+      </template>
     </el-table>
   </div>
 </template>
 
 <style scoped>
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
-.toolbar .left, .toolbar .right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.toolbar .right :deep(.el-button + .el-button) { margin-left: 0; }
+.erp-table { min-width: 0; }
+.erp-table__toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; min-height: 32px; }
+.erp-table__toolbar .left, .erp-table__toolbar .right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.erp-table__toolbar .right { gap: 2px; }
+.erp-table__toolbar :deep(.el-button + .el-button) { margin-left: 0; }
+.selection-bar { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; font-size: var(--erp-font-size-secondary); color: var(--erp-color-text-secondary); }
+.selection-bar b { color: var(--erp-color-text); font-weight: var(--erp-font-weight-medium); }
+.selection-bar .dot { color: var(--erp-color-text-disabled); margin: 0 2px; }
+.erp-table__skeleton { padding: 12px; display: flex; flex-direction: column; gap: 18px; text-align: left; }
+.erp-table__skeleton :deep(.el-skeleton__item) { height: 14px; }
+.erp-table.is-compact :deep(.el-table .el-table__cell) { padding: 4px 0; }
 .num { font-variant-numeric: tabular-nums; }
-.neg { color: var(--el-color-danger); }
-.col-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-weight: 600; }
+.col-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-weight: var(--erp-font-weight-medium); }
 .col-row { display: flex; justify-content: space-between; align-items: center; }
 .col-row .ops { white-space: nowrap; }
-:deep(.total) { color: var(--el-text-color-secondary); font-size: 12px; }
+:deep(.total) { color: var(--erp-color-text-secondary); font-size: var(--erp-font-size-caption); }
 </style>

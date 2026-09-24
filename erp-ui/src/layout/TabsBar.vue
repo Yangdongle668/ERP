@@ -92,7 +92,7 @@ function onWheel(e: WheelEvent) {
         @contextmenu="openMenu($event, t)"
         @mousedown.middle.prevent="close([t])"
       >
-        <span v-if="t.dirty" class="dirty">●</span>
+        <span v-if="t.dirty" class="dirty" title="有未保存的修改" />
         <span class="title">{{ t.title }}</span>
         <el-icon v-if="!t.fixed" class="close" @click.stop="close([t])"><Close /></el-icon>
       </div>
@@ -108,24 +108,39 @@ function onWheel(e: WheelEvent) {
 </template>
 
 <style scoped>
-.tabs-bar { height: 36px; display: flex; align-items: center; background: var(--el-bg-color); border-bottom: 1px solid var(--el-border-color-light); padding: 0 8px; }
-.tabs-scroll { display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; flex: 1; }
+.tabs-bar {
+  height: var(--erp-tabs-height); flex-shrink: 0; display: flex; align-items: flex-end; background: var(--erp-color-surface);
+  border-bottom: 1px solid var(--erp-color-border); padding: 0 12px;
+}
+.tabs-scroll { display: flex; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; flex: 1; height: 100%; }
 .tabs-scroll::-webkit-scrollbar { display: none; }
 .tab {
-  display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border: 1px solid var(--el-border-color-light);
-  border-radius: 3px; font-size: 13px; cursor: pointer; white-space: nowrap; color: var(--el-text-color-regular); background: var(--el-bg-color);
+  position: relative; display: inline-flex; align-items: center; gap: 6px; height: 100%; padding: 0 12px; cursor: pointer; white-space: nowrap;
+  font-size: var(--erp-font-size-secondary); color: var(--erp-color-text-secondary);
+  transition: color var(--erp-duration-fast) var(--erp-ease), background-color var(--erp-duration-fast) var(--erp-ease);
 }
-.tab:hover { color: var(--el-color-primary); }
-.tab.active { color: #fff; background: var(--el-color-primary); border-color: var(--el-color-primary); }
+.tab::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px; border-radius: 1px; background: transparent;
+  transition: background-color var(--erp-duration-fast) var(--erp-ease);
+}
+.tab:hover { color: var(--erp-color-text); background: var(--erp-color-hover); }
+.tab.active { color: var(--erp-color-text); font-weight: var(--erp-font-weight-medium); background: transparent; }
+.tab.active::after { background: var(--el-color-primary); }
 .tab .title { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
-.tab .dirty { color: var(--el-color-warning); font-size: 10px; }
-.tab.active .dirty { color: #fff; }
-.tab .close { border-radius: 50%; font-size: 12px; }
-.tab .close:hover { background: var(--el-color-info-light-5); color: #fff; }
-.context-menu {
-  position: fixed; z-index: 3000; margin: 0; padding: 4px 0; list-style: none; background: var(--el-bg-color-overlay);
-  border: 1px solid var(--el-border-color-light); border-radius: 4px; box-shadow: var(--el-box-shadow-light); font-size: 13px;
+.tab .dirty { width: 6px; height: 6px; border-radius: 50%; background: var(--el-color-warning); flex-shrink: 0; }
+.tab .close {
+  width: 16px; height: 16px; border-radius: var(--erp-radius-xs); font-size: var(--erp-font-size-caption); color: var(--erp-color-text-tertiary);
+  opacity: 0; transition: opacity var(--erp-duration-fast) var(--erp-ease), background-color var(--erp-duration-fast) var(--erp-ease);
 }
-.context-menu li { display: flex; align-items: center; gap: 6px; padding: 6px 16px; cursor: pointer; }
-.context-menu li:hover { background: var(--el-color-primary-light-9); color: var(--el-color-primary); }
+.tab:hover .close, .tab.active .close { opacity: 1; }
+.tab .close:hover { background: var(--erp-color-active); color: var(--erp-color-text); }
+.context-menu {
+  position: fixed; z-index: 3000; margin: 0; padding: 4px; list-style: none; background: var(--erp-color-surface); min-width: 140px;
+  border: 1px solid var(--erp-color-border); border-radius: var(--erp-radius-card); box-shadow: var(--erp-shadow-float); font-size: var(--erp-font-size-body);
+}
+.context-menu li {
+  display: flex; align-items: center; gap: 8px; padding: 6px 12px; cursor: pointer; border-radius: var(--erp-radius-xs); color: var(--erp-color-text);
+}
+.context-menu li .el-icon { color: var(--erp-color-text-secondary); }
+.context-menu li:hover { background: var(--erp-color-hover); }
 </style>
