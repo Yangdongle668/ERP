@@ -24,6 +24,15 @@ public final class SecurityUtils {
         return user;
     }
 
+    /** 当前用户的数据范围；未登录（如定时任务）时为全部 */
+    public static UserDataScope currentDataScope() {
+        LoginUser user = getLoginUserOrNull();
+        if (user == null || user.isSuperAdmin()) {
+            return UserDataScope.ALL;
+        }
+        return user.dataScope();
+    }
+
     public static Long getLoginUserIdOrNull() {
         LoginUser user = getLoginUserOrNull();
         return user == null ? null : user.id();

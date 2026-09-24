@@ -6,6 +6,8 @@ import com.baomidou.mybatisplus.extension.plugins.inner.BlockAttackInnerIntercep
 import com.baomidou.mybatisplus.extension.plugins.inner.OptimisticLockerInnerInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import com.erp.common.result.PageParam;
+import com.erp.framework.datascope.DataScopeHandler;
+import com.erp.framework.datascope.DataScopeInterceptor;
 import com.erp.framework.security.SecurityUtils;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.reflection.MetaObject;
@@ -28,6 +30,8 @@ public class MybatisPlusConfig {
         // 防止全表 update/delete
         interceptor.addInnerInterceptor(new BlockAttackInnerInterceptor());
         interceptor.addInnerInterceptor(new OptimisticLockerInnerInterceptor());
+        // 数据权限必须在分页之前，分页的 count 语句才会带上数据权限条件
+        interceptor.addInnerInterceptor(new DataScopeInterceptor(new DataScopeHandler()));
         PaginationInnerInterceptor pagination = new PaginationInnerInterceptor();
         pagination.setMaxLimit((long) PageParam.MAX_PAGE_SIZE);
         interceptor.addInnerInterceptor(pagination);

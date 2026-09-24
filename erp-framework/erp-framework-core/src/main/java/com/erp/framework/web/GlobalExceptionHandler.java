@@ -34,9 +34,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BizException.class)
     @ResponseStatus(HttpStatus.OK)
-    public CommonResult<Void> handleBiz(BizException e) {
+    public CommonResult<Object> handleBiz(BizException e) {
         log.info("[业务异常] code={}, msg={}", e.getCode(), e.getMessage());
-        return CommonResult.error(e.getCode(), e.getMessage());
+        return new CommonResult<>(e.getCode(), e.getMessage(), e.getData());
     }
 
     @ExceptionHandler(BindException.class)

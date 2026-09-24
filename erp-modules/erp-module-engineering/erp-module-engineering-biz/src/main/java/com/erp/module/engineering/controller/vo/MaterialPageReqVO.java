@@ -17,4 +17,8 @@ public class MaterialPageReqVO extends PageParam {
     private MaterialType materialType;
     private Long categoryId;
     private MaterialStatus status;
+    /** 编码前缀或名称/规格模糊（选择器使用） */
+    private String keyword;
+    /** 物料类型，逗号分隔（选择器使用） */
+    private String types;
 }

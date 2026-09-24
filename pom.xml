@@ -36,6 +36,7 @@
         <jjwt.version>0.12.6</jjwt.version>
         <springdoc.version>2.6.0</springdoc.version>
         <archunit.version>1.3.0</archunit.version>
+        <poi.version>5.3.0</poi.version>
         <flatten-maven-plugin.version>1.6.0</flatten-maven-plugin.version>
     </properties>
 
@@ -75,6 +76,11 @@
             </dependency>
 
             <!-- 内部模块统一版本 -->
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi-ooxml</artifactId>
+                <version>${poi.version}</version>
+            </dependency>
             <dependency>
                 <groupId>com.erp</groupId>
                 <artifactId>erp-common</artifactId>

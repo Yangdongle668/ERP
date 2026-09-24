@@ -13,11 +13,15 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.Optional;
 
-/** JWT 签发与解析。token 中只放用户 ID 和类型，权限每次从 {@link LoginUserLoader} 获取，保证权限变更即时生效。 */
+/**
+ * JWT 签发与解析。令牌中只放用户 ID、类型和令牌版本（tv），权限每次从 {@link LoginUserLoader} 获取，
+ * 保证权限变更即时生效；tv 与用户当前版本不一致时令牌失效（修改密码、强制下线）。
+ */
 @Component
 public class JwtTokenService {
 
     private static final String CLAIM_TYPE = "typ";
+    private static final String CLAIM_TOKEN_VERSION = "tv";
     private static final String TYPE_ACCESS = "access";
     private static final String TYPE_REFRESH = "refresh";
 
@@ -29,19 +33,20 @@ public class JwtTokenService {
         this.key = Keys.hmacShaKeyFor(properties.getSecret().getBytes(StandardCharsets.UTF_8));
     }
 
-    public String createAccessToken(Long userId) {
-        return create(userId, TYPE_ACCESS, properties.getAccessTokenTtl());
+    /** 访问令牌，有效期由调用方传入（系统参数 sys.session.access-token-minutes）；为空时取配置 */
+    public String createAccessToken(Long userId, int tokenVersion, Duration ttl) {
+        return create(userId, tokenVersion, TYPE_ACCESS, ttl == null ? properties.getAccessTokenTtl() : ttl);
     }
 
-    public String createRefreshToken(Long userId) {
-        return create(userId, TYPE_REFRESH, properties.getRefreshTokenTtl());
+    public String createRefreshToken(Long userId, int tokenVersion) {
+        return create(userId, tokenVersion, TYPE_REFRESH, properties.getRefreshTokenTtl());
     }
 
-    public Optional<Long> parseAccessToken(String token) {
+    public Optional<TokenClaims> parseAccessToken(String token) {
         return parse(token, TYPE_ACCESS);
     }
 
-    public Optional<Long> parseRefreshToken(String token) {
+    public Optional<TokenClaims> parseRefreshToken(String token) {
         return parse(token, TYPE_REFRESH);
     }
 
@@ -49,24 +54,26 @@ public class JwtTokenService {
         return properties.getAccessTokenTtl();
     }
 
-    private String create(Long userId, String type, Duration ttl) {
+    private String create(Long userId, int tokenVersion, String type, Duration ttl) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim(CLAIM_TYPE, type)
+                .claim(CLAIM_TOKEN_VERSION, tokenVersion)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(ttl)))
                 .signWith(key)
                 .compact();
     }
 
-    private Optional<Long> parse(String token, String expectedType) {
+    private Optional<TokenClaims> parse(String token, String expectedType) {
         try {
             Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
             if (!expectedType.equals(claims.get(CLAIM_TYPE, String.class))) {
                 return Optional.empty();
             }
-            return Optional.of(Long.valueOf(claims.getSubject()));
+            Integer tv = claims.get(CLAIM_TOKEN_VERSION, Integer.class);
+            return Optional.of(new TokenClaims(Long.valueOf(claims.getSubject()), tv == null ? 0 : tv));
         } catch (JwtException | IllegalArgumentException e) {
             return Optional.empty();
         }

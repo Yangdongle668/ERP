@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -65,6 +66,17 @@ public class MaterialService {
 
     public PageResult<MaterialRespVO> page(MaterialPageReqVO req) {
         return materialMapper.selectPage(req).map(MaterialConvert::toResp);
+    }
+
+    /** 选择器远程搜索（登录即可） */
+    public List<MaterialRespVO> search(String keyword, String types, MaterialStatus status, List<Long> ids, int limit) {
+        return materialMapper.search(keyword, types, status, ids, limit).stream().map(MaterialConvert::toResp).toList();
+    }
+
+    /** 按编码精确查询（明细行输入编码回车）；不存在或未启用时返回 null */
+    public MaterialRespVO getEnabledByCode(String code) {
+        MaterialDO m = materialMapper.selectByCode(code == null ? null : code.trim().toUpperCase());
+        return m == null || m.getStatus() != MaterialStatus.ENABLED ? null : MaterialConvert.toResp(m);
     }
 
     public MaterialRespVO get(Long id) {

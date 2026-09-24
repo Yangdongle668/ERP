@@ -1,5 +1,6 @@
 package com.erp.framework.security;
 
+import com.erp.common.exception.ErrorCode;
 import com.erp.common.exception.GlobalErrorCodes;
 import com.erp.common.result.CommonResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,6 +34,10 @@ public class SecurityConfig {
     private static final String[] PUBLIC_PATHS = {
             "/api/system/auth/login",
             "/api/system/auth/refresh",
+            "/api/system/auth/captcha",
+            "/api/system/auth/captcha-required",
+            "/api/system/auth/password-policy",
+            "/api/system/params/public",
             "/actuator/health",
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -55,11 +60,12 @@ public class SecurityConfig {
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((req, resp, ex) ->
                                 write(resp, objectMapper, HttpServletResponse.SC_UNAUTHORIZED,
-                                        CommonResult.error(GlobalErrorCodes.UNAUTHORIZED)))
+                                        CommonResult.error(req.getAttribute(JwtAuthenticationFilter.AUTH_ERROR_ATTR) instanceof ErrorCode code
+                                                ? code : GlobalErrorCodes.UNAUTHORIZED)))
                         .accessDeniedHandler((req, resp, ex) ->
                                 write(resp, objectMapper, HttpServletResponse.SC_FORBIDDEN,
                                         CommonResult.error(GlobalErrorCodes.FORBIDDEN))))
-                .addFilterBefore(new JwtAuthenticationFilter(tokenService, loginUserLoader),
+                .addFilterBefore(new JwtAuthenticationFilter(tokenService, loginUserLoader, objectMapper),
                         UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

@@ -10,13 +10,26 @@ public class BizException extends RuntimeException {
 
     private final int code;
 
+    /** 随错误返回给前端的附加数据（如登录失败时是否需要验证码），可为空 */
+    private final transient Object data;
+
     public BizException(ErrorCode errorCode) {
         this(errorCode.code(), errorCode.message());
     }
 
     public BizException(int code, String message) {
+        this(code, message, null);
+    }
+
+    public BizException(int code, String message, Object data) {
         super(message);
         this.code = code;
+        this.data = data;
+    }
+
+    /** 带附加数据的业务异常 */
+    public BizException withData(Object data) {
+        return new BizException(code, getMessage(), data);
     }
 
     public static BizException of(ErrorCode errorCode, Object... args) {
@@ -25,6 +38,10 @@ public class BizException extends RuntimeException {
 
     public int getCode() {
         return code;
+    }
+
+    public Object getData() {
+        return data;
     }
 
     /** 依次用参数替换消息中的 {} 占位符。 */
