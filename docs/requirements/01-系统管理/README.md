@@ -18,6 +18,7 @@
 | 编码规则 | [05-编码规则](05-编码规则.md) | 编码规则 | T1 + T2 | `/system/code-rule` | `system:code-rule:query` | P0 |
 | 计量单位 | [06-计量单位](06-计量单位.md) | 计量单位 | T1 + T2 | `/system/uom` | `system:uom:query` | P0 |
 | 币别与汇率 | [07-币别汇率](07-币别汇率.md) | 币别、汇率（两个页签） | T1 + T2 | `/system/currency` | `system:currency:query` | P0 |
+| 付款条件与贸易基础数据 | [14-付款条件与贸易基础数据](14-付款条件与贸易基础数据.md) | 付款条件 | T1 + T2 | `/system/payment-term` | `system:payment-term:query` | P0 |
 | 审批流 | [08-审批流](08-审批流.md) | 审批流配置 | 专用 | `/system/workflow` | `system:workflow:query` | P0 |
 | | | 审批实例监控 | T1 | `/system/workflow-instance` | `system:workflow:monitor` | P1 |
 | 打印模板 | [09-打印模板](09-打印模板.md) | 打印模板 | T1 + 编辑器 | `/system/print-template` | `system:print:query` | P1 |
@@ -27,7 +28,7 @@
 | | | 定时任务 | T1 | `/system/job` | `system:job:query` | P1 |
 | 登录与个人中心 | [13-登录与个人中心](13-登录与个人中心.md) | 登录、个人中心、修改密码 | 专用 | `/login`、`/profile` | 登录即可 | P0 |
 
-侧边栏“系统管理”下的菜单顺序：组织架构、用户、角色、数据字典、编码规则、计量单位、币别汇率、审批流、打印模板、系统参数、日志审计、定时任务、任务中心。
+侧边栏“系统管理”下的菜单顺序：组织架构、用户、角色、数据字典、编码规则、计量单位、币别汇率、付款条件、审批流、打印模板、系统参数、日志审计、定时任务、任务中心。
 
 ## 3. 用户角色
 
@@ -49,6 +50,7 @@
 | sys_code_rule、sys_code_seq | 编码规则、流水号 | 05 |
 | sys_uom、sys_uom_conversion | 计量单位、通用换算 | 06 |
 | sys_currency、sys_exchange_rate | 币别、汇率 | 07 |
+| sys_payment_term、sys_payment_term_node | 付款条件 | 14 |
 | wf_biz_type、wf_definition、wf_branch、wf_node、wf_instance、wf_task | 审批流 | 08 |
 | sys_print_template | 打印模板 | 09 |
 | sys_param | 系统参数 | 10 |
@@ -82,6 +84,7 @@
 | `CodeRuleApi` | `nextCode(bizCode)` | 生成编码（已实现） |
 | `DictApi` | `getItems(type)`、`validate(type, value)`、`label(type, value)` | 字典 |
 | `UomApi` | `get(code)`、`convert(qty, from, to)`、`round(qty, uom)` | 计量单位 |
+| `PaymentTermApi` | `get(id)`、`calcDueDates(termId, amount, events)` | 付款条件与到期日计算 |
 | `CurrencyApi` | `getBaseCurrency()`、`getRate(currency, date)`、`getPrecision(currency)` | 币别汇率 |
 | `ParamApi` | `getString/getInt/getDecimal/getBool(key)` | 系统参数 |
 | `WorkflowApi` | `start(...)`、`withdraw(...)`、`getStatus(...)` | 审批流；结果以 `ApprovalCompletedEvent` 通知 |
@@ -93,7 +96,7 @@
 
 | 批次 | 功能 |
 |---|---|
-| 第 1 步（其他模块开工前完成） | 组织架构、用户、角色权限（含数据范围）、字典、编码规则、计量单位、币别汇率、系统参数、日志、登录与个人中心、声明式注册机制 |
+| 第 1 步（其他模块开工前完成） | 组织架构、用户、角色权限（含数据范围）、字典、编码规则、计量单位、币别汇率、付款条件、系统参数、日志、登录与个人中心、声明式注册机制 |
 | 第 2 步（与业务模块并行） | 审批流、打印模板、附件、任务中心、定时任务 |
 
 在审批流完成之前，业务模块调用 `WorkflowApi.start()` 时按“该单据未配置审批流”处理（直接审核通过），因此不会阻塞业务模块开发。
