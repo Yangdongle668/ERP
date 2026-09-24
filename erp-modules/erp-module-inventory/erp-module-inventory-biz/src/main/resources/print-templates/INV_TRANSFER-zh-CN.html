@@ -1,0 +1,26 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head { width: 100%; margin-bottom: 8pt; font-size: 10pt; }
+  .head td { padding: 2pt 4pt; }
+  .lines { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+  .lines th, .lines td { border: 1px solid #333; padding: 3pt 4pt; }
+  .lines th { background: #f2f2f2; }
+  .num { text-align: right; }
+  .sign { margin-top: 16pt; width: 100%; font-size: 10pt; }
+</style>
+<h1>调拨单</h1>
+<table class="head">
+  <tr><td>单号：{{docNo}}</td><td>日期：{{formatDate docDate}}</td><td>类型：{{typeName}}</td></tr>
+  <tr><td>调出仓：{{warehouseName}}{{#if toWarehouseName}} → {{toWarehouseName}}{{/if}}</td><td>来源单号：{{sourceNo}}</td><td>{{partnerName}}</td></tr>
+  <tr><td colspan="3">备注：{{remark}}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>#</th><th>物料编码</th><th>名称</th><th>规格</th><th>单位</th><th>数量</th><th>批次</th><th>库位</th><th>备注</th></tr></thead>
+  <tbody>
+    {{#each lines}}
+    <tr><td>{{lineNo}}</td><td>{{code}}</td><td>{{name}}</td><td>{{spec}}</td><td>{{uom}}</td><td class="num">{{formatQty qty}}</td>
+      <td>{{batchNo}}</td><td>{{locationCode}}</td><td>{{remark}}</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+<table class="sign"><tr><td>制单：</td><td>仓管员：{{confirmedByName}}</td><td>经手人：</td></tr></table>

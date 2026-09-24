@@ -15,6 +15,9 @@ public interface InventoryDocApi {
 
     List<Long> createStockOut(StockOutRequest request);
 
+    /** 生成调拨单（品质检验调拨）；检验调拨按判定结果拆为多张 */
+    List<Long> createTransfer(TransferRequest request);
+
     /**
      * 来源单据撤销（反审核）时调用：作废该来源生成的未确认仓库单据；
      * 已确认的单据存在时抛出 BizException，阻止来源撤销。
