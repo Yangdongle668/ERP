@@ -71,8 +71,8 @@ public class OrgService implements OrgApi {
         Map<Long, Long> userCounts = userMapper.countEnabledGroupByDept().stream()
                 .filter(c -> c.id() != null).collect(Collectors.toMap(UserMapper.IdCount::id, UserMapper.IdCount::cnt));
         Set<Long> leaderIds = all.stream().map(OrgDO::getLeaderUserId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<Long, String> leaderNames = leaderIds.isEmpty() ? Map.of() : userMapper.selectBatchIds(leaderIds).stream()
-                .collect(Collectors.toMap(UserDO::getId, UserDO::getRealName));
+        Map<Long, String> leaderNames = new HashMap<>();
+        if (!leaderIds.isEmpty()) userMapper.selectBatchIds(leaderIds).forEach(u -> leaderNames.put(u.getId(), u.getRealName()));
         return buildTree(all.stream().filter(o -> visible.contains(o.getId())).toList(), null,
                 o -> new OrgNode(o.getId(), o.getParentId(), o.getCode(), o.getName(), o.getShortName(), o.getOrgType().name(),
                         o.getLeaderUserId(), leaderNames.get(o.getLeaderUserId()), o.getPhone(),

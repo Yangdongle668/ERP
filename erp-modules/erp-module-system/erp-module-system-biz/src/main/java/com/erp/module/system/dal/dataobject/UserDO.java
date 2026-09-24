@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("sys_user")
+@TableName(value = "sys_user", autoResultMap = true)
 public class UserDO extends BaseDO {
 
     private String username;

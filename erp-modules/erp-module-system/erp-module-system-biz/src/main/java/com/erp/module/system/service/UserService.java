@@ -29,6 +29,7 @@ import com.erp.module.system.dal.mapper.RoleMapper;
 import com.erp.module.system.dal.mapper.UserMapper;
 import com.erp.module.system.dal.mapper.UserRoleMapper;
 import com.erp.module.system.service.support.SystemCaches;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.dao.DuplicateKeyException;
@@ -94,7 +95,8 @@ public class UserService implements UserApi {
         String column = "lastLoginAt".equals(q.getSortField()) ? "last_login_at" : "created_at";
         page.addOrder(asc ? OrderItem.asc(column) : OrderItem.desc(column));
         page.addOrder(OrderItem.desc("id"));
-        Page<UserDO> result = userMapper.selectPage(page, w);
+        w.eq(UserDO::getDeleted, false);
+        IPage<UserDO> result = userMapper.selectScopedPage(page, w);
         return new PageResult<>(toResps(result.getRecords()), result.getTotal());
     }
 

@@ -10,6 +10,7 @@ import com.erp.framework.mybatis.BaseMapperX;
 import com.erp.module.system.dal.dataobject.UserDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.ResultMap;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -20,10 +21,14 @@ import java.util.Set;
 @Mapper
 public interface UserMapper extends BaseMapperX<UserDO> {
 
-    /** 用户列表分页受数据范围约束（SYS-USR-R11）：“仅本人”只能看到自己 */
-    @Override
+    /**
+     * 用户列表分页，受数据范围约束（SYS-USR-R11）：“仅本人”只能看到自己。
+     * 自定义 SQL 不会自动加逻辑删除条件，调用方的条件中需包含 deleted = 0。
+     */
     @DataScope(orgColumn = "org_id", deptColumn = "dept_id", userColumn = "id")
-    <P extends IPage<UserDO>> P selectPage(P page, @Param(Constants.WRAPPER) Wrapper<UserDO> queryWrapper);
+    @Select("SELECT * FROM sys_user ${ew.customSqlSegment}")
+    @ResultMap("mybatis-plus_UserDO")
+    IPage<UserDO> selectScopedPage(IPage<UserDO> page, @Param(Constants.WRAPPER) Wrapper<UserDO> queryWrapper);
 
     /** 用户名唯一（存小写，比较时忽略大小写） */
     default UserDO selectByUsername(String username) {

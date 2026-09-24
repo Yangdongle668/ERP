@@ -172,7 +172,8 @@ public class CurrencyService implements CurrencyApi {
         page.addOrder(OrderItem.asc("currency"));
         Page<ExchangeRateDO> result = rateMapper.selectPage(page, w);
         Set<Long> userIds = result.getRecords().stream().map(ExchangeRateDO::getUpdatedBy).filter(Objects::nonNull).collect(Collectors.toSet());
-        Map<Long, String> names = userIds.isEmpty() ? Map.of() : userMapper.selectBatchIds(userIds).stream().collect(Collectors.toMap(UserDO::getId, UserDO::getRealName));
+        Map<Long, String> names = new java.util.HashMap<>();
+        if (!userIds.isEmpty()) userMapper.selectBatchIds(userIds).forEach(u -> names.put(u.getId(), u.getRealName()));
         return new PageResult<>(result.getRecords().stream().map(r -> new RateResp(r.getId(), r.getCurrency(), r.getRateType().name(),
                 r.getEffectiveDate(), r.getRate().stripTrailingZeros(), r.getSource(), r.getRemark(), names.get(r.getUpdatedBy()),
                 r.getUpdatedAt(), r.getVersion())).toList(), result.getTotal());
