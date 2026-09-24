@@ -2,7 +2,7 @@
 
 | 项 | 位置 |
 |---|---|
-| 需求文档 | [docs/requirements/06-PMC.md](../../docs/requirements/06-PMC.md) |
+| 需求文档 | [docs/requirements/06-PMC/](../../docs/requirements/06-PMC/) |
 | 对外契约 | `erp-module-pmc-api`（包 `com.erp.module.pmc.api`） |
 | 实现 | `erp-module-pmc-biz`（包 `com.erp.module.pmc`） |
 | 数据库脚本 | `erp-module-pmc-biz/src/main/resources/db/migration/pmc/` |

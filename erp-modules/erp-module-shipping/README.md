@@ -2,7 +2,7 @@
 
 | 项 | 位置 |
 |---|---|
-| 需求文档 | [docs/requirements/11-出货.md](../../docs/requirements/11-出货.md) |
+| 需求文档 | [docs/requirements/11-出货/](../../docs/requirements/11-出货/) |
 | 对外契约 | `erp-module-shipping-api`（包 `com.erp.module.shipping.api`） |
 | 实现 | `erp-module-shipping-biz`（包 `com.erp.module.shipping`） |
 | 数据库脚本 | `erp-module-shipping-biz/src/main/resources/db/migration/shipping/` |

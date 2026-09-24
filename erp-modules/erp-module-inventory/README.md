@@ -2,7 +2,7 @@
 
 | 项 | 位置 |
 |---|---|
-| 需求文档 | [docs/requirements/08-仓库.md](../../docs/requirements/08-仓库.md) |
+| 需求文档 | [docs/requirements/08-仓库/](../../docs/requirements/08-仓库/) |
 | 对外契约 | `erp-module-inventory-api`（包 `com.erp.module.inventory.api`） |
 | 实现 | `erp-module-inventory-biz`（包 `com.erp.module.inventory`） |
 | 数据库脚本 | `erp-module-inventory-biz/src/main/resources/db/migration/inventory/` |

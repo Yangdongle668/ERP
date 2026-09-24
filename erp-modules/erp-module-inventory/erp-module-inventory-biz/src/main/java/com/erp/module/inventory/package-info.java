@@ -1,5 +1,5 @@
 /**
- * 仓库模块实现。需求见 docs/requirements/08-仓库.md。
+ * 仓库模块实现。需求见 docs/requirements/08-仓库/。
  *
  * <p>包结构：
  * <ul>

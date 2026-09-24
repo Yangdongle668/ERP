@@ -2,7 +2,7 @@
 
 | 项 | 位置 |
 |---|---|
-| 需求文档 | [docs/requirements/05-研发工程.md](../../docs/requirements/05-研发工程.md) |
+| 需求文档 | [docs/requirements/05-研发工程/](../../docs/requirements/05-研发工程/) |
 | 对外契约 | `erp-module-engineering-api`（包 `com.erp.module.engineering.api`） |
 | 实现 | `erp-module-engineering-biz`（包 `com.erp.module.engineering`） |
 | 数据库脚本 | `erp-module-engineering-biz/src/main/resources/db/migration/engineering/` |

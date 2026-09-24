@@ -1,5 +1,5 @@
 /**
- * 工作台模块实现。需求见 docs/requirements/02-工作台.md。
+ * 工作台模块实现。需求见 docs/requirements/02-工作台/。
  *
  * <p>包结构：
  * <ul>

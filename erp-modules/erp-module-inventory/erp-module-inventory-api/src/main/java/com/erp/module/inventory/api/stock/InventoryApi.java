@@ -3,9 +3,12 @@ package com.erp.module.inventory.api.stock;
 import java.math.BigDecimal;
 
 /**
- * 库存记账唯一入口（需求文档 08 第 5.4 节）。其他模块不得直接修改库存表。
+ * 库存过账引擎（需求 08-仓库/02-库存模型与过账）。
  *
- * <p>实现必须在调用方事务中执行（REQUIRED），失败抛出 BizException 使整个业务单据审核回滚。
+ * <p>只由仓库模块自己的入库单、出库单、调拨单、盘点单在“确认”时调用。
+ * 其他业务模块<b>不要</b>直接调用本接口，而应通过 {@link com.erp.module.inventory.api.doc.InventoryDocApi}
+ * 生成仓库单据，由仓管员确认后过账。
+ * 可用量查询请使用 {@link #getAvailableQty(Long)}（后续迁移到 InventoryQueryApi）。
  */
 public interface InventoryApi {
 

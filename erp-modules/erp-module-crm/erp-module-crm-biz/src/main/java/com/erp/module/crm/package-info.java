@@ -1,5 +1,5 @@
 /**
- * CRM模块实现。需求见 docs/requirements/03-CRM.md。
+ * CRM模块实现。需求见 docs/requirements/03-CRM/。
  *
  * <p>包结构：
  * <ul>

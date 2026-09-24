@@ -2,7 +2,7 @@
 
 | 项 | 位置 |
 |---|---|
-| 需求文档 | [docs/requirements/10-品质.md](../../docs/requirements/10-品质.md) |
+| 需求文档 | [docs/requirements/10-品质/](../../docs/requirements/10-品质/) |
 | 对外契约 | `erp-module-quality-api`（包 `com.erp.module.quality.api`） |
 | 实现 | `erp-module-quality-biz`（包 `com.erp.module.quality`） |
 | 数据库脚本 | `erp-module-quality-biz/src/main/resources/db/migration/quality/` |

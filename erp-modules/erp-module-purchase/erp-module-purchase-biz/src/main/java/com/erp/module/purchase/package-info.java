@@ -1,5 +1,5 @@
 /**
- * 资材模块实现。需求见 docs/requirements/07-资材采购.md。
+ * 资材模块实现。需求见 docs/requirements/07-资材/。
  *
  * <p>包结构：
  * <ul>

@@ -2,7 +2,7 @@
 
 | 项 | 位置 |
 |---|---|
-| 需求文档 | [docs/requirements/13-BI与AI.md](../../docs/requirements/13-BI与AI.md) |
+| 需求文档 | [docs/requirements/13-BI与AI/](../../docs/requirements/13-BI与AI/) |
 | 对外契约 | `erp-module-bi-api`（包 `com.erp.module.bi.api`） |
 | 实现 | `erp-module-bi-biz`（包 `com.erp.module.bi`） |
 | 数据库脚本 | `erp-module-bi-biz/src/main/resources/db/migration/bi/` |

@@ -1,5 +1,5 @@
 /**
- * 研发工程模块实现。需求见 docs/requirements/05-研发工程.md。
+ * 研发工程模块实现。需求见 docs/requirements/05-研发工程/。
  *
  * <p>包结构：
  * <ul>

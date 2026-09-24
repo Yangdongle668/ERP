@@ -1,5 +1,5 @@
 /**
- * PMC模块实现。需求见 docs/requirements/06-PMC.md。
+ * PMC模块实现。需求见 docs/requirements/06-PMC/。
  *
  * <p>包结构：
  * <ul>

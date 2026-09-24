@@ -1,5 +1,5 @@
 /**
- * 品质模块实现。需求见 docs/requirements/10-品质.md。
+ * 品质模块实现。需求见 docs/requirements/10-品质/。
  *
  * <p>包结构：
  * <ul>

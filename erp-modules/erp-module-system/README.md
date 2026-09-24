@@ -2,7 +2,7 @@
 
 | 项 | 位置 |
 |---|---|
-| 需求文档 | [docs/requirements/01-系统管理.md](../../docs/requirements/01-系统管理.md) |
+| 需求文档 | [docs/requirements/01-系统管理/](../../docs/requirements/01-系统管理/) |
 | 对外契约 | `erp-module-system-api`（包 `com.erp.module.system.api`） |
 | 实现 | `erp-module-system-biz`（包 `com.erp.module.system`） |
 | 数据库脚本 | `erp-module-system-biz/src/main/resources/db/migration/system/` |

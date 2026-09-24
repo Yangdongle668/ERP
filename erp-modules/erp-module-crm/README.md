@@ -2,7 +2,7 @@
 
 | 项 | 位置 |
 |---|---|
-| 需求文档 | [docs/requirements/03-CRM.md](../../docs/requirements/03-CRM.md) |
+| 需求文档 | [docs/requirements/03-CRM/](../../docs/requirements/03-CRM/) |
 | 对外契约 | `erp-module-crm-api`（包 `com.erp.module.crm.api`） |
 | 实现 | `erp-module-crm-biz`（包 `com.erp.module.crm`） |
 | 数据库脚本 | `erp-module-crm-biz/src/main/resources/db/migration/crm/` |

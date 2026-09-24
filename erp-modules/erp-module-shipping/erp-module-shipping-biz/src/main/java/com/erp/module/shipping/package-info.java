@@ -1,5 +1,5 @@
 /**
- * 出货模块实现。需求见 docs/requirements/11-出货.md。
+ * 出货模块实现。需求见 docs/requirements/11-出货/。
  *
  * <p>包结构：
  * <ul>

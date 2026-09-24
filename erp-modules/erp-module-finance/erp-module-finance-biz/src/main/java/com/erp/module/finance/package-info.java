@@ -1,5 +1,5 @@
 /**
- * 财务模块实现。需求见 docs/requirements/12-财务.md。
+ * 财务模块实现。需求见 docs/requirements/12-财务/。
  *
  * <p>包结构：
  * <ul>

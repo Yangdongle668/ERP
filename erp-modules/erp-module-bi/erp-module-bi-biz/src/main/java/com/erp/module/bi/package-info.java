@@ -1,5 +1,5 @@
 /**
- * BI/AI模块实现。需求见 docs/requirements/13-BI与AI.md。
+ * BI/AI模块实现。需求见 docs/requirements/13-BI与AI/。
  *
  * <p>包结构：
  * <ul>

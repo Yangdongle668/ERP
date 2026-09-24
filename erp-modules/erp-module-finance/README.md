@@ -2,7 +2,7 @@
 
 | 项 | 位置 |
 |---|---|
-| 需求文档 | [docs/requirements/12-财务.md](../../docs/requirements/12-财务.md) |
+| 需求文档 | [docs/requirements/12-财务/](../../docs/requirements/12-财务/) |
 | 对外契约 | `erp-module-finance-api`（包 `com.erp.module.finance.api`） |
 | 实现 | `erp-module-finance-biz`（包 `com.erp.module.finance`） |
 | 数据库脚本 | `erp-module-finance-biz/src/main/resources/db/migration/finance/` |

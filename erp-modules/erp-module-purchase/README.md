@@ -2,7 +2,7 @@
 
 | 项 | 位置 |
 |---|---|
-| 需求文档 | [docs/requirements/07-资材采购.md](../../docs/requirements/07-资材采购.md) |
+| 需求文档 | [docs/requirements/07-资材/](../../docs/requirements/07-资材/) |
 | 对外契约 | `erp-module-purchase-api`（包 `com.erp.module.purchase.api`） |
 | 实现 | `erp-module-purchase-biz`（包 `com.erp.module.purchase`） |
 | 数据库脚本 | `erp-module-purchase-biz/src/main/resources/db/migration/purchase/` |

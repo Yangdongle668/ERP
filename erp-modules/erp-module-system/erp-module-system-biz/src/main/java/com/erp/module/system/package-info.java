@@ -1,5 +1,5 @@
 /**
- * 系统管理模块实现。需求见 docs/requirements/01-系统管理.md。
+ * 系统管理模块实现。需求见 docs/requirements/01-系统管理/。
  *
  * <p>包结构：
  * <ul>

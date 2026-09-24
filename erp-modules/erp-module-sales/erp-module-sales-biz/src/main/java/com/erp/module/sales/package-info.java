@@ -1,5 +1,5 @@
 /**
- * 销售模块实现。需求见 docs/requirements/04-销售.md。
+ * 销售模块实现。需求见 docs/requirements/04-销售/。
  *
  * <p>包结构：
  * <ul>

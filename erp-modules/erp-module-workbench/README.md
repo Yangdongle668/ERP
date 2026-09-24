@@ -2,7 +2,7 @@
 
 | 项 | 位置 |
 |---|---|
-| 需求文档 | [docs/requirements/02-工作台.md](../../docs/requirements/02-工作台.md) |
+| 需求文档 | [docs/requirements/02-工作台/](../../docs/requirements/02-工作台/) |
 | 对外契约 | `erp-module-workbench-api`（包 `com.erp.module.workbench.api`） |
 | 实现 | `erp-module-workbench-biz`（包 `com.erp.module.workbench`） |
 | 数据库脚本 | `erp-module-workbench-biz/src/main/resources/db/migration/workbench/` |
