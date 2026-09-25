@@ -101,6 +101,89 @@ public class EngineeringModuleConfig {
                 .field("eng:bom:cost", "查看成本");
     }
 
+    @Bean
+    public PermissionDefinition workCenterPermissions() {
+        return PermissionDefinition.group(MODULE, "work-center", "工作中心", 40)
+                .menu("eng:work-center:query", "查看")
+                .button("eng:work-center:create", "新建")
+                .button("eng:work-center:update", "编辑")
+                .button("eng:work-center:delete", "删除")
+                .field("eng:work-center:rate", "查看费率");
+    }
+
+    @Bean
+    public PermissionDefinition routingPermissions() {
+        return PermissionDefinition.group(MODULE, "routing", "工艺路线", 50)
+                .menu("eng:routing:query", "查看")
+                .button("eng:routing:create", "新建")
+                .button("eng:routing:update", "编辑")
+                .button("eng:routing:delete", "删除")
+                .button("eng:routing:approve", "审核/反审核/停用")
+                .button("eng:routing:set-default", "设为默认");
+    }
+
+    @Bean
+    public PermissionDefinition ecnPermissions() {
+        return PermissionDefinition.group(MODULE, "ecn", "ECN", 60)
+                .menu("eng:ecn:query", "查看")
+                .button("eng:ecn:create", "新建")
+                .button("eng:ecn:update", "编辑")
+                .button("eng:ecn:delete", "删除")
+                .button("eng:ecn:submit", "提交")
+                .button("eng:ecn:effect", "切换生效")
+                .button("eng:ecn:close", "关闭")
+                .button("eng:ecn:void", "作废")
+                .button("eng:ecn:print", "打印");
+    }
+
+    @Bean
+    public PermissionDefinition projectPermissions() {
+        return PermissionDefinition.group(MODULE, "project", "研发项目", 5)
+                .menu("eng:project:query", "查看")
+                .button("eng:project:create", "新建")
+                .button("eng:project:update", "编辑（非项目经理）")
+                .button("eng:project:delete", "删除")
+                .button("eng:project:close", "完成/取消");
+    }
+
+    @Bean
+    public PermissionDefinition samplePermissions() {
+        return PermissionDefinition.group(MODULE, "sample", "样品", 70)
+                .menu("eng:sample:query", "查看")
+                .button("eng:sample:create", "新建")
+                .button("eng:sample:update", "编辑")
+                .button("eng:sample:delete", "删除")
+                .button("eng:sample:submit", "提交")
+                .button("eng:sample:approve", "生成生产订单")
+                .button("eng:sample:ship", "申请出库/登记寄出")
+                .button("eng:sample:feedback", "登记反馈")
+                .button("eng:sample:close", "关闭")
+                .button("eng:sample:void", "作废")
+                .button("eng:sample:print", "打印");
+    }
+
+    @Bean
+    public PermissionDefinition toolingPermissions() {
+        return PermissionDefinition.group(MODULE, "tooling", "工装", 80)
+                .menu("eng:tooling:query", "查看")
+                .button("eng:tooling:create", "新建")
+                .button("eng:tooling:update", "编辑/次数调整")
+                .button("eng:tooling:delete", "删除")
+                .button("eng:tooling:record", "借还/保养/维修/报废登记")
+                .button("eng:tooling:import", "导入")
+                .button("eng:tooling:export", "导出");
+    }
+
+    @Bean
+    public PermissionDefinition certPermissions() {
+        return PermissionDefinition.group(MODULE, "cert", "认证", 90)
+                .menu("eng:cert:query", "查看")
+                .button("eng:cert:create", "新建")
+                .button("eng:cert:update", "编辑/撤销")
+                .button("eng:cert:delete", "删除")
+                .button("eng:cert:export", "导出");
+    }
+
     // ==================== 字典 ====================
 
     @Bean
@@ -184,6 +267,66 @@ public class EngineeringModuleConfig {
                         new ApprovalBizDefinition.Option("SEMI_FINISHED", "半成品"), new ApprovalBizDefinition.Option("FINISHED", "成品"),
                         new ApprovalBizDefinition.Option("PHANTOM", "虚拟件")))
                 .numberField("lineCount", "行数");
+    }
+
+    @Bean
+    public ApprovalBizDefinition ecnApproval() {
+        return ApprovalBizDefinition.of("ENG_ECN", "ECN", MODULE, "/engineering/ecn/{id}")
+                .dictField("ecnType", "变更类型", "eng_ecn_type")
+                .enumField("urgency", "紧急程度", List.of(new ApprovalBizDefinition.Option("NORMAL", "普通"),
+                        new ApprovalBizDefinition.Option("URGENT", "紧急")))
+                .boolField("keyPart", "涉及认证关键件");
+    }
+
+    @Bean
+    public ApprovalBizDefinition sampleApproval() {
+        return ApprovalBizDefinition.of("ENG_SAMPLE", "样品单", MODULE, "/engineering/sample/{id}")
+                .enumField("sampleType", "样品类型", List.of(new ApprovalBizDefinition.Option("CUSTOMER", "客户样"),
+                        new ApprovalBizDefinition.Option("ENGINEERING", "工程验证样"), new ApprovalBizDefinition.Option("CERTIFICATION", "认证送样")))
+                .numberField("qty", "数量");
+    }
+
+    /** ECN 通知单打印；内置模板 print-templates/ENG_ECN-zh-CN.html */
+    @Bean
+    public PrintBizDefinition ecnPrint() {
+        return PrintBizDefinition.of("ENG_ECN", "ECN 通知单", MODULE, "/engineering/ecns/{id}/print-data")
+                .variable("docNo", "单号", "string").variable("docDate", "日期", "date").variable("status", "状态", "string")
+                .variable("title", "标题", "string").variable("ecnType", "变更类型", "string").variable("reasonType", "变更原因", "string")
+                .variable("reason", "原因说明", "string").variable("urgency", "紧急程度", "string").variable("effectiveMode", "生效方式", "string")
+                .variable("effectiveDate", "生效日期", "date").variable("createdByName", "发起人", "string")
+                .variable("lines", "变更明细", "array").variable("lines.lineNo", "行号", "number").variable("lines.bomNo", "BOM", "string")
+                .variable("lines.parentCode", "父件", "string").variable("lines.action", "变更", "string")
+                .variable("lines.oldCode", "原子件", "string").variable("lines.oldName", "原子件名称", "string").variable("lines.oldQtyPer", "原用量", "qty")
+                .variable("lines.newCode", "新子件", "string").variable("lines.newName", "新子件名称", "string").variable("lines.newQtyPer", "新用量", "qty")
+                .variable("lines.newBomNo", "新 BOM", "string")
+                .variable("tasks", "执行确认", "array").variable("tasks.deptRole", "执行部门", "string").variable("tasks.content", "内容", "string")
+                .variable("tasks.assigneeName", "负责人", "string").variable("tasks.status", "状态", "string")
+                .sampleData("""
+                        {"docNo":"ECN-202609-001","docDate":"2026-09-25","status":"已审核","title":"连接器 A 替换为 B","ecnType":"物料替代","reasonType":"供应问题",
+                         "reason":"A 停产","urgency":"普通","effectiveMode":"立即生效","effectiveDate":null,"createdByName":"张工",
+                         "lines":[{"lineNo":1,"bomNo":"FG00001-V2","parentCode":"FG00001","action":"替换","oldCode":"RAW00001","oldName":"连接器 A","oldQtyPer":1,
+                                   "newCode":"RAW00002","newName":"连接器 B","newQtyPer":1,"newBomNo":"FG00001-V3"}],
+                         "tasks":[{"deptRole":"仓库","content":"库存 500 继续使用","assigneeName":"李四","status":"待处理"}]}
+                        """);
+    }
+
+    /** 样品单打印；内置模板 print-templates/ENG_SAMPLE-zh-CN.html */
+    @Bean
+    public PrintBizDefinition samplePrint() {
+        return PrintBizDefinition.of("ENG_SAMPLE", "样品单", MODULE, "/engineering/samples/{id}/print-data")
+                .variable("docNo", "单号", "string").variable("sampleType", "样品类型", "string").variable("status", "状态", "string")
+                .variable("customerName", "客户", "string").variable("customerPartNo", "客户料号", "string")
+                .variable("materialCode", "物料编码", "string").variable("materialName", "物料名称", "string").variable("materialSpec", "规格", "string")
+                .variable("uom", "单位", "string").variable("qty", "数量", "qty").variable("requiredDate", "要求日期", "date")
+                .variable("makeMethod", "制作方式", "string").variable("purpose", "用途", "string").variable("requirements", "特殊要求", "string")
+                .variable("shipAddress", "寄送地址", "string").variable("shipDate", "寄出日期", "date").variable("courier", "快递公司", "string")
+                .variable("trackingNo", "快递单号", "string").variable("createdByName", "申请人", "string")
+                .sampleData("""
+                        {"docNo":"SP-202609-0001","sampleType":"客户样","status":"已审批","customerName":"某客户","customerPartNo":"C-1001",
+                         "materialCode":"FG00001","materialName":"蓝牙耳机","materialSpec":"BT-100","uom":"PCS","qty":5,"requiredDate":"2026-10-08",
+                         "makeMethod":"生产制作","purpose":"客户承认","requirements":"附测试报告","shipAddress":"深圳市南山区","shipDate":null,
+                         "courier":"","trackingNo":"","createdByName":"王五"}
+                        """);
     }
 
     /** BOM 清单打印；内置模板 print-templates/ENG_BOM-zh-CN.html */

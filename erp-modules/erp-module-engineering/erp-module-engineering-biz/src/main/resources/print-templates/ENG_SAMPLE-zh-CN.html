@@ -1,0 +1,20 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  .head td { border: 1px solid #333; padding: 4pt 6pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .sign { margin-top: 16pt; width: 100%; font-size: 10pt; }
+</style>
+<h1>样品单</h1>
+<table class="head">
+  <tr><td class="label">单号</td><td>{{docNo}}</td><td class="label">样品类型</td><td>{{sampleType}}</td></tr>
+  <tr><td class="label">客户</td><td>{{customerName}}</td><td class="label">客户料号</td><td>{{customerPartNo}}</td></tr>
+  <tr><td class="label">物料编码</td><td>{{materialCode}}</td><td class="label">名称规格</td><td>{{materialName}} {{materialSpec}}</td></tr>
+  <tr><td class="label">数量</td><td>{{formatQty qty}} {{uom}}</td><td class="label">要求日期</td><td>{{formatDate requiredDate}}</td></tr>
+  <tr><td class="label">制作方式</td><td>{{makeMethod}}</td><td class="label">状态</td><td>{{status}}</td></tr>
+  <tr><td class="label">用途</td><td colspan="3">{{purpose}}</td></tr>
+  <tr><td class="label">特殊要求</td><td colspan="3">{{requirements}}</td></tr>
+  <tr><td class="label">寄送地址</td><td colspan="3">{{shipAddress}}</td></tr>
+  <tr><td class="label">寄出</td><td colspan="3">{{formatDate shipDate}} {{courier}} {{trackingNo}}</td></tr>
+</table>
+<table class="sign"><tr><td>申请：{{createdByName}}</td><td>审核：</td><td>仓库：</td></tr></table>

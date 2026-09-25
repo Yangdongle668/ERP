@@ -408,6 +408,23 @@ public class BomService {
         return b.getId();
     }
 
+    /**
+     * ECN 审批通过生成的新版本（需求 05-05 第 4 节）：变更已应用到行上，直接审核（不走 BOM 审批流），
+     * 版本说明为 ECN 单号；不改变默认版本（由 ECN 生效时切换）。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void approveByEcn(Long bomId, Long ecnId, String ecnNo) {
+        BomDO b = queryService.getOrThrow(bomId);
+        b.setEcnId(ecnId);
+        b.setDescription(ecnNo);
+        b.setLineCount(lineMapper.selectByBom(bomId).size());
+        bomMapper.updateByIdOrFail(b);
+        fire(b, DocAction.SUBMIT, ecnNo);
+        fire(b, DocAction.APPROVE, ecnNo);
+        queryService.recomputeLowLevelCodes();
+        eventPublisher.publish(new BomApprovedEvent(b.getId(), b.getMaterialId(), b.getBomVersion()));
+    }
+
     /** 复制行与替代料（新建版本、从其他 BOM 复制） */
     private void copyLines(Long fromBomId, Long toBomId) {
         Map<Long, List<BomSubstituteDO>> subs = substituteMapper.selectByBoms(List.of(fromBomId)).stream()

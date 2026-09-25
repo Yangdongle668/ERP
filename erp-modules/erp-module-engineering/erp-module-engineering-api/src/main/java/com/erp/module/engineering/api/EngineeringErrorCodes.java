@@ -64,4 +64,75 @@ public interface EngineeringErrorCodes {
     ErrorCode BOM_NO_DEFAULT = new ErrorCode(1_005_003_018, "物料「{}」没有默认 BOM");
     ErrorCode BOM_SUBSTITUTE_NOT_ENABLED = new ErrorCode(1_005_003_019, "替代料「{}」未启用，不能提交");
     ErrorCode BOM_COMPONENT_DRAFT_NOT_ALLOWED = new ErrorCode(1_005_003_020, "子件「{}」未启用");
+
+    // ========== 工作中心与工艺路线 1_005_004_xxx ==========
+    ErrorCode WORK_CENTER_NOT_EXISTS = new ErrorCode(1_005_004_000, "工作中心不存在");
+    ErrorCode WORK_CENTER_CODE_DUPLICATE = new ErrorCode(1_005_004_001, "工作中心编码「{}」已存在");
+    ErrorCode WORK_CENTER_IN_USE = new ErrorCode(1_005_004_002, "该工作中心已被使用，只能停用");
+    ErrorCode WORK_CENTER_DISABLED = new ErrorCode(1_005_004_003, "工作中心「{}」已停用");
+    ErrorCode ROUTING_NOT_EXISTS = new ErrorCode(1_005_004_010, "工艺路线不存在");
+    ErrorCode ROUTING_SEQ_DUPLICATE = new ErrorCode(1_005_004_011, "工序号 {} 重复");
+    ErrorCode ROUTING_LAST_REPORT_POINT = new ErrorCode(1_005_004_012, "最后一道工序必须是报工点");
+    ErrorCode ROUTING_OUTSOURCE_WC = new ErrorCode(1_005_004_013, "委外工序必须选择委外类型的工作中心");
+    ErrorCode ROUTING_USED_UNAPPROVE = new ErrorCode(1_005_004_014, "该工艺路线已被生产订单使用，不能反审核");
+    ErrorCode ROUTING_NOT_EDITABLE = new ErrorCode(1_005_004_015, "只有草稿状态的工艺路线可以修改");
+    ErrorCode ROUTING_NO_STEPS = new ErrorCode(1_005_004_016, "请至少添加一道工序");
+    ErrorCode ROUTING_MATERIAL_TYPE = new ErrorCode(1_005_004_017, "只有半成品、成品可以建立工艺路线");
+    ErrorCode ROUTING_DEFAULT_UNAPPROVE = new ErrorCode(1_005_004_018, "默认版本不能反审核");
+    ErrorCode ROUTING_DEFAULT_DISABLE = new ErrorCode(1_005_004_019, "默认版本不能停用");
+    ErrorCode ROUTING_SET_DEFAULT_STATUS = new ErrorCode(1_005_004_020, "只有已审核的版本可以设为默认");
+    ErrorCode ROUTING_RUN_SECONDS = new ErrorCode(1_005_004_021, "第 {} 行标准工时必须大于 0");
+
+    // ========== ECN 1_005_005_xxx ==========
+    ErrorCode ECN_NOT_EXISTS = new ErrorCode(1_005_005_000, "ECN 不存在");
+    ErrorCode ECN_BOM_NOT_DEFAULT = new ErrorCode(1_005_005_001, "BOM「{}」不是当前默认版本，请重新选择");
+    ErrorCode ECN_COMPONENT_MULTI = new ErrorCode(1_005_005_002, "BOM「{}」中子件「{}」存在多个变更");
+    ErrorCode ECN_IMPACT_REQUIRED = new ErrorCode(1_005_005_003, "请完成影响分析并选择处理方式");
+    ErrorCode ECN_BOM_LOCKED = new ErrorCode(1_005_005_004, "BOM「{}」正在 ECN「{}」中变更");
+    ErrorCode ECN_BOM_CHANGED = new ErrorCode(1_005_005_005, "BOM「{}」在审批期间已变更，请驳回后重新发起");
+    ErrorCode ECN_TASKS_UNDONE = new ErrorCode(1_005_005_006, "还有 {} 项执行任务未完成");
+    ErrorCode ECN_NO_LINES = new ErrorCode(1_005_005_007, "请至少添加一行变更明细");
+    ErrorCode ECN_NOT_EDITABLE = new ErrorCode(1_005_005_008, "只有草稿状态的 ECN 可以修改");
+    ErrorCode ECN_LINE_INVALID = new ErrorCode(1_005_005_009, "第 {} 行：{}");
+    ErrorCode ECN_EFFECTIVE_DATE = new ErrorCode(1_005_005_010, "生效方式为指定日期时，请填写不早于今天的生效日期");
+    ErrorCode ECN_TASK_NOT_MINE = new ErrorCode(1_005_005_011, "只有任务负责人可以确认完成");
+    ErrorCode ECN_STATUS = new ErrorCode(1_005_005_012, "ECN 当前状态【{}】不允许该操作");
+    ErrorCode ECN_RESULT_DUPLICATE = new ErrorCode(1_005_005_013, "BOM「{}」变更后子件「{}」重复");
+
+    // ========== 研发项目 1_005_006_xxx ==========
+    ErrorCode PROJECT_NOT_EXISTS = new ErrorCode(1_005_006_000, "项目不存在");
+    ErrorCode PROJECT_DATE_RANGE = new ErrorCode(1_005_006_001, "计划结束日期不能早于开始日期");
+    ErrorCode PROJECT_TASK_OWNER_NOT_MEMBER = new ErrorCode(1_005_006_002, "任务负责人必须是项目成员");
+    ErrorCode PROJECT_TASKS_UNDONE = new ErrorCode(1_005_006_003, "还有 {} 个未完成任务");
+    ErrorCode PROJECT_NO_PERMISSION = new ErrorCode(1_005_006_004, "只有项目经理或任务负责人可以操作");
+    ErrorCode PROJECT_STATUS = new ErrorCode(1_005_006_005, "项目当前状态【{}】不允许该操作");
+    ErrorCode PROJECT_TASK_NOT_EXISTS = new ErrorCode(1_005_006_006, "任务不存在");
+    ErrorCode PROJECT_CANCEL_REASON = new ErrorCode(1_005_006_007, "请填写取消原因");
+    ErrorCode PROJECT_STAGE_INVALID = new ErrorCode(1_005_006_008, "只能推进到后续阶段");
+
+    // ========== 样品 1_005_007_xxx ==========
+    ErrorCode SAMPLE_NOT_EXISTS = new ErrorCode(1_005_007_000, "样品单不存在");
+    ErrorCode SAMPLE_CUSTOMER_REQUIRED = new ErrorCode(1_005_007_001, "客户样必须选择客户");
+    ErrorCode SAMPLE_NO_BOM = new ErrorCode(1_005_007_002, "物料「{}」没有已审核的 BOM，不能生成生产订单");
+    ErrorCode SAMPLE_NOT_OUT = new ErrorCode(1_005_007_003, "样品尚未出库");
+    ErrorCode SAMPLE_STATUS = new ErrorCode(1_005_007_004, "样品单当前状态【{}】不允许{}");
+    ErrorCode SAMPLE_REQUIRED_DATE = new ErrorCode(1_005_007_005, "要求日期不能早于今天");
+    ErrorCode SAMPLE_PRODUCTION_UNAVAILABLE = new ErrorCode(1_005_007_006, "生产模块尚未提供样品生产订单，请选择“从库存领取”");
+    ErrorCode SAMPLE_MATERIAL_DRAFT = new ErrorCode(1_005_007_007, "物料「{}」尚未启用，请先启用物料");
+    ErrorCode SAMPLE_REASON_REQUIRED = new ErrorCode(1_005_007_008, "请填写原因");
+
+    // ========== 工装 1_005_008_xxx ==========
+    ErrorCode TOOLING_NOT_EXISTS = new ErrorCode(1_005_008_000, "工装不存在");
+    ErrorCode TOOLING_CODE_DUPLICATE = new ErrorCode(1_005_008_001, "工装编号「{}」已存在");
+    ErrorCode TOOLING_CUSTOMER_REQUIRED = new ErrorCode(1_005_008_002, "客户资产必须选择客户");
+    ErrorCode TOOLING_LIFE_EXCEEDED = new ErrorCode(1_005_008_003, "工装「{}」已达到设计寿命，不能继续使用");
+    ErrorCode TOOLING_STATUS = new ErrorCode(1_005_008_004, "工装「{}」当前状态为{}，不能{}");
+    ErrorCode TOOLING_HAS_USAGE = new ErrorCode(1_005_008_005, "工装已有使用记录，不能删除");
+    ErrorCode TOOLING_FIELD_REQUIRED = new ErrorCode(1_005_008_006, "请填写{}");
+
+    // ========== 认证 1_005_009_xxx ==========
+    ErrorCode CERT_NOT_EXISTS = new ErrorCode(1_005_009_000, "证书不存在");
+    ErrorCode CERT_DUPLICATE = new ErrorCode(1_005_009_001, "该证书已存在");
+    ErrorCode CERT_DATE_RANGE = new ErrorCode(1_005_009_002, "到期日期不能早于发证日期");
+    ErrorCode CERT_FILE_REQUIRED = new ErrorCode(1_005_009_003, "请上传证书文件");
 }

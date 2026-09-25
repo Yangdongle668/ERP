@@ -1,0 +1,35 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head { width: 100%; margin-bottom: 8pt; font-size: 10pt; }
+  .head td { padding: 2pt 4pt; vertical-align: top; }
+  .lines { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-bottom: 8pt; }
+  .lines th, .lines td { border: 1px solid #333; padding: 3pt 4pt; }
+  .lines th { background: #f2f2f2; }
+  .num { text-align: right; }
+  .sign { margin-top: 16pt; width: 100%; font-size: 10pt; }
+</style>
+<h1>工程变更通知单（ECN）</h1>
+<table class="head">
+  <tr><td>单号：{{docNo}}</td><td>日期：{{formatDate docDate}}</td><td>状态：{{status}}</td></tr>
+  <tr><td colspan="2">标题：{{title}}</td><td>紧急程度：{{urgency}}</td></tr>
+  <tr><td>变更类型：{{ecnType}}</td><td>变更原因：{{reasonType}}</td><td>生效方式：{{effectiveMode}} {{formatDate effectiveDate}}</td></tr>
+  <tr><td colspan="3">原因说明：{{reason}}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>#</th><th>BOM</th><th>父件</th><th>变更</th><th>原子件</th><th>原用量</th><th>新子件</th><th>新用量</th><th>新 BOM</th></tr></thead>
+  <tbody>
+    {{#each lines}}
+    <tr><td>{{lineNo}}</td><td>{{bomNo}}</td><td>{{parentCode}}</td><td>{{action}}</td><td>{{oldCode}} {{oldName}}</td><td class="num">{{formatQty oldQtyPer}}</td>
+      <td>{{newCode}} {{newName}}</td><td class="num">{{formatQty newQtyPer}}</td><td>{{newBomNo}}</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+<table class="lines">
+  <thead><tr><th>执行部门</th><th>内容</th><th>负责人</th><th>状态</th></tr></thead>
+  <tbody>
+    {{#each tasks}}
+    <tr><td>{{deptRole}}</td><td>{{content}}</td><td>{{assigneeName}}</td><td>{{status}}</td></tr>
+    {{/each}}
+  </tbody>
+</table>
+<table class="sign"><tr><td>发起：{{createdByName}}</td><td>审核：</td><td>批准：</td></tr></table>
