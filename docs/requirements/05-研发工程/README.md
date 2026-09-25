@@ -87,16 +87,17 @@ ENG_BOM（BOM 清单，中文）、ENG_ECN（ECN 通知单，中文）、ENG_SAM
 | `MaterialApi` | `getMaterial`、`getMaterials`、`validateUsable`（已实现）；`getPlanAttr(id)`、`getPurchaseAttr(id)`、`getStockAttr(id)`、`getQualityAttr(id)`、`convertToBase(materialId, qty, uom)`、`search(keyword, filter)` | 全部模块 |
 | `MaterialCategoryApi` | `get`、`getDescendantIds` | 仓库（类别默认仓）、BI |
 | `BomApi` | `getDefaultBom(materialId, date)`、`explode(materialId, qty, date, levels)`（多级展开，虚拟件透过）、`whereUsed(componentId)`、`getLowLevelCodes()` | PMC、生产、销售（报价成本）、财务 |
-| `RoutingApi` | `getDefaultRouting(materialId)` | PMC、生产、财务 |
-| `WorkCenterApi` | `get`、`list` | PMC、生产 |
-| `ToolingApi` | `addUsage(toolingId, count, sourceDoc)`、`validateUsable(toolingId)` | 生产 |
-| `CertificationApi` | `listValid(materialId)` | 销售、出货 |
+| `RoutingApi` | `getDefaultRouting(materialId)`、`getRouting(routingId)`（已实现） | PMC、生产、财务 |
+| `WorkCenterApi` | `get`、`list`（已实现） | PMC、生产 |
+| `ToolingApi` | `get`、`listUsable(materialId)`、`validateUsable(toolingId)`、`usageOf(toolingId, outputQty)`、`addUsage(toolingId, count, sourceDocNo)`（已实现） | 生产 |
+| `CertificationApi` | `listValid(materialId)`（已实现） | 销售、出货 |
+| `SampleApi` | `onProductionCompleted(sampleId)`（已实现，样品生产订单完工入库后由生产模块调用） | 生产 |
 
 **发布的事件**：`MaterialStatusChangedEvent`（已实现）、`MaterialChangedEvent`（计划/采购/库存属性变化）、`BomApprovedEvent`、`BomDefaultChangedEvent`、`EcnApprovedEvent`、`EcnEffectiveEvent`、`CertificationExpiringEvent`、`ToolingLifeWarningEvent`。
 
-**监听的事件**：生产 `WorkReportApprovedEvent`（累加工装使用次数）、生产 `ProductionOrderCompletedEvent`（样品单完工）。
+**监听的事件**：审批 `ApprovalCompletedEvent`（ECN、样品单）、仓库 `StockOutConfirmedEvent` / `StockDocEvent`（样品出库确认、反确认、退回）。工装使用次数、样品单完工由生产模块直接调用 `ToolingApi`、`SampleApi`（见第 12 节）。
 
-**调用的其他模块 API**：仓库 `InventoryApi.getAvailableQty`（ECN 影响分析）、资材 `PurchaseQueryApi.getOpenQty`、生产 `ProductionQueryApi.getOpenOrdersByComponent`、生产 `ProductionOrderApi.createSampleOrder`（样品）。
+**调用的其他模块 API**：仓库 `InventoryQueryApi.getStockSummary`（ECN 影响分析）、仓库 `InventoryDocApi.createStockOut`（样品出库）；在途采购、在制生产订单、销售订单影响与样品生产订单通过扩展点 `EcnImpactProvider`、`SampleOrderCreator` 由对应模块实现。
 
 ## 11. 权限点汇总
 
@@ -116,7 +117,7 @@ ENG_BOM（BOM 清单，中文）、ENG_ECN（ECN 通知单，中文）、ENG_SAM
 ## 12. 开发批次
 
 - 第 1 批（P0）：物料类别、物料、BOM（含多级展开、反查、导入）——**已实现**
-- 第 2 批（P1）：工作中心、工艺路线、ECN、样品、工装、认证、研发项目
+- 第 2 批（P1）：工作中心、工艺路线、ECN、样品、工装、认证、研发项目——**已实现**
 
 第 1 批实现说明（其他模块接入时需要知道的约定）：
 
@@ -124,3 +125,15 @@ ENG_BOM（BOM 清单，中文）、ENG_ECN（ECN 通知单，中文）、ENG_SAM
 - **需求量口径**：`BomApi.explode` 按第 3 节公式逐层计算并按子件单位精度向上取整；虚拟件透过（不出现在结果中）。低位码在 BOM 审核、设为默认、反审核后同步重算（按默认已审核版本）。
 - **物料编码**：业务编码 `ENG_MATERIAL`，前缀 `{categoryPrefix}` + 5 位流水，不同前缀独立计数。骨架中的旧规则 `MATERIAL` 不再使用，可在“编码规则”页面忽略。
 - 物料详情的“库存”“供应商”页签依赖仓库 `InventoryQueryApi` 和资材的价格接口，待对应模块实现后补充；工序列（`operation_seq`）待工艺路线实现后启用。
+
+第 2 批实现说明：
+
+- **扩展点（engineering-api，由其他模块实现，未实现前视为“无影响/未使用”）**：
+  - `EcnImpactProvider`：ECN 影响分析中的在途采购（资材）、在制生产订单（生产）、未完成销售订单（销售）；库存由研发工程直接调用仓库 `InventoryQueryApi.getStockSummary`。可以有多个实现。
+  - `SampleOrderCreator`：生产模块实现“生成样品生产订单”；未实现时样品详情提示“生产模块尚未启用”，只能走“从库存领取”。完工入库后生产模块调用 `SampleApi.onProductionCompleted`。
+  - `RoutingReferenceChecker`：生产模块实现，被生产订单使用的工艺路线不能反审核、工作中心不能删除。
+- **工装使用次数**：生产模块报工时直接调用 `ToolingApi`：先 `validateUsable`（R03，达到寿命且未允许超寿命时抛错），再 `usageOf(toolingId, 合格 + 不良)` 按模穴向上取整得到次数，最后 `addUsage`（报工反审核传负数扣回）。不再通过监听 `WorkReportApprovedEvent` 实现。
+- **ECN 生效**：审批通过为每个 BOM 复制新版本并直接审核（版本说明为 ECN 单号，`eng_bom.ecn_id` 记录来源）；IMMEDIATE 立即生效，DATE 由定时任务 `ENG_ECN_EFFECT`（每天 00:10）处理生效日期已到的 ECN，USE_UP 由“立即生效”按钮手工切换。`EcnEffectiveEvent.updateWipDocNos` 为处理方式“更新用料”的在制生产订单，生产模块据此更新未领料部分。
+- **执行确认任务**：分析影响时按影响类型自动生成（库存 → 仓库、在途采购 → 采购、在制 → 生产、销售订单 → PMC），品质默认“确认检验标准”；涉及关键件（BOM 行 is_key）或已关联认证的物料时增加“认证评估”（默认负责人为有 `eng:cert:create` 权限的用户）。未指定负责人的任务由发起人确认。
+- **样品出库**：样品单“申请出库”生成仓库“其他出库”草稿（来源 `ENG_SAMPLE`），仓库确认出库（`StockOutConfirmedEvent`）后才能登记寄出；出库单反确认或退回时样品单恢复为未出库。
+- **定时任务**：`ENG_ECN_EFFECT`（ECN 定时生效）、`ENG_SAMPLE_REMIND`（样品寄出提醒，每天 08:30）、`ENG_PROJECT_TASK_REMIND`（项目任务到期提醒）、`ENG_CERT_EXPIRY`（证书到期提醒，按 `eng.cert.remind-days` 每个阈值只提醒一次，续期后重新提醒）。

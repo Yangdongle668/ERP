@@ -11,6 +11,7 @@ import {
   type BomBrief, type Material, type MaterialSettings
 } from '../api/material'
 import { BOM_STATUS } from '../api/bom'
+import { certApi, VALIDITY_STATUS, type CertRow } from '../api/cert'
 
 defineOptions({ name: 'EngMaterialDetail' })
 
@@ -23,12 +24,15 @@ const m = ref<Material>()
 const settings = ref<MaterialSettings>({ enableApproval: false, manualCodeAllowed: true, duplicateCheck: 'WARN', canViewCost: false })
 const boms = ref<{ asParent: BomBrief[]; asComponent: BomBrief[] }>({ asParent: [], asComponent: [] })
 const activeTab = ref('attrs')
+/** 适用本物料的认证证书（需求 05-09：物料详情“认证”页签） */
+const certs = ref<CertRow[]>([])
 const imageUrl = ref('')
 
 async function load() {
   m.value = await materialApi.get(id.value)
   tabs.setTitle(tabKeyOf(route), `物料 ${m.value.code}`)
   boms.value = await materialApi.boms(id.value).catch(() => boms.value)
+  certs.value = await certApi.byMaterial(id.value).catch(() => certs.value)
   if (m.value.imageFileId) imageUrl.value = URL.createObjectURL(await fetchBlob(`/system/files/${m.value.imageFileId}/preview`).catch(() => new Blob()))
 }
 
@@ -182,6 +186,19 @@ onMounted(async () => {
               <el-table-column label="默认" width="80" align="center"><template #default="{ row }"><ErpBadge v-if="row.isDefault" type="success">默认</ErpBadge></template></el-table-column>
               <el-table-column label="状态" width="100"><template #default="{ row }"><StatusTag :value="row.status" :map="BOM_STATUS" /></template></el-table-column>
               <template #empty><ErpEmpty compact description="没有 BOM 使用本物料" /></template>
+            </el-table>
+          </el-tab-pane>
+
+          <el-tab-pane :label="`认证(${certs.length})`" name="cert">
+            <el-table :data="certs">
+              <el-table-column label="类型" width="90"><template #default="{ row }"><DictTag type="eng_cert_type" :value="row.certType" /></template></el-table-column>
+              <el-table-column prop="certNo" label="证书编号" width="160" />
+              <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip />
+              <el-table-column prop="issuingBody" label="发证机构" width="140" />
+              <el-table-column label="适用国家" width="120"><template #default="{ row }">{{ row.countries.join(',') || '-' }}</template></el-table-column>
+              <el-table-column label="到期日期" width="110"><template #default="{ row }">{{ row.expireDate ?? '长期' }}</template></el-table-column>
+              <el-table-column label="有效性" width="100"><template #default="{ row }"><StatusTag :value="row.validity" :map="VALIDITY_STATUS" /></template></el-table-column>
+              <template #empty><ErpEmpty compact description="没有适用本物料的认证证书" /></template>
             </el-table>
           </el-tab-pane>
 
