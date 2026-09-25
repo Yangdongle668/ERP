@@ -120,9 +120,11 @@ INV_STOCK_IN、INV_STOCK_OUT、INV_TRANSFER、INV_COUNT、INV_BATCH（见 01-系
 | `InventoryApi` | `post`、`reverse`（已定义，模块内部使用；其他模块不直接调用） | 过账引擎 |
 | `WarehouseApi` | `get`、`getDefaultWarehouse(categoryId, warehouseType)`、`listByType(type)` | 仓库查询 |
 
-**发布事件**：`StockInConfirmedEvent`、`StockOutConfirmedEvent`、`TransferConfirmedEvent`（均带来源单据类型/ID/行及数量）、`StockInReversedEvent`、`StockOutReversedEvent`、`StockChangedEvent`、`StockAlertEvent`、`PeriodClosedEvent`。
+**发布事件**：`StockInConfirmedEvent`、`StockOutConfirmedEvent`、`TransferConfirmedEvent`（均带来源单据类型/ID/行及数量）、`StockDocEvent`（`IN_REVERSING`/`OUT_REVERSING` 反确认前，来源模块可抛出 BizException 阻止；`IN_REVERSED`/`OUT_REVERSED` 反确认后；`REJECTED` 仓管员退回；`RECHECK_REQUESTED` 复检送检确认后）、`StockChangedEvent`、`PeriodClosedEvent`。库存预警通过系统管理 `NotifyApi.alert` 发到工作台（不单独定义 `StockAlertEvent`）。
 
-**监听事件**：品质 `InspectionJudgedEvent`（生成检验调拨单）。
+**扩展点**：`FinancePeriodChecker`（财务模块实现，财务期间已结账时库存不能反结账）。
+
+**检验调拨**：品质模块判定后直接调用 `InventoryDocApi.createTransfer(TransferRequest)`（在品质事务内），仓库模块不监听品质事件；重新判定时先 `cancelBySource` 作废未确认的检验调拨单。
 
 ## 12. 权限点汇总
 
@@ -136,3 +138,18 @@ INV_STOCK_IN、INV_STOCK_OUT、INV_TRANSFER、INV_COUNT、INV_BATCH（见 01-系
 | 盘点 | `inv:count:query`（菜单）、`create`、`input`（录入实盘）、`submit`、`approve`、`void`、`print` |
 | 批次 | `inv:batch:freeze`（冻结/解冻）、`inv:batch:update`（修改批次属性） |
 | 期间 | `inv:period:query`（菜单）、`close`、`reopen`、`inv:opening:import` |
+
+## 13. 开发批次
+
+- 第 1 批（P0）：仓库与库位、类别默认仓、过账引擎、批次与序列号、入库单、出库单、调拨单、盘点、库存查询/流水/收发存、期初与月结——**已实现**
+- 同批实现的 P1：库龄、呆滞料、库存预警（定时任务 `INV_STOCK_ALERT` 每小时、`INV_EXPIRY_ALERT` 每天）、库存预留接口
+
+实现说明（其他模块接入时需要知道的约定）：
+
+- **生成单据**：`InventoryDocApi` 必须在调用方事务内调用；`StockInRequest.docDate` 同时作为来源单据日期（入库日期不能早于它）。仓库为空时按规则路由：采购/委外入库需检 → 待检仓，生产入库需 FQC → 待检仓，销售退货 → 退货仓，其他 → 物料类别默认仓（含上级类别），找不到时按物料类型取默认仓；按仓库拆分为多张单据。
+- **出库行拆分**：一个来源行可拆成多行（不同批次/库位），`StockOutConfirmedEvent` 每个批次一行，来源模块按 `sourceLineId` 汇总已出数量。
+- **期间与期初**：未设置启用期间或期初未完成时任何单据都不能过账（期初入库除外）；期初入库单据日期为启用期间前一天，流水期间标记为 `OPENING`。
+- **盘点冻结**：全盘冻结整个仓库，抽盘冻结盘点表中的（仓库 + 物料）；盘盈入库、盘亏出库自身不受冻结限制，由审核人确认（不校验仓库数据权限）。
+- **成本**：入库流水记录单价；调拨按参考单价（最近已结账期间期末单价，没有时取最近入库单价）同时记录调出、调入；出库成本由财务月末计算后回填，收发存汇总在财务结账前出库金额显示为“未计算”。
+- 暂未实现：序列号物料的盘点差异比对（INV-CNT-R07）、在途采购量（等资材模块提供接口，预警中按 0 计）。
+

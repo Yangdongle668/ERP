@@ -4,7 +4,9 @@ import com.erp.common.result.CommonResult;
 import com.erp.common.result.PageResult;
 import com.erp.framework.excel.ExcelColumn;
 import com.erp.framework.excel.ExcelSupport;
+import com.erp.framework.excel.ImportCheckResult;
 import com.erp.framework.excel.ImportResult;
+import com.erp.framework.excel.ImportRow;
 import com.erp.module.inventory.controller.vo.CountVOs.AddLine;
 import com.erp.module.inventory.controller.vo.CountVOs.CountDetail;
 import com.erp.module.inventory.controller.vo.CountVOs.CountLineRow;
@@ -20,6 +22,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -29,11 +34,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -141,17 +149,62 @@ public class CountController {
         return CommonResult.success(service.addLine(id, req));
     }
 
+    /** 导出盘点表：与导入模板格式一致（第一行列名、第二行说明、第三行起数据），填写实盘数量后可直接导入 */
     @GetMapping("/{id}/export-sheet")
     @PreAuthorize("@ss.has('inv:count:input')")
     public void exportSheet(@PathVariable Long id, HttpServletResponse response) throws IOException {
         List<CountLineRow> rows = service.sheet(id);
-        ExcelSupport.export(response, "盘点表", sheetColumns(service.isBookVisible(id)), rows, null);
+        List<ExcelColumn<CountLineRow>> cols = sheetColumns(service.isBookVisible(id));
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = wb.createSheet("盘点表");
+            Row head = sheet.createRow(0);
+            Row note = sheet.createRow(1);
+            for (int i = 0; i < cols.size(); i++) {
+                head.createCell(i).setCellValue(cols.get(i).label());
+                sheet.setColumnWidth(i, 16 * 256);
+            }
+            note.createCell(0).setCellValue("不要修改行ID；填写“实盘数量”，有差异时填写差异原因编码后导入");
+            int r = 2;
+            for (CountLineRow line : rows) {
+                Row row = sheet.createRow(r++);
+                for (int i = 0; i < cols.size(); i++) {
+                    Object v = cols.get(i).getter().apply(line);
+                    if (v instanceof BigDecimal b) row.createCell(i).setCellValue(b.doubleValue());
+                    else if (v != null) row.createCell(i).setCellValue(String.valueOf(v));
+                }
+            }
+            sheet.createFreezePane(0, 2);
+            wb.write(out);
+            ExcelSupport.writeBytes(response, "盘点表.xlsx", out.toByteArray());
+        }
     }
 
-    @PostMapping(value = "/{id}/import-count", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "导入实盘的模板：即当前盘点表（含行 ID）")
+    @GetMapping("/{id}/import-template")
     @PreAuthorize("@ss.has('inv:count:input')")
-    public CommonResult<ImportResult> importCount(@PathVariable Long id, @RequestPart("file") MultipartFile file) {
-        return CommonResult.success(service.importCount(id, ExcelSupport.read(file, IMPORT_COLUMNS)));
+    public void importTemplate(@PathVariable Long id, HttpServletResponse response) throws IOException {
+        exportSheet(id, response);
+    }
+
+    @PostMapping(value = "/{id}/import/check", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@ss.has('inv:count:input')")
+    public CommonResult<ImportCheckResult> importCheck(@PathVariable Long id, @RequestPart("file") MultipartFile file,
+                                                       @RequestParam(defaultValue = "false") boolean report, HttpServletResponse response) throws IOException {
+        List<ImportRow> rows = ExcelSupport.read(file, IMPORT_COLUMNS);
+        Map<Integer, String> actions = service.checkImport(id, rows);
+        if (report) {
+            ExcelSupport.writeBytes(response, "实盘导入错误报告.xlsx", ExcelSupport.errorReport(file, rows));
+            return null;
+        }
+        return CommonResult.success(ImportCheckResult.of(IMPORT_COLUMNS, rows, r -> actions.get(r.rowNo())));
+    }
+
+    @Operation(summary = "导入实盘：partial=true 时只导入正确行")
+    @PostMapping(value = {"/{id}/import", "/{id}/import-count"}, consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@ss.has('inv:count:input')")
+    public CommonResult<ImportResult> importCount(@PathVariable Long id, @RequestPart("file") MultipartFile file,
+                                                  @RequestParam(defaultValue = "false") boolean partial) {
+        return CommonResult.success(service.importCount(id, ExcelSupport.read(file, IMPORT_COLUMNS), partial));
     }
 
     @PostMapping("/{id}/submit")

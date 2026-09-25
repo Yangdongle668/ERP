@@ -43,6 +43,8 @@ const props = withDefaults(defineProps<{
   defaultExpandAll?: boolean
   /** 空状态说明 */
   emptyText?: string
+  /** 行样式（如低于安全库存的行浅红底色） */
+  rowClassName?: (p: { row: T; rowIndex: number }) => string
 }>(), { rowKey: 'id', actionsWidth: 0, border: false, emptyText: '暂无数据' })
 
 const emit = defineEmits<{
@@ -260,6 +262,7 @@ defineExpose({ getVisibleColumns, clearSelection, table: tableRef })
       v-loading="loading && !skeleton"
       :data="data"
       :row-key="rowKey"
+      :row-class-name="rowClassName"
       :border="border"
       :height="height"
       :max-height="maxHeight"

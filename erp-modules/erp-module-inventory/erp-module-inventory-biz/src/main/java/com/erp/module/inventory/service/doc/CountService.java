@@ -639,29 +639,49 @@ public class CountService {
         return bookVisible(getOrThrow(id));
     }
 
-    /** 导入实盘：按行 ID 写入实盘数量、差异原因、备注 */
-    @Transactional(rollbackFor = Exception.class)
-    public ImportResult importCount(Long id, List<ImportRow> rows) {
+    /** 导入实盘校验：行 ID 属于本盘点单、实盘数量为非负数字；错误写入行 */
+    public Map<Integer, String> checkImport(Long id, List<ImportRow> rows) {
         CountDO d = getOrThrow(id);
         checkAccess(d);
         requireStatus(d, CountStatus.COUNTING);
+        Set<Long> lineIds = lineMapper.selectByDoc(id).stream().map(CountLineDO::getId).collect(Collectors.toSet());
+        Map<Integer, String> actions = new HashMap<>();
+        for (ImportRow r : rows) {
+            String lid = r.get("id");
+            if (!StringUtils.hasText(lid) || !lid.trim().matches("\\d+") || !lineIds.contains(Long.valueOf(lid.trim()))) {
+                r.error("行 ID 不属于本盘点单");
+                continue;
+            }
+            String qty = r.get("countQty");
+            if (!StringUtils.hasText(qty)) {
+                actions.put(r.rowNo(), "跳过（未填实盘）");
+                continue;
+            }
+            try {
+                if (new BigDecimal(qty.trim()).signum() < 0) r.error("实盘数量不能小于 0");
+            } catch (NumberFormatException e) {
+                r.error("实盘数量格式不正确");
+            }
+            if (!r.hasError()) actions.put(r.rowNo(), "录入");
+        }
+        return actions;
+    }
+
+    /** 导入实盘：按行 ID 写入实盘数量、差异原因、备注；partial 为 false 时有错误行则整体不导入 */
+    @Transactional(rollbackFor = Exception.class)
+    public ImportResult importCount(Long id, List<ImportRow> rows, boolean partial) {
+        checkImport(id, rows);
+        List<ImportResult.Error> errors = rows.stream().filter(ImportRow::hasError)
+                .map(r -> new ImportResult.Error(r.rowNo(), String.join("；", r.errors()))).toList();
+        if (!errors.isEmpty() && !partial) return new ImportResult(0, errors.size(), errors);
         Map<Long, CountLineDO> lines = lineMapper.selectByDoc(id).stream().collect(Collectors.toMap(CountLineDO::getId, l -> l));
-        List<ImportResult.Error> errors = new ArrayList<>();
         List<LineInput> inputs = new ArrayList<>();
         for (ImportRow r : rows) {
-            try {
-                Long lineId = Long.valueOf(Objects.requireNonNull(r.get("id")).trim());
-                CountLineDO l = lines.get(lineId);
-                if (l == null) throw new IllegalArgumentException("行 ID 不属于本盘点单");
-                String qty = r.get("countQty");
-                if (!StringUtils.hasText(qty)) continue;
-                BigDecimal q = new BigDecimal(qty.trim());
-                if (q.signum() < 0) throw new IllegalArgumentException("实盘数量不能小于 0");
-                inputs.add(new LineInput(lineId, q, l.getRecountQty(), StringUtils.hasText(r.get("reason")) ? r.get("reason").trim() : l.getReason(),
-                        StringUtils.hasText(r.get("remark")) ? r.get("remark").trim() : l.getRemark()));
-            } catch (RuntimeException e) {
-                errors.add(new ImportResult.Error(r.rowNo(), e instanceof NumberFormatException ? "数量格式不正确" : e.getMessage()));
-            }
+            if (r.hasError() || !StringUtils.hasText(r.get("countQty"))) continue;
+            CountLineDO l = lines.get(Long.valueOf(r.get("id").trim()));
+            inputs.add(new LineInput(l.getId(), new BigDecimal(r.get("countQty").trim()), l.getRecountQty(),
+                    StringUtils.hasText(r.get("reason")) ? r.get("reason").trim() : l.getReason(),
+                    StringUtils.hasText(r.get("remark")) ? r.get("remark").trim() : l.getRemark()));
         }
         input(id, inputs);
         return new ImportResult(inputs.size(), errors.size(), errors);
