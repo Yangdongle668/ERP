@@ -1,0 +1,21 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .sign { margin-top: 16pt; width: 100%; font-size: 10pt; }
+</style>
+<h1>供应商对账单</h1>
+<table class="head">
+  <tr><td class="label">单号</td><td>{{docNo}}</td><td class="label">供应商</td><td>{{supplierName}}</td></tr>
+  <tr><td class="label">对账区间</td><td>{{formatDate periodFrom}} ~ {{formatDate periodTo}}</td><td class="label">币别</td><td>{{currency}}</td></tr>
+  <tr><td class="label">货款</td><td>{{formatAmount goodsAmount}}</td><td class="label">退货</td><td>{{formatAmount returnAmount}}</td></tr>
+  <tr><td class="label">调整</td><td>{{formatAmount adjustAmount}}</td><td class="label">对账总额</td><td>{{formatAmount totalAmount}}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>类型</th><th>来源单号</th><th>订单号</th><th>物料</th><th>日期</th><th>数量</th><th>含税单价</th><th>金额</th><th>说明</th></tr></thead>
+  <tbody>{{#each lines}}<tr><td>{{lineTypeName}}</td><td>{{sourceNo}}</td><td>{{orderNo}}</td><td>{{materialCode}} {{materialName}}</td><td>{{formatDate bizDate}}</td>
+  <td class="num">{{formatQty qty}}</td><td class="num">{{formatPrice priceInclTax}}</td><td class="num">{{formatAmount totalAmount}}</td><td>{{remark}}</td></tr>{{/each}}</tbody>
+</table>
+<table class="sign"><tr><td>采购：</td><td>财务：</td><td>供应商确认（签字盖章）：</td></tr></table>

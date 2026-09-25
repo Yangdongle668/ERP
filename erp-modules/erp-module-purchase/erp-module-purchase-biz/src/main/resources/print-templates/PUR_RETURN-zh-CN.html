@@ -1,0 +1,22 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .sign { margin-top: 16pt; width: 100%; font-size: 10pt; }
+</style>
+<h1>采购退货单</h1>
+<table class="head">
+  <tr><td class="label">单号</td><td>{{docNo}}</td><td class="label">日期</td><td>{{formatDate docDate}}</td></tr>
+  <tr><td class="label">供应商</td><td>{{supplierName}}</td><td class="label">出库仓</td><td>{{warehouseName}}</td></tr>
+  <tr><td class="label">退货原因</td><td>{{reasonName}}</td><td class="label">处理方式</td><td>{{handlingName}}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>行</th><th>到货单号</th><th>物料编码</th><th>名称</th><th>批次</th><th>单位</th><th>退货数量</th><th>单价</th><th>金额</th></tr></thead>
+  <tbody>{{#each lines}}<tr><td>{{lineNo}}</td><td>{{receiptNo}}</td><td>{{materialCode}}</td><td>{{materialName}}</td><td>{{batchNo}}</td><td>{{uom}}</td>
+  <td class="num">{{formatQty qty}}</td><td class="num">{{formatPrice priceInclTax}}</td><td class="num">{{formatAmount totalAmount}}</td></tr>{{/each}}</tbody>
+  <tfoot><tr><td colspan="8" class="num">合计（{{currency}}）</td><td class="num">{{formatAmount totalAmount}}</td></tr></tfoot>
+</table>
+<p>备注：{{remark}}</p>
+<table class="sign"><tr><td>采购：</td><td>仓库：</td><td>供应商签收：</td></tr></table>
