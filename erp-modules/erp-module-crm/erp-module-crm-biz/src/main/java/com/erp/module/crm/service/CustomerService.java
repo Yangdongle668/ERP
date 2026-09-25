@@ -356,7 +356,7 @@ public class CustomerService implements CustomerApi {
         c.setName(req.name().trim());
         c.setNameEn(CrmSupport.trim(req.nameEn()));
         String shortName = CrmSupport.trim(req.shortName());
-        if (shortName == null) shortName = c.getName().length() > 10 ? c.getName().substring(0, 10) : c.getName();
+        if (shortName == null) shortName = defaultShortName(c.getName());
         c.setShortName(shortName);
         c.setNameKey(nameKey(c.getName()));
         c.setNameCore(nameCore(c.getName()));
@@ -460,6 +460,16 @@ public class CustomerService implements CustomerApi {
         Map<Long, UserDTO> users = support.users(list.stream().map(CustomerDO::getOwnerId).toList());
         return list.stream().map(c -> new DuplicateRow(c.getId(), c.getCode(), c.getName(), c.getCountry(), CrmSupport.name(users, c.getOwnerId()),
                 Objects.equals(c.getNameCore(), core) ? "NAME" : taxNo != null && taxNo.equals(c.getTaxNo()) ? "TAX_NO" : "WEBSITE")).toList();
+    }
+
+    /** 默认简称：中文取前 10 个字；英文等在 20 个字符内按单词截断 */
+    static String defaultShortName(String name) {
+        if (name.codePoints().anyMatch(cp -> Character.UnicodeScript.of(cp) == Character.UnicodeScript.HAN)) {
+            return name.length() > 10 ? name.substring(0, 10) : name;
+        }
+        if (name.length() <= 20) return name;
+        int space = name.lastIndexOf(' ', 20);
+        return (space > 0 ? name.substring(0, space) : name.substring(0, 20)).trim();
     }
 
     /** 名称比较键：小写，去掉空格和标点（R04） */

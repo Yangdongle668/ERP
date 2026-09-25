@@ -69,12 +69,13 @@ CRM_CUSTOMER（C + 5 位，允许手工）、CRM_OPPORTUNITY。
 
 | 接口 | 方法 | 使用方 |
 |---|---|---|
-| `CustomerApi` | `getCustomer`、`getCustomers(ids)`、`validateCanOrder`（已定义）、`validateCanQuote(id)`（潜在客户也可）、`getAddresses(id, type)`、`getDefaultAddress(id, type)`、`getContacts(id)`、`search(keyword, statuses)` | 销售、出货、财务、品质 |
-| `CustomerPartApi` | `toMaterial(customerId, customerPartNo)`、`toCustomerPart(customerId, materialId)` | 销售、出货 |
-| `CreditApi` | `check(customerId, newAmountBase, checkPoint)` → `{pass, mode, limit, used, available, message}` | 销售、出货 |
+| `CustomerApi` | `getCustomer`、`getCustomers(ids)`、`validateCanOrder`、`validateCanQuote(id)`（潜在客户也可）、`validateCanShip(id)`、`getAddresses(id, type)`、`getDefaultAddress(id, type)`、`getContacts(id)`、`search(keyword, statuses, limit)`、`recordOrder(customerId, orderDate)`（已实现） | 销售、出货、财务、品质 |
+| `CustomerPartApi` | `toMaterial(customerId, customerPartNo)`、`toCustomerPart(customerId, materialId)`（已实现） | 销售、出货 |
+| `CreditApi` | `check(customerId, amountBase, checkPoint)` → `{pass, mode, limit, used, available, overdue, message}`、`refresh(customerIds)`（已实现） | 销售、出货、财务 |
+| `OpportunityApi` | `onQuotationCreated(opportunityId)`、`onOrderApproved(opportunityId, orderNo)`（已实现） | 销售 |
 
 **发布事件**：`CustomerStatusChangedEvent`、`CustomerOwnerChangedEvent`。
-**监听事件**：财务 `ReceivableBalanceChangedEvent`、销售 `SalesOrderOpenAmountChangedEvent`（更新信用占用）；销售 `QuotationCreatedEvent`、`SalesOrderApprovedEvent`（商机阶段推进）。
+**与销售、财务的接入方式**：销售、财务模块尚未定义事件，CRM 改为提供回调接口和扩展点（见第 11 节），不监听 `ReceivableBalanceChangedEvent` 等事件。
 
 ## 10. 权限点汇总
 
@@ -85,3 +86,20 @@ CRM_CUSTOMER（C + 5 位，允许手工）、CRM_OPPORTUNITY。
 | 信用 | `crm:credit:query`（菜单）、`update`（调整额度）；字段 `crm:customer:credit`（在客户页面查看信用字段） |
 | 跟进 | `crm:followup:query`（菜单）、`create`、`update`、`delete` |
 | 商机 | `crm:opportunity:query`（菜单）、`create`、`update`、`delete`、`close`（赢单/输单） |
+
+## 11. 实现说明（已实现）
+
+客户、联系人、客户料号、信用、跟进、商机的后端与页面均已实现。其他模块接入时需要知道的约定：
+
+- **扩展点（crm-api，由其他模块实现，未实现前视为“没有”）**：
+  - `CustomerReferenceChecker`：销售（RFQ、报价、订单）、研发工程（样品）实现，有业务数据的潜在客户不能删除（R09）。CRM 自身的跟进、商机、客户料号已计入。
+  - `CustomerPartReferenceChecker`：销售实现，被订单引用的客户料号只能停用（CP-R04）。
+  - `CreditUsageProvider`：财务返回应收余额、逾期应收，销售返回未出货订单金额（本位币含税），各提供方的同类项相加。
+- **信用占用刷新**：应收余额或未出货订单金额变化后，财务、销售调用 `CreditApi.refresh(customerIds)`；另有定时任务 `CRM_CREDIT_REFRESH` 每天 01:00 全量重算。
+- **回调**：销售订单审核后调用 `CustomerApi.recordOrder`（R10）；报价单关联商机时调用 `OpportunityApi.onQuotationCreated`（OPP-R03）；来源报价关联了商机的订单审核后调用 `OpportunityApi.onOrderApproved`（OPP-R04）。
+- **客户转移**：发布 `CustomerOwnerChangedEvent(customerIds, newOwnerId, transferDocs)`，销售模块监听后修改未完成报价、订单的业务员。
+- **数据权限**：客户按 `dept_id`（负责部门）/ `owner_id`（负责人）过滤；联系人、跟进、商机、客户料号、信用按“能否看到客户”过滤。`CustomerApi` 的查询不受数据权限限制。
+- **信用检查口径**：订单检查比较 应收余额 + 未出货订单 + 本次金额；出货检查比较 应收余额 + 本次出货金额（本次出货已包含在未出货订单中）；逾期应收 > 0 时按控制方式警告或阻止；未设置额度只检查逾期。
+- **定时任务**：`CRM_CREDIT_REFRESH`（01:00 信用重算）、`CRM_CREDIT_RESTORE`（00:30 临时额度到期恢复并通知业务员）、`CRM_FOLLOWUP_REMIND`（每 30 分钟检查，到达 `crm.followup.remind-time` 后提醒当天到期的跟进）。
+- **客户详情 360 视图**：报价、订单、出货、应收、客诉页签待对应模块实现后补充；样品页签已接入研发工程（有 `eng:sample:query` 权限时显示）。
+- **默认简称**：中文名称取前 10 个字；英文等名称在 20 个字符内按单词截断。
