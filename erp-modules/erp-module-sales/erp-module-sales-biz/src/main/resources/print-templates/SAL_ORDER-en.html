@@ -1,0 +1,28 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .sign { margin-top: 16pt; width: 100%; font-size: 10pt; }
+  .terms { font-size: 9pt; white-space: pre-wrap; }
+</style>
+<h1>PROFORMA INVOICE</h1>
+<table class="head">
+  <tr><td class="label">PI No.</td><td>{{docNo}} (V{{orderVersion}})</td><td class="label">Date</td><td>{{formatDate docDate}}</td></tr>
+  <tr><td class="label">Seller</td><td>{{companyName}}<br>{{companyAddress}}</td><td class="label">Buyer</td><td>{{customerName}}</td></tr>
+  <tr><td class="label">Your PO No.</td><td>{{customerPoNo}}</td><td class="label">Contact</td><td>{{contactName}}</td></tr>
+  <tr><td class="label">Currency</td><td>{{currency}}</td><td class="label">Payment Terms</td><td>{{paymentTermName}}</td></tr>
+  <tr><td class="label">Trade Terms</td><td>{{tradeTerm}}</td><td class="label">Port</td><td>{{portOfLoading}} → {{portOfDestination}}</td></tr>
+  <tr><td class="label">Ship To</td><td colspan="3">{{shipTo}}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>#</th><th>Item</th><th>Customer P/N</th><th>Description</th><th>Unit</th><th>Qty</th><th>Unit Price</th><th>Amount</th><th>Delivery</th></tr></thead>
+  <tbody>{{#each lines}}<tr><td>{{lineNo}}</td><td>{{materialCode}}</td><td>{{customerPartNo}}</td><td>{{description}}</td><td>{{uom}}</td>
+  <td class="num">{{formatQty qty}}</td><td class="num">{{formatPrice price}}</td><td class="num">{{formatAmount totalAmount}}</td><td>{{formatDate deliveryDate}}</td></tr>{{/each}}</tbody>
+  <tfoot><tr><td colspan="7" class="num">Total ({{currency}})</td><td class="num">{{formatAmount totalAmount}}</td><td></td></tr>
+  <tr><td colspan="9">{{amountInWordsEn totalAmount currency}}</td></tr></tfoot>
+</table>
+<p><b>Beneficiary Bank</b><br>{{#each bankInfo}}{{this}}<br>{{/each}}</p>
+<p class="terms">{{terms}}</p>
+<table class="sign"><tr><td>For and on behalf of {{companyName}}</td><td>Confirmed by Buyer:</td></tr></table>

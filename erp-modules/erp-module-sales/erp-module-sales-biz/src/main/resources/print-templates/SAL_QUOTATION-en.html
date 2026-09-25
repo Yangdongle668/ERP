@@ -1,0 +1,24 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .sign { margin-top: 16pt; width: 100%; font-size: 10pt; }
+  .terms { font-size: 9pt; white-space: pre-wrap; }
+</style>
+<h1>QUOTATION</h1>
+<table class="head">
+  <tr><td class="label">Quotation No.</td><td>{{docNo}} {{revisionText}}</td><td class="label">Date</td><td>{{formatDate docDate}}</td></tr>
+  <tr><td class="label">From</td><td>{{companyName}}<br>{{companyAddress}}</td><td class="label">To</td><td>{{customerName}}</td></tr>
+  <tr><td class="label">Attn.</td><td>{{contactName}}</td><td class="label">Sales</td><td>{{ownerName}}</td></tr>
+  <tr><td class="label">Currency</td><td>{{currency}} ({{taxIncludedText}})</td><td class="label">Valid Until</td><td>{{formatDate validUntil}}</td></tr>
+  <tr><td class="label">Payment Terms</td><td>{{paymentTermName}}</td><td class="label">Trade Terms</td><td>{{tradeTerm}}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>#</th><th>Item</th><th>Customer P/N</th><th>Description</th><th>Unit</th><th>Qty From</th><th>Unit Price</th><th>MOQ</th><th>Lead Time (days)</th><th>Tooling</th><th>Remarks</th></tr></thead>
+  <tbody>{{#each lines}}<tr><td>{{lineNo}}</td><td>{{materialCode}}</td><td>{{customerPartNo}}</td><td>{{description}}</td><td>{{uom}}</td>
+  <td class="num">{{formatQty minQty}}</td><td class="num">{{formatPrice price}}</td><td class="num">{{formatQty moq}}</td><td class="num">{{leadTimeDays}}</td>
+  <td class="num">{{formatAmount toolingFee}}</td><td>{{remark}}</td></tr>{{/each}}</tbody>
+</table>
+<p class="terms">{{terms}}</p>

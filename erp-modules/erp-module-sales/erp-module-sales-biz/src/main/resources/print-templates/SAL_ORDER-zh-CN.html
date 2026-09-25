@@ -1,0 +1,28 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .sign { margin-top: 16pt; width: 100%; font-size: 10pt; }
+  .terms { font-size: 9pt; white-space: pre-wrap; }
+</style>
+<h1>销售合同</h1>
+<table class="head">
+  <tr><td class="label">合同号</td><td>{{docNo}}（V{{orderVersion}}）</td><td class="label">签订日期</td><td>{{formatDate docDate}}</td></tr>
+  <tr><td class="label">卖方</td><td>{{companyName}}</td><td class="label">买方</td><td>{{customerName}}</td></tr>
+  <tr><td class="label">卖方地址</td><td>{{companyAddress}}</td><td class="label">客户 PO 号</td><td>{{customerPoNo}}</td></tr>
+  <tr><td class="label">联系人</td><td>{{contactName}}</td><td class="label">业务员</td><td>{{ownerName}}</td></tr>
+  <tr><td class="label">币别</td><td>{{currency}}</td><td class="label">付款条件</td><td>{{paymentTermName}}</td></tr>
+  <tr><td class="label">贸易条款</td><td>{{tradeTerm}}</td><td class="label">港口</td><td>{{portOfLoading}} → {{portOfDestination}}</td></tr>
+  <tr><td class="label">收货地址</td><td colspan="3">{{shipTo}}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>#</th><th>物料编码</th><th>客户料号</th><th>品名规格</th><th>单位</th><th>数量</th><th>单价</th><th>金额</th><th>交期</th></tr></thead>
+  <tbody>{{#each lines}}<tr><td>{{lineNo}}</td><td>{{materialCode}}</td><td>{{customerPartNo}}</td><td>{{description}}</td><td>{{uom}}</td>
+  <td class="num">{{formatQty qty}}</td><td class="num">{{formatPrice price}}</td><td class="num">{{formatAmount totalAmount}}</td><td>{{formatDate deliveryDate}}</td></tr>{{/each}}</tbody>
+  <tfoot><tr><td colspan="7" class="num">价税合计（{{taxIncludedText}}）</td><td class="num">{{formatAmount totalAmount}}</td><td></td></tr>
+  <tr><td colspan="9">大写：{{amountInWordsCn totalAmount}}</td></tr></tfoot>
+</table>
+<p class="terms">{{terms}}</p>
+<table class="sign"><tr><td>卖方（盖章）：</td><td>买方（盖章）：</td></tr><tr><td>日期：</td><td>日期：</td></tr></table>
