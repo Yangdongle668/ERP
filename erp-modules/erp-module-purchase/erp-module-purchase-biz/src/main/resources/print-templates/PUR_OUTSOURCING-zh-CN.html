@@ -1,0 +1,21 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .sign { margin-top: 16pt; width: 100%; font-size: 10pt; }
+</style>
+<h1>委外加工单</h1>
+<table class="head">
+  <tr><td class="label">单号</td><td>{{docNo}}</td><td class="label">日期</td><td>{{formatDate docDate}}</td></tr>
+  <tr><td class="label">加工商</td><td>{{supplierName}}</td><td class="label">要求交回</td><td>{{formatDate requiredDate}}</td></tr>
+  <tr><td class="label">加工物料</td><td>{{materialCode}} {{materialName}} {{materialSpec}}</td><td class="label">数量</td><td>{{formatQty qty}} {{uom}}</td></tr>
+  <tr><td class="label">加工费单价</td><td>{{currency}} {{formatPrice processPrice}}</td><td class="label">加工费合计</td><td>{{formatAmount totalAmount}}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>子件</th><th>名称 / 规格</th><th>单位</th><th>单位用量</th><th>应发数量</th></tr></thead>
+  <tbody>{{#each materials}}<tr><td>{{materialCode}}</td><td>{{materialName}} {{spec}}</td><td>{{uom}}</td><td class="num">{{formatQty qtyPer}}</td><td class="num">{{formatQty requiredQty}}</td></tr>{{/each}}</tbody>
+</table>
+<p>备注：{{remark}}</p>
+<table class="sign"><tr><td>采购：</td><td>仓库发料：</td><td>加工商确认：</td></tr></table>
