@@ -26,6 +26,10 @@
             <artifactId>erp-module-system-api</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.erp</groupId>
+            <artifactId>erp-module-engineering-api</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
