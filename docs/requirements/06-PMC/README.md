@@ -100,3 +100,27 @@ PMC_MPS、PMC_MRP_RUN、PMC_SHIPPING_PLAN。
 | 缺料 | `pmc:shortage:query`（菜单）、`push`（推送催料） |
 | 预警 | `pmc:alert:query`（菜单）、`handle` |
 | 出货计划 | `pmc:shipping-plan:query`（菜单）、`create`、`update`、`publish` |
+
+## 10. 实现说明（已实现）
+
+需求池与交期回复、MPS、MRP 运算与建议处理、产能日历与负荷、排产、缺料分析、交期预警、出货计划的后端与页面均已实现。出货、品质、财务模块尚未实现，PMC 按下列方式接入：
+
+- **需求池**：监听销售 `SalesOrderApproved / Changed / Closed / Unapproved / ShipmentChanged / PromisedDateChanged` 与 `ForecastPublishedEvent`，按销售订单、净预测的实际数据同步（失败只记日志，不影响销售操作），`PMC_DEMAND_RECONCILE` 每天 01:30 全量对账。出货确认通过销售的 `SalesOrderShipmentChangedEvent` 更新已满足数量（出货模块上线后无需改动）。
+- **交期回复**：数量或要求交期变更后该行标记“需重新回复”；保存时调用 `SalesOrderApi.updatePromisedDate`。
+- **MRP**：
+  - 数据一次性读取：需求池（或已发布 MPS）、`ProductionQueryApi.getOpenOrders`（已计划 / 已下达订单的剩余数量为在制供应，用料未领或按 BOM 展开为在制分配）、仓库可用与待检、`PurchaseQueryApi.getInTransitQty`（采购与委外在途，日期取确认交期，无则要求日期）。
+  - 内存计算，按低位码逐层；BOM 循环时运算失败并指出物料；停用物料只记例外。
+  - 以后台任务执行（任务中心可见），同一时间一个运算，超过 1 小时的 RUNNING 由 `PMC_MRP_STALE_CHECK` 置为失败；夜间全量运算 `PMC_MRP_NIGHTLY`（参数开启时）。
+  - 每次运算保存建议、需求追溯、例外与供需平衡明细；新运算成功后旧的待处理建议置为“已过期”，并重新计算交期预警。
+  - 转单：采购 → `PurchaseRequisitionApi.createFromMrp`（按计划员合并），生产 → `ProductionOrderApi.createFromMrp`（可同时 `release`），委外 → `OutsourcingApi.createFromMrp`。
+- **排产**：负荷 = 准备 + 剩余数量 × 标准工时；已计划订单按工艺路线，已下达订单按固化工序。锁定工序不移动；“应用到生产订单”调用 `ProductionOrderApi.updatePlanDates`。负荷分析对没有排产结果的订单按计划开工～完工在工作日均摊。
+- **缺料分析**：结果保存为快照（订单 + 用料行），保留 30 天（`PMC_SHORTAGE_CLEANUP`）；催料推送给物料的采购员，同一物料一天一次。`PmcQueryApi.getShortage` 实时计算。
+- **交期预警**：`PMC_DELIVERY_ALERT` 每天 06:00 计算；预计日期 = 库存覆盖 → 生产订单（排产完工或计划完工，缺料时顺延为齐套日期 + 生产提前期）+ 1 天准备 → 累计提前期。新产生或升级的预警发布 `DeliveryAlertRaisedEvent` 并发送工作台预警，严重级别通知参数 `pmc.alert.managers`（为空取拥有 `pmc:alert:handle` 的用户）；预警列表按销售订单业务员做数据权限。
+- **出货计划**：发布后发布 `ShippingPlanPublishedEvent`；出货模块通过 `ShippingPlanApi.getPlanLines(week)` 取计划、`onNoticed(planLineId, delta)` 回写已通知数量。
+- **production-api 新增**：`ProductionQueryApi.getOpenOrders`、`ProductionOrderApi.release`、`ProductionOrderApi.updatePlanDates`。
+- **限制**：
+  - 净变更运算目前按全量计算。
+  - 参数 `pmc.mrp.use-substitute`（替代料）与 `pmc.mrp.po-date-basis`（在途日期依据）暂未生效：在途日期固定取确认交期，无则取要求日期。
+  - 生产提前期按物料提前期（天），暂不按工艺工时换算。
+  - 甘特图用点击调整代替拖拽。
+  - 出货计划的明细只能由“生成计划”带出（可调整、删除）。

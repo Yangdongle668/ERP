@@ -238,6 +238,7 @@ public class ShortageService {
                         && (req == null || req.planStartFrom() == null || !o.planStart().isBefore(req.planStartFrom()))
                         && (req == null || req.planStartTo() == null || !o.planStart().isAfter(req.planStartTo())))
                 .toList());
+        if (orders.isEmpty()) return new AnalyzeResult(null, 0, 0, 0);
         List<OrderResult> results = compute(orders);
         String no = "SA" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + ThreadLocalRandom.current().nextInt(100, 1000);
         Map<Long, SalesOrderLineDTO> sales = salesOrderQueryApi.getLines(orders.stream().map(OpenOrderDTO::salesOrderLineId).filter(Objects::nonNull)
