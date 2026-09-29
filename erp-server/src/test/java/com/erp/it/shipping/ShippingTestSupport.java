@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  * 出货集成测试的公共准备：库存期间、成品物料与库存（可带批次）、正式客户、已审核订单、出货通知到出货确认的各步。
  * 每个测试使用独立的新客户与新物料，数据互不影响。
  */
-abstract class ShippingTestSupport extends AbstractIntegrationTest {
+public abstract class ShippingTestSupport extends AbstractIntegrationTest {
 
     static final String CAT_FG = "507";
     static final String CAT_RAW = "501";

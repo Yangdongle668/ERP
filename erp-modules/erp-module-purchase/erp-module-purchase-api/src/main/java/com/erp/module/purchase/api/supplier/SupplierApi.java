@@ -17,4 +17,7 @@ public interface SupplierApi {
 
     /** 物料的默认供应商（可供物料中标记为默认、非停用的供应商） */
     Optional<SupplierDTO> getDefaultSupplier(Long materialId);
+
+    /** 财务信息：付款条件、等级、发票类型、收款账户 */
+    Optional<SupplierFinanceDTO> getFinanceInfo(Long id);
 }

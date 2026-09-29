@@ -100,3 +100,20 @@ FIN_RECEIVABLE、FIN_RECEIPT、FIN_PAYABLE、FIN_PAYMENT_REQUEST、FIN_PAYMENT�
 | 成本 | `fin:cost:query`（菜单）、`calculate`、`lock` |
 | 报表 | `fin:report:query`（菜单）、`export` |
 | 月结 | `fin:close:query`（菜单）、`execute`、`reopen` |
+
+## 11. 实现说明（第 1 批已实现）
+
+第 1 批实现 P0：财务基础设置、应收与销项发票登记、收款与核销、应付与进项发票（三单匹配）、付款申请与付款、应收 / 应付账龄与客户 / 供应商往来对账单。凭证、成本核算、毛利与损益报表、月结在第 2 批实现（`CostQueryApi` 暂返回空，菜单显示“开发中”）。
+
+- **状态**：应收单 / 应付单 `ar_status` / `ap_status`（草稿 → 待审批 → 已确认 / 已作废；事件生成的单据直接确认，其他应收 / 应付走审批流 `FIN_OTHER_RECEIVABLE` / `FIN_OTHER_PAYABLE`），收款单 / 付款单（草稿 → 已确认 / 已作废），付款申请 `request_status`（草稿 → 待审批 → 待付款 → 部分付款 → 已付款 / 已关闭 / 已作废）；状态变更均通过状态机。
+- **应收来源**：监听 `ShipmentConfirmedEvent`（金额 0 的行不生成，按订单付款条件第一个出货类节点计算到期日，提单未到按出货日暂估，`BillOfLadingReceivedEvent` 后重算；无付款条件按客户信用天数）、`ShipmentReversedEvent`（作废）、`SalesReturnReceivedEvent`（仅 REFUND 生成红字，按退货入库单幂等，入库反确认作废）、`ComplaintClaimAgreedEvent`（折让红字）。幂等：同一来源（及入库单）只有一张未作废应收，出货行另有唯一键 `(ar_type, source_line_key)`，作废时释放。参数 `fin.ar.auto-confirm` 为是时自动确认（期间已结账或汇率未维护时保留草稿）。
+- **汇率缺失**：事件生成的应收 / 应付在汇率未维护时汇率记 0、保留草稿，不阻断业务；确认时按业务日期重新取汇率并计算本位币。
+- **阻止业务撤销**：`StockDocEvent(OUT_REVERSING)` 来源为出货单且应收已核销 / 已开票时抛出“该出货已开票/已收款核销，不能反确认”；`PurchaseStatementUnconfirmingEvent` 在应付已匹配发票 / 已申请 / 已付款时抛出“财务已根据此对账单生成应付并已处理，不能取消确认”，否则作废应付。
+- **核销**：`fin_verification` 统一记录。贷方（收款、预收、红字应收 / 付款、预付、红字应付）与借方（蓝字应收 / 应付、退款）合计相等才能核销；配对顺序：退款先冲红字再冲收款，蓝字单据依次用预收（同订单，参数 `fin.ar.advance-any-order` 可放开）、收款、红字冲销。汇兑差异 = 贷方本位币 − 借方本位币。普通收款核销蓝字应收时按应收明细的订单占比回写 `SalesOrderWritebackApi.onReceiptAllocated` 并发布 `ReceiptAllocatedEvent`；预收款在收款确认时即回写，冲销时不再回写。反核销要求核销所在期间未结账。收款未核销金额 = 到账 + 手续费 − 已核销（退款为负数，不含手续费）。
+- **销项发票**：按应收行部分开票（数量比例计算金额，可调整尾差 ≤ 1 元），回写 `SalesOrderWritebackApi.onInvoiced` 并发布 `InvoiceIssuedEvent`；作废 / 红冲回退。同一发票号码（未作废）不能重复登记。
+- **应付与三单匹配**：监听 `PurchaseStatementConfirmedEvent` 生成应付（全部为加工费行时为委外类型；参数 `fin.ap.auto-confirm` 默认否），到期日按供应商付款条件（月结：区间结束月末 + 天数）。进项发票行记录冲减应付行的金额 `ap_amount`；单价差异 % 超过 `fin.ap.invoice-price-tolerance` 必须填原因、状态“有差异”，确认差异后在应付上追加 `PRICE_DIFF` 价差调整行；明细合计与发票价税合计差异 ≤ `fin.ap.invoice-amount-tolerance` 时调整最后一行，超过不允许保存。已认证的专票不能作废。
+- **付款**：申请提交时占用应付 `requested_amount`（驳回 / 撤回 / 关闭释放未付部分）；可申请金额 = 价税合计 − 已付 − 已申请。未收齐发票的应付按参数 `fin.ap.allow-uninvoiced-request` 提示或阻止。预付款关联采购订单，累计 ≤ 订单价税合计。付款确认按申请行顺序分配并自动生成 `PAYMENT_AP` 核销；预付款付款记为预付余额，在付款核销页面冲应付。付款反确认自动反核销并恢复申请与应付占用；预付已用于冲销时需先反核销。定时任务 `FIN_AP_DUE_WEEKLY`（每周一 08:50）推送本周到期应付。
+- **信用与扩展点**：实现 CRM `CreditUsageProvider`（应收余额 = 未核销应收 − 未核销预收，逾期 = 到期日早于今天的未核销蓝字应收，本位币），应收余额变化时调用 `CreditApi.refresh` 并发布 `ReceivableBalanceChangedEvent`；实现仓库 `FinancePeriodChecker` 与 `FinPeriodApi`（期间状态 CLOSED 视为已结账，未初始化的期间视为开启）；`ReceivableQueryApi.getOrderReceived` = 订单预收 + 普通收款核销到含该订单应收的金额。
+- **报表**：账龄按到期日分段（无到期日按业务日期），本位币按截止日汇率折算，可下钻单据；往来对账单期末 = 期初 + 本期应收（应付）− 本期收款（付款，含预收），截止日不早于今天时与单据余额比对，不一致标红；客户对账单可按打印模板 `FIN_CUSTOMER_STATEMENT` 打印。
+- **其他模块契约新增**：`SupplierApi.getFinanceInfo`、`PurchaseQueryApi.getOrderHeader / getOpenOrders`（见 07-资材 README）。
+- **限制**：科目映射的“测试预览凭证”与凭证生成在第 2 批；银行流水导入按付款方名称与客户名称 / 简称 / 英文名完全一致匹配；收付款列表的数据范围按经办人及部门。

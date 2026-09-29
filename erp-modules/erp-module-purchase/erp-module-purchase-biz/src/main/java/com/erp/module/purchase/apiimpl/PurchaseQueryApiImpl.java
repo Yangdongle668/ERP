@@ -3,6 +3,7 @@ package com.erp.module.purchase.apiimpl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.erp.common.enums.DocStatus;
 import com.erp.module.purchase.api.order.InTransitDTO;
+import com.erp.module.purchase.api.order.PurchaseOrderHeaderDTO;
 import com.erp.module.purchase.api.order.PurchaseQueryApi;
 import com.erp.module.purchase.dal.dataobject.OrderDO;
 import com.erp.module.purchase.dal.dataobject.OrderLineDO;
@@ -20,6 +21,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -74,5 +76,22 @@ public class PurchaseQueryApiImpl implements PurchaseQueryApi {
         InTransitDTO dto = getInTransitQty(List.of(materialId)).get(materialId);
         return dto == null ? BigDecimal.ZERO : dto.details().stream().filter(d -> "PUR_ORDER".equals(d.docType()))
                 .map(InTransitDTO.Detail::qty).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    @Override
+    public Optional<PurchaseOrderHeaderDTO> getOrderHeader(Long orderId) {
+        OrderDO o = orderId == null ? null : orderMapper.selectById(orderId);
+        return Optional.ofNullable(o).map(PurchaseQueryApiImpl::header);
+    }
+
+    @Override
+    public List<PurchaseOrderHeaderDTO> getOpenOrders(Long supplierId) {
+        return orderMapper.selectList(new LambdaQueryWrapper<OrderDO>().eq(OrderDO::getSupplierId, supplierId).in(OrderDO::getStatus, ACTIVE)
+                .orderByDesc(OrderDO::getDocDate).orderByDesc(OrderDO::getId)).stream().map(PurchaseQueryApiImpl::header).toList();
+    }
+
+    private static PurchaseOrderHeaderDTO header(OrderDO o) {
+        return new PurchaseOrderHeaderDTO(o.getId(), o.getDocNo(), o.getDocDate(), o.getSupplierId(), o.getCurrency(),
+                o.getTotalAmount(), o.getPaymentTermId(), o.getStatus().name());
     }
 }

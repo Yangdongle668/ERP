@@ -123,6 +123,8 @@ PUR_ORDER（采购订单，中文 + 英文，发给供应商）、PUR_RECEIPT（
 
 > 品质模块接入后新增 `PurchaseReceiptApi.revertInspection(receiptLineId)`：检验重判时到货行恢复为待检，清空合格 / 特采 / 不合格数量与检验单号。
 
+> 财务模块接入后新增 `SupplierApi.getFinanceInfo(id)`（付款条件、供应商等级、发票类型、银行账户，付款申请与应付到期日使用）、`PurchaseQueryApi.getOrderHeader(orderId)` / `getOpenOrders(supplierId)`（采购订单头与已审核 / 执行中的订单，预付款申请使用）。
+
 ## 12. 权限点汇总
 
 | 分组 | 权限点 |
