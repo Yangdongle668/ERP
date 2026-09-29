@@ -20,4 +20,9 @@ public class PurchaseReceiptApiImpl implements PurchaseReceiptApi {
     public void applyInspection(Long receiptLineId, String inspectionNo, BigDecimal qualifiedQty, BigDecimal concessionQty, BigDecimal rejectedQty) {
         receiptService.applyInspection(receiptLineId, inspectionNo, qualifiedQty, concessionQty, rejectedQty);
     }
+
+    @Override
+    public void revertInspection(Long receiptLineId) {
+        receiptService.revertInspection(receiptLineId);
+    }
 }

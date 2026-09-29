@@ -1,0 +1,17 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 8pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .pre { white-space: pre-wrap; }
+</style>
+<h1>Supplier Corrective Action Request</h1>
+<table class="head">
+  <tr><td class="label">SCAR No.</td><td>{{docNo}}</td><td class="label">Issued</td><td>{{formatDateTime sentAt}}</td></tr>
+  <tr><td class="label">Supplier</td><td>{{supplierName}}</td><td class="label">Reply Due</td><td>{{formatDate replyDueDate}}</td></tr>
+  <tr><td class="label">Part</td><td>{{materialCode}} {{materialName}}</td><td class="label">Lot</td><td>{{batchNo}}</td></tr>
+  <tr><td class="label">Problem</td><td colspan="3" class="pre">{{problemDescription}}</td></tr>
+  <tr><td class="label">Requirement</td><td colspan="3" class="pre">{{requirement}}</td></tr>
+  <tr><td class="label">SQE</td><td>{{ownerName}}</td><td class="label">Supplier Sign</td><td></td></tr>
+</table>

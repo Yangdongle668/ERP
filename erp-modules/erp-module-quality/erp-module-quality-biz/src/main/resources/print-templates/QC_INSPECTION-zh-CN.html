@@ -1,0 +1,30 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 8pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .pre { white-space: pre-wrap; }
+</style>
+<h1>{{inspectTypeName}}报告</h1>
+<table class="head">
+  <tr><td class="label">单号</td><td>{{docNo}}</td><td class="label">供应商/客户</td><td>{{partnerName}}</td></tr>
+  <tr><td class="label">物料</td><td>{{materialCode}} {{materialName}}</td><td class="label">规格</td><td>{{materialSpec}}</td></tr>
+  <tr><td class="label">批次</td><td>{{batchNo}}</td><td class="label">上游单号</td><td>{{upstreamNo}}</td></tr>
+  <tr><td class="label">批量</td><td>{{formatQty lotQty}}</td><td class="label">样本量</td><td>{{sampleQty}}</td></tr>
+  <tr><td class="label">抽样方案</td><td>{{samplingText}}</td><td class="label">检验标准</td><td>{{standardText}}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>#</th><th>项目</th><th>规格</th><th>等级</th><th>样本</th><th>实测</th><th>不良数</th><th>结果</th></tr></thead>
+  <tbody>{{#each items}}<tr><td>{{seq}}</td><td>{{itemName}}</td><td>{{spec}}</td><td>{{levelName}}</td><td class="num">{{sampleQty}}</td>
+  <td>{{valuesText}}</td><td class="num">{{ngCount}}</td><td>{{itemResult}}</td></tr>{{/each}}</tbody>
+</table>
+<table class="lines">
+  <thead><tr><th>缺陷代码</th><th>名称</th><th>等级</th><th>数量</th><th>描述</th></tr></thead>
+  <tbody>{{#each defects}}<tr><td>{{defectCode}}</td><td>{{defectName}}</td><td>{{defectLevel}}</td><td class="num">{{qty}}</td><td>{{description}}</td></tr>{{/each}}</tbody>
+</table>
+<table class="head">
+  <tr><td class="label">缺陷汇总</td><td>CR {{crCount}} / MA {{maCount}} / MI {{miCount}}</td><td class="label">结果</td><td>{{resultName}}</td></tr>
+  <tr><td class="label">合格 / 特采 / 不合格</td><td>{{formatQty qualifiedQty}} / {{formatQty concessionQty}} / {{formatQty rejectedQty}}</td><td class="label">判定时间</td><td>{{formatDateTime judgeAt}}</td></tr>
+  <tr><td class="label">检验员</td><td>{{inspectorName}}</td><td class="label">判定人</td><td>{{judgeName}}</td></tr>
+</table>

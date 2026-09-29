@@ -420,7 +420,7 @@ public class StockInService {
         fire(d, InvDocAction.CONFIRM, null);
         eventPublisher.publish(new StockInConfirmedEvent(d.getId(), d.getDocNo(), d.getInType(), source(d), d.getWarehouseId(),
                 w.getWarehouseType().name(), lines.stream().map(l -> new StockInConfirmedEvent.Line(l.getSourceLineId(), l.getMaterialId(),
-                l.getBatchNo(), l.getBaseQty())).toList()));
+                l.getBatchNo(), l.getBaseQty())).toList(), d.getSupplierId(), d.getCustomerId()));
     }
 
     /** 单价换算到基本单位：行单价按基本单位录入 */

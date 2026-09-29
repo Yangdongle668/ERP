@@ -58,6 +58,7 @@ import com.erp.module.production.service.order.OrderProgressService;
 import com.erp.module.production.service.workorder.WorkOrderService;
 import com.erp.module.system.api.file.FileApi;
 import com.erp.module.system.api.user.UserDTO;
+import com.erp.module.quality.api.inspection.InspectionQueryApi;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -104,6 +105,7 @@ public class ReportService {
     private final IssueService issueService;
     private final MfgSupport support;
     private final ObjectProvider<ToolingApi> toolingApi;
+    private final ObjectProvider<InspectionQueryApi> inspectionQueryApi;
     private final FileApi fileApi;
     private final DomainEventPublisher eventPublisher;
     private final TransactionTemplate tx;
@@ -112,7 +114,7 @@ public class ReportService {
                          MfgProdOrderMaterialMapper materialMapper, MfgProdOrderOperationMapper operationMapper, MfgWorkOrderMapper workOrderMapper,
                          MfgIssueMapper issueMapper, OrderProgressService progress, WorkOrderService workOrderService, IssueService issueService,
                          MfgSupport support, ObjectProvider<ToolingApi> toolingApi, FileApi fileApi, DomainEventPublisher eventPublisher,
-                         PlatformTransactionManager transactionManager) {
+                         PlatformTransactionManager transactionManager, ObjectProvider<InspectionQueryApi> inspectionQueryApi) {
         this.mapper = mapper;
         this.operatorMapper = operatorMapper;
         this.defectMapper = defectMapper;
@@ -126,6 +128,7 @@ public class ReportService {
         this.issueService = issueService;
         this.support = support;
         this.toolingApi = toolingApi;
+        this.inspectionQueryApi = inspectionQueryApi;
         this.fileApi = fileApi;
         this.eventPublisher = eventPublisher;
         this.tx = new TransactionTemplate(transactionManager);
@@ -303,6 +306,12 @@ public class ReportService {
 
     // ==================== 保存 ====================
 
+    /** 品质 QC-INS-R09：参数开启时首件检验通过前不能报工（品质模块未启用时跳过） */
+    private void checkFirstArticle(MfgReportDO r) {
+        InspectionQueryApi api = inspectionQueryApi.getIfAvailable();
+        if (api != null && r.getProdOrderId() != null) api.checkFirstArticle(r.getProdOrderId());
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public SaveResult create(ReportSave req) {
         MfgReportDO r = new MfgReportDO();
@@ -311,6 +320,7 @@ public class ReportService {
         r.setStatus(DocStatus.DRAFT);
         r.setReportKind(NORMAL);
         List<String> warnings = fill(r, req);
+        checkFirstArticle(r);
         mapper.insert(r);
         saveChildren(r, req);
         return afterSave(r, warnings);
@@ -323,6 +333,7 @@ public class ReportService {
         if (r.getStatus() != DocStatus.DRAFT || !NORMAL.equals(r.getReportKind())) throw new BizException(ProductionErrorCodes.REPORT_NOT_DRAFT);
         if (req.version() != null) r.setVersion(req.version());
         List<String> warnings = fill(r, req);
+        checkFirstArticle(r);
         mapper.updateByIdOrFail(r);
         operatorMapper.deleteByParent(id);
         defectMapper.delete(new LambdaQueryWrapper<MfgDefectDO>().eq(MfgDefectDO::getReportId, id));

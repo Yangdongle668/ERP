@@ -42,6 +42,14 @@
             <artifactId>erp-module-production-api</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.erp</groupId>
+            <artifactId>erp-module-sales-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.erp</groupId>
+            <artifactId>erp-module-crm-api</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>

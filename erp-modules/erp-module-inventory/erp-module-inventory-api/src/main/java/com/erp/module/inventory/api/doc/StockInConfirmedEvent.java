@@ -18,9 +18,19 @@ public class StockInConfirmedEvent extends DomainEvent {
     private final Long warehouseId;
     private final String warehouseType;
     private final List<Line> lines;
+    /** 入库单的供应商（采购 / 委外入库）、客户（销售退货），可空 */
+    private final Long supplierId;
+    private final Long customerId;
 
     public StockInConfirmedEvent(Long stockInId, String stockInNo, StockInType inType, SourceRef source,
                                  Long warehouseId, String warehouseType, List<Line> lines) {
+        this(stockInId, stockInNo, inType, source, warehouseId, warehouseType, lines, null, null);
+    }
+
+    public StockInConfirmedEvent(Long stockInId, String stockInNo, StockInType inType, SourceRef source,
+                                 Long warehouseId, String warehouseType, List<Line> lines, Long supplierId, Long customerId) {
+        this.supplierId = supplierId;
+        this.customerId = customerId;
         this.stockInId = stockInId;
         this.stockInNo = stockInNo;
         this.inType = inType;
@@ -41,4 +51,6 @@ public class StockInConfirmedEvent extends DomainEvent {
     public Long getWarehouseId() { return warehouseId; }
     public String getWarehouseType() { return warehouseType; }
     public List<Line> getLines() { return lines; }
+    public Long getSupplierId() { return supplierId; }
+    public Long getCustomerId() { return customerId; }
 }

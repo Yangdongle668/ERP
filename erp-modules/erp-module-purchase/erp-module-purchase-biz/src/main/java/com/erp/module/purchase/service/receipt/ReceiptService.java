@@ -582,6 +582,21 @@ public class ReceiptService {
         afterLineChange(List.of(l));
     }
 
+    /** 品质重判：到货行恢复待检 */
+    @Transactional(rollbackFor = Exception.class)
+    public void revertInspection(Long receiptLineId) {
+        ReceiptLineDO l = lineMapper.selectById(receiptLineId);
+        if (l == null) throw new BizException(PurchaseErrorCodes.RECEIPT_LINE_NOT_EXISTS);
+        l.setQualifiedQty(BigDecimal.ZERO);
+        l.setConcessionQty(BigDecimal.ZERO);
+        l.setRejectedQty(BigDecimal.ZERO);
+        l.setInspectStatus(Boolean.TRUE.equals(l.getInspectRequired()) ? PENDING : NONE);
+        l.setInspectionNo(null);
+        l.setJudgedDate(null);
+        lineMapper.updateByIdOrFail(l);
+        afterLineChange(List.of(l));
+    }
+
     /** 到货行变化后：汇总到订单行/委外单，刷新到货单完成状态 */
     private void afterLineChange(List<ReceiptLineDO> lines) {
         if (lines.isEmpty()) return;

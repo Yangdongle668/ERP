@@ -1,0 +1,17 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 8pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .pre { white-space: pre-wrap; }
+</style>
+<h1>供应商纠正措施要求（SCAR）</h1>
+<table class="head">
+  <tr><td class="label">单号</td><td>{{docNo}}</td><td class="label">发出时间</td><td>{{formatDateTime sentAt}}</td></tr>
+  <tr><td class="label">供应商</td><td>{{supplierName}}</td><td class="label">回复期限</td><td>{{formatDate replyDueDate}}</td></tr>
+  <tr><td class="label">物料</td><td>{{materialCode}} {{materialName}}</td><td class="label">批次</td><td>{{batchNo}}</td></tr>
+  <tr><td class="label">问题描述</td><td colspan="3" class="pre">{{problemDescription}}</td></tr>
+  <tr><td class="label">要求</td><td colspan="3" class="pre">{{requirement}}</td></tr>
+  <tr><td class="label">SQE</td><td>{{ownerName}}</td><td class="label">供应商签收</td><td></td></tr>
+</table>

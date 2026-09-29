@@ -243,6 +243,11 @@ class ProductionDocsIntegrationTest extends ProductionTestSupport {
         String def = ok(doGet("/api/production/defects?pageNo=1&pageSize=10&prodOrderId=" + id, admin)).at("/list/0/id").asText();
         ok(doPost("/api/production/defects/" + def + "/scrap", admin, Map.of("qty", 10, "scrapReason", "PROCESS")));
         assertThat(order(id).at("/scrappedQty").decimalValue()).isEqualByComparingTo("19");
-        assertThat(ok(doGet("/api/production/defects/ncr-available", admin)).asBoolean()).isFalse();
+        // 品质模块实现了 DefectNcrCreator：不良可生成 NCR（来源 PRODUCTION，数量 = 不良数）
+        assertThat(ok(doGet("/api/production/defects/ncr-available", admin)).asBoolean()).isTrue();
+        String ncrNo = ok(doPost("/api/production/defects/" + def + "/to-ncr", admin, null)).asText();
+        JsonNode ncr = ok(doGet("/api/quality/ncrs?docNo=" + ncrNo, admin)).at("/list/0");
+        assertThat(ncr.at("/source").asText()).isEqualTo("PRODUCTION");
+        assertThat(ncr.at("/ncrQty").decimalValue()).isEqualByComparingTo("10");
     }
 }

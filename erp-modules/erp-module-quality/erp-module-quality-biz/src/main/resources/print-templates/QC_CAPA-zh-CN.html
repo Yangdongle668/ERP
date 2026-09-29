@@ -1,0 +1,23 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 8pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .pre { white-space: pre-wrap; }
+</style>
+<h1>8D 报告</h1>
+<table class="head">
+  <tr><td class="label">单号</td><td>{{docNo}}</td><td class="label">来源</td><td>{{sourceNo}}</td></tr>
+  <tr><td class="label">标题</td><td colspan="3">{{title}}</td></tr>
+  <tr><td class="label">客户 / 供应商</td><td>{{customerName}} {{supplierName}}</td><td class="label">物料</td><td>{{materialCode}}</td></tr>
+  <tr><td class="label">负责人</td><td>{{leaderName}}</td><td class="label">期限</td><td>{{formatDate dueDate}}</td></tr>
+  <tr><td class="label">D1 小组</td><td colspan="3" class="pre">{{teamText}} {{d1Team}}</td></tr>
+  <tr><td class="label">D2 问题描述</td><td colspan="3" class="pre">{{d2Problem}}</td></tr>
+  <tr><td class="label">D3 临时围堵</td><td colspan="3" class="pre">{{d3Containment}}</td></tr>
+  <tr><td class="label">D4 根本原因</td><td colspan="3" class="pre">{{d4RootCause}}</td></tr>
+  <tr><td class="label">D5 永久措施</td><td colspan="3" class="pre">{{d5Actions}}</td></tr>
+  <tr><td class="label">D6 实施验证</td><td colspan="3" class="pre">{{d6Implementation}}（{{verifyResultName}}）</td></tr>
+  <tr><td class="label">D7 预防再发</td><td colspan="3" class="pre">{{d7Prevention}}</td></tr>
+  <tr><td class="label">D8 结案</td><td colspan="3" class="pre">{{d8Summary}}</td></tr>
+</table>

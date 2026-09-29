@@ -14,4 +14,7 @@ public interface PurchaseReceiptApi {
      * @param rejectedQty   不合格数量
      */
     void applyInspection(Long receiptLineId, String inspectionNo, BigDecimal qualifiedQty, BigDecimal concessionQty, BigDecimal rejectedQty);
+
+    /** 检验重判（品质撤销原判定）：到货行恢复为待检，清空合格 / 特采 / 不合格数量与检验单号 */
+    void revertInspection(Long receiptLineId);
 }

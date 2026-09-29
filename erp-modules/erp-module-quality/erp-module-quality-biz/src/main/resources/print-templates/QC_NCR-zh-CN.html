@@ -1,0 +1,22 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 8pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .pre { white-space: pre-wrap; }
+</style>
+<h1>不合格品报告（NCR）</h1>
+<table class="head">
+  <tr><td class="label">单号</td><td>{{docNo}}</td><td class="label">日期</td><td>{{formatDate docDate}}</td></tr>
+  <tr><td class="label">来源</td><td>{{sourceName}} {{sourceNo}}</td><td class="label">供应商/客户</td><td>{{partnerName}}</td></tr>
+  <tr><td class="label">物料</td><td>{{materialCode}} {{materialName}}</td><td class="label">批次</td><td>{{batchNo}}</td></tr>
+  <tr><td class="label">不合格数量</td><td>{{formatQty ncrQty}}</td><td class="label">严重度 / 责任</td><td>{{severityName}} / {{responsibilityName}}</td></tr>
+  <tr><td class="label">不合格描述</td><td colspan="3" class="pre">{{defectDescription}}</td></tr>
+  <tr><td class="label">围堵措施</td><td colspan="3" class="pre">{{containment}}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>处置方式</th><th>数量</th><th>说明</th><th>后续单据</th></tr></thead>
+  <tbody>{{#each dispositions}}<tr><td>{{dispositionName}}</td><td class="num">{{formatQty qty}}</td><td>{{remark}}</td><td>{{followDocNo}}</td></tr>{{/each}}</tbody>
+</table>
+<table class="head"><tr><td class="label">QE</td><td>{{ownerName}}</td><td class="label">MRB 会签</td><td></td></tr></table>
