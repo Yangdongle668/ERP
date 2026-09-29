@@ -1,0 +1,30 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 8pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .bar { text-align: right; }
+  .sign { margin-top: 16pt; width: 100%; font-size: 10pt; }
+</style>
+<div class="bar">{{{barcode docNo 40}}}</div>
+<h1>生产订单流程卡</h1>
+<table class="head">
+  <tr><td class="label">单号</td><td>{{docNo}}</td><td class="label">类型</td><td>{{orderTypeName}}</td></tr>
+  <tr><td class="label">产品</td><td>{{materialCode}} {{materialName}}</td><td class="label">规格</td><td>{{materialSpec}}</td></tr>
+  <tr><td class="label">计划数量</td><td>{{formatQty qty}} {{uom}}</td><td class="label">批次号</td><td>{{batchNo}}</td></tr>
+  <tr><td class="label">计划开工</td><td>{{formatDate planStart}}</td><td class="label">计划完工</td><td>{{formatDate planEnd}}</td></tr>
+  <tr><td class="label">车间</td><td>{{deptName}}</td><td class="label">BOM</td><td>{{bomNo}}</td></tr>
+  <tr><td class="label">销售订单</td><td>{{salesOrderNo}}</td><td class="label">备注</td><td>{{remark}}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>#</th><th>子件编码</th><th>名称</th><th>单位用量</th><th>应领</th><th>发料方式</th></tr></thead>
+  <tbody>{{#each materials}}<tr><td>{{lineNo}}</td><td>{{code}}</td><td>{{name}}</td><td class="num">{{formatQty qtyPer 6}}</td>
+  <td class="num">{{formatQty requiredQty}}</td><td>{{issueMethod}}</td></tr>{{/each}}</tbody>
+</table>
+<table class="lines">
+  <thead><tr><th>工序号</th><th>工序</th><th>工作中心</th><th>报工条码</th><th>合格</th><th>不良</th><th>报废</th><th>签名</th></tr></thead>
+  <tbody>{{#each operations}}<tr><td>{{seq}}</td><td>{{operation}}</td><td>{{workCenterName}}</td><td>{{{barcode barcode 28}}}</td>
+  <td></td><td></td><td></td><td></td></tr>{{/each}}</tbody>
+</table>
+<table class="sign"><tr><td>计划：</td><td>生产主管：</td><td>品质：</td></tr></table>

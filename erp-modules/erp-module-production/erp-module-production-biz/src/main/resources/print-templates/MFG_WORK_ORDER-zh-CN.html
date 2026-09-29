@@ -1,0 +1,22 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 8pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .bar { text-align: right; }
+  .sign { margin-top: 16pt; width: 100%; font-size: 10pt; }
+</style>
+<div class="bar">{{{barcode docNo 40}}}</div>
+<h1>派工单</h1>
+<table class="head">
+  <tr><td class="label">工单号</td><td>{{docNo}}</td><td class="label">生产订单</td><td>{{prodOrderNo}}</td></tr>
+  <tr><td class="label">产品</td><td colspan="3">{{materialCode}} {{materialName}}</td></tr>
+  <tr><td class="label">工序</td><td>{{operationSeq}} {{operation}}</td><td class="label">工作中心</td><td>{{workCenterName}}</td></tr>
+  <tr><td class="label">日期 / 班次</td><td>{{formatDate planDate}} {{shiftName}}</td><td class="label">派工数量</td><td>{{formatQty planQty}}</td></tr>
+  <tr><td class="label">班组长</td><td>{{teamLeaderName}}</td><td class="label">作业要点</td><td>{{remark}}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>时间</th><th>合格</th><th>不良</th><th>报废</th><th>人员</th><th>备注</th></tr></thead>
+  <tbody><tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr></tbody>
+</table>

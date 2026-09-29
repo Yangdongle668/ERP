@@ -1,0 +1,22 @@
+<style>
+  h1 { font-size: 16pt; text-align: center; margin: 0 0 8pt; letter-spacing: 2pt; }
+  .head, .lines { width: 100%; border-collapse: collapse; font-size: 10pt; margin-bottom: 8pt; }
+  .head td, .lines td, .lines th { border: 1px solid #333; padding: 3pt 5pt; vertical-align: top; }
+  .label { background: #f2f2f2; width: 14%; }
+  .num { text-align: right; }
+  .bar { text-align: right; }
+  .sign { margin-top: 16pt; width: 100%; font-size: 10pt; }
+</style>
+<h1>退料单</h1>
+<table class="head">
+  <tr><td class="label">单号</td><td>{{docNo}}</td><td class="label">日期</td><td>{{formatDate docDate}}</td></tr>
+  <tr><td class="label">类型</td><td>{{returnTypeName}}</td><td class="label">生产订单</td><td>{{prodOrderNo}}</td></tr>
+  <tr><td class="label">产品</td><td>{{productCode}}</td><td class="label">退入仓库</td><td>{{warehouseName}}</td></tr>
+  <tr><td class="label">备注</td><td colspan="3">{{remark}}</td></tr>
+</table>
+<table class="lines">
+  <thead><tr><th>#</th><th>物料编码</th><th>名称</th><th>单位</th><th>退料数量</th><th>批次</th><th>不良描述</th></tr></thead>
+  <tbody>{{#each lines}}<tr><td>{{lineNo}}</td><td>{{materialCode}}</td><td>{{materialName}}</td><td>{{uom}}</td>
+  <td class="num">{{formatQty qty}}</td><td>{{batchNo}}</td><td>{{defectDesc}}</td></tr>{{/each}}</tbody>
+</table>
+<table class="sign"><tr><td>申请人：{{ownerName}}</td><td>仓库签收：</td></tr></table>

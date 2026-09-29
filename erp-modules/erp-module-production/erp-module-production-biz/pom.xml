@@ -34,6 +34,10 @@
             <artifactId>erp-module-inventory-api</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.erp</groupId>
+            <artifactId>erp-module-sales-api</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
