@@ -532,6 +532,27 @@ public class ProdOrderService {
         workflowApi.withdraw(BIZ_TYPE, id, support.currentUser());
     }
 
+    // ==================== 计划日期（PMC 排产回写） ====================
+
+    @Transactional(rollbackFor = Exception.class)
+    public void updatePlanDates(Long id, LocalDate planStart, LocalDate planEnd, String reason) {
+        MfgProdOrderDO o = progress.getOrThrow(id);
+        ProdStatus s = OrderProgressService.status(o);
+        if (s != ProdStatus.PLANNED && !ProdStatus.RUNNING.contains(s) && s != ProdStatus.SUSPENDED) {
+            throw BizException.of(ProductionErrorCodes.STATUS_NOT_ALLOWED, s.label(), "修改计划日期");
+        }
+        if (planStart == null || planEnd == null) return;
+        if (planEnd.isBefore(planStart)) throw new BizException(ProductionErrorCodes.ORDER_DATE_RANGE);
+        if (planStart.equals(o.getPlanStart()) && planEnd.equals(o.getPlanEnd())) return;
+        String text = "计划日期 " + o.getPlanStart() + "~" + o.getPlanEnd() + " → " + planStart + "~" + planEnd
+                + (StringUtils.hasText(reason) ? "（" + reason.trim() + "）" : "");
+        o.setPlanStart(planStart);
+        o.setPlanEnd(planEnd);
+        mapper.updateByIdOrFail(o);
+        support.log(ProductionModuleConfig.PROD_ORDER, o.getId(), o.getDocNo(), "RESCHEDULE", "调整计划日期", s.name(), s.name(),
+                text.length() > 256 ? text.substring(0, 256) : text);
+    }
+
     // ==================== 下达 ====================
 
     /** 下达（R03、R04）：齐套检查 → 固化用料与工序 → 已下达 → 发布下达事件 */

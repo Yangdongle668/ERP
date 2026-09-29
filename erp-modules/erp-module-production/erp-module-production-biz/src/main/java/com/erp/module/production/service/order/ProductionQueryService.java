@@ -2,13 +2,16 @@ package com.erp.module.production.service.order;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.erp.module.production.api.order.ComponentDemandDTO;
+import com.erp.module.production.api.order.OpenOrderDTO;
 import com.erp.module.production.api.order.ProductionQueryApi;
 import com.erp.module.production.api.order.ProgressDTO;
 import com.erp.module.production.api.order.WipDTO;
 import com.erp.module.production.dal.dataobject.MfgProdOrderDO;
 import com.erp.module.production.dal.dataobject.MfgProdOrderMaterialDO;
+import com.erp.module.production.dal.dataobject.MfgProdOrderOperationDO;
 import com.erp.module.production.dal.mapper.MfgProdOrderMapper;
 import com.erp.module.production.dal.mapper.MfgProdOrderMaterialMapper;
+import com.erp.module.production.dal.mapper.MfgProdOrderOperationMapper;
 import com.erp.module.production.service.MfgSupport;
 import com.erp.module.production.service.ProdStatus;
 import org.springframework.stereotype.Service;
@@ -32,9 +35,43 @@ public class ProductionQueryService implements ProductionQueryApi {
     private final MfgProdOrderMapper orderMapper;
     private final MfgProdOrderMaterialMapper materialMapper;
 
-    public ProductionQueryService(MfgProdOrderMapper orderMapper, MfgProdOrderMaterialMapper materialMapper) {
+    private final MfgProdOrderOperationMapper operationMapper;
+
+    public ProductionQueryService(MfgProdOrderMapper orderMapper, MfgProdOrderMaterialMapper materialMapper, MfgProdOrderOperationMapper operationMapper) {
         this.orderMapper = orderMapper;
         this.materialMapper = materialMapper;
+        this.operationMapper = operationMapper;
+    }
+
+    static final List<String> OPEN = List.of(ProdStatus.PLANNED.name(), ProdStatus.RELEASED.name(), ProdStatus.IN_PROGRESS.name(),
+            ProdStatus.SUSPENDED.name());
+
+    @Override
+    public List<OpenOrderDTO> getOpenOrders(Collection<Long> materialIds) {
+        List<MfgProdOrderDO> orders = orderMapper.selectList(new LambdaQueryWrapper<MfgProdOrderDO>().in(MfgProdOrderDO::getProdStatus, OPEN)
+                .in(materialIds != null && !materialIds.isEmpty(), MfgProdOrderDO::getMaterialId, materialIds)
+                .orderByAsc(MfgProdOrderDO::getPriority).orderByAsc(MfgProdOrderDO::getPlanStart).orderByAsc(MfgProdOrderDO::getId));
+        if (orders.isEmpty()) return List.of();
+        List<Long> ids = orders.stream().map(MfgProdOrderDO::getId).toList();
+        Map<Long, List<MfgProdOrderMaterialDO>> mats = materialMapper.selectByParents(ids).stream()
+                .collect(Collectors.groupingBy(MfgProdOrderMaterialDO::getProdOrderId));
+        Map<Long, List<MfgProdOrderOperationDO>> ops = operationMapper.selectByParents(ids).stream()
+                .collect(Collectors.groupingBy(MfgProdOrderOperationDO::getProdOrderId));
+        List<OpenOrderDTO> out = new ArrayList<>();
+        for (MfgProdOrderDO o : orders) {
+            BigDecimal remain = MfgSupport.max0(o.getQty().subtract(MfgSupport.nz(o.getQualifiedStockedQty())).subtract(MfgSupport.nz(o.getScrappedQty())));
+            List<OpenOrderDTO.Material> ml = mats.getOrDefault(o.getId(), List.of()).stream()
+                    .map(m -> new OpenOrderDTO.Material(m.getId(), m.getComponentId(), m.getQtyPer(), m.getScrapRate(), m.getRequiredQty(),
+                            m.getIssuedQty(), m.getReturnedGoodQty(), MaterialPlanner.openQty(m), m.getIssueMethod(), m.getOperationSeq())).toList();
+            List<OpenOrderDTO.Operation> ol = ops.getOrDefault(o.getId(), List.of()).stream()
+                    .sorted(java.util.Comparator.comparing(MfgProdOrderOperationDO::getSeq))
+                    .map(x -> new OpenOrderDTO.Operation(x.getSeq(), x.getOperation(), x.getWorkCenterId(), x.getStdSetupMinutes(), x.getStdRunSeconds(),
+                            Boolean.TRUE.equals(x.getIsReportPoint()), MfgSupport.nz(x.getGoodQty()).add(MfgSupport.nz(x.getScrapQty())))).toList();
+            out.add(new OpenOrderDTO(o.getId(), o.getDocNo(), o.getOrderType(), o.getProdStatus(), o.getMaterialId(), o.getQty(), o.getCompletedQty(),
+                    o.getScrappedQty(), o.getQualifiedStockedQty(), remain, o.getBomId(), o.getRoutingId(), o.getPlanStart(), o.getPlanEnd(),
+                    o.getReleasedAt(), o.getPriority() == null ? 5 : o.getPriority(), o.getDeptId(), o.getSalesOrderLineId(), o.getSalesOrderNo(), ml, ol));
+        }
+        return out;
     }
 
     @Override

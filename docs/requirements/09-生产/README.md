@@ -132,7 +132,7 @@ MFG_PROD_ORDER（生产订单/工单流程卡，带条码）、MFG_ISSUE（领�
   - `DefectNcrCreator`：品质模块实现后“不良记录”可生成 NCR；未实现时 `/defects/ncr-available` 返回 false，按钮不显示。
   - `ProductionFinishApi.onFqcJudged(finishId, qualified, rejected)`：品质 FQC 判定后回写合格入库；免检产品仓库确认即计为合格。
   - 事件：`ProductionOrderReleased/Unreleased/Completed/ClosedEvent`、`ProductionProgressEvent`、`WorkReportApprovedEvent`、`WorkReportReversedEvent`、`IpqcTriggerEvent`（检验点工序报工审核）、`DefectRegisteredEvent`、`DefectMaterialReturnedEvent`（不良退料入库，通知品质）。
-- **对外接口**：`ProductionOrderApi.createFromMrp`（PMC 转单，直接“已计划”）、`createSampleOrder`（研发工程样品，完工后回调 `SampleApi`）；`ProductionQueryApi.getWipQty / getAllocatedQty / getProgress / getProgressBySalesOrderLines / getOpenOrdersByComponent / isBomUsed`；`TraceApi` 正向 / 反向追溯。
+- **对外接口**：`ProductionOrderApi.createFromMrp`（PMC 转单，直接“已计划”）、`release`（PMC“转单并下达”，缺料照常下达）、`updatePlanDates`（PMC 排产回写计划日期，记操作日志）、`createSampleOrder`（研发工程样品，完工后回调 `SampleApi`）；`ProductionQueryApi.getOpenOrders`（未完工订单含用料与工序，供 MRP、缺料、排产、交期预警）、`getWipQty / getAllocatedQty / getProgress / getProgressBySalesOrderLines / getOpenOrdersByComponent / isBomUsed`；`TraceApi` 正向 / 反向追溯。
 - **为其他模块实现**：`SampleOrderCreator`、`BomReferenceChecker`、`RoutingReferenceChecker`、`EcnImpactProvider`（ECN 生效时提示受影响的未完工订单）、`MaterialReferenceChecker`、`DictReferenceChecker`、`FileAccessChecker`。
 - **限制**：
   - 拆卸订单（DISASSEMBLY）暂不支持。

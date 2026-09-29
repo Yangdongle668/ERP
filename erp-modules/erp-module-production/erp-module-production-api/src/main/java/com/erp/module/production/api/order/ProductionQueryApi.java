@@ -26,4 +26,11 @@ public interface ProductionQueryApi {
     BigDecimal getAllocatedQty(Long materialId);
 
     Map<Long, BigDecimal> getAllocatedQty(Collection<Long> materialIds);
+
+    /**
+     * 未完工生产订单（已计划、已下达、生产中、暂停），含用料与工序（PMC 的 MRP、缺料、排产、交期预警）。
+     *
+     * @param materialIds 产品过滤，为空表示全部
+     */
+    List<OpenOrderDTO> getOpenOrders(Collection<Long> materialIds);
 }

@@ -30,6 +30,18 @@ public class ProductionOrderApiImpl implements ProductionOrderApi, SampleOrderCr
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public List<String> release(Long prodOrderId) {
+        return orderService.release(prodOrderId, true).warnings();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updatePlanDates(Long prodOrderId, LocalDate planStart, LocalDate planEnd, String reason) {
+        orderService.updatePlanDates(prodOrderId, planStart, planEnd, reason);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public Long createSampleOrder(Long sampleId, String sampleNo, Long materialId, BigDecimal qty, LocalDate requiredDate) {
         return orderService.createSample(sampleId, sampleNo, materialId, qty, requiredDate).getId();
     }
