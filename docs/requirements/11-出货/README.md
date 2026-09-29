@@ -107,3 +107,20 @@ SHP_NOTICE、SHP_PICKING、SHP_PACKING_LIST（允许手工）、SHP_INVOICE（�
 | 单证 | `shp:document:query`（菜单）、`create`、`update`、`print`；字段 `shp:document:price`（Invoice 价格，默认与 `sales:order:query` 同时授予） |
 | 物流 | `shp:logistics:query`（菜单）、`update`、`shp:forwarder:manage` |
 | 报表 | `shp:report:query`（菜单）、`export` |
+
+## 13. 实现说明（已实现）
+
+出货通知、拣货、装箱与 OQC、出货单、出货单证（Packing List / Invoice / 报关资料）、物流跟踪与货代、出货报表的后端与页面均已实现。财务模块尚未实现，出货按下列方式接入：
+
+- **状态**：出货通知 `notice_status`（草稿 → 待审批 → 已审核 → 拣货中 → 已装箱 →〔待 OQC → 待出货〕→ 已出货 / 已关闭），出货单 `shipment_status`（草稿 → 待审批 → 待出库 → 已出货 → 已完成 / 已作废），拣货单 `picking_status`；`BaseDocDO.status` 随之映射为通用单据状态。
+- **订单占用**：出货通知保存即通过 `SalesOrderWritebackApi.onNoticeChanged` 回写订单已通知数量（修改时先释放后占用），同时发布 `ShipmentNoticeChangedEvent`；从出货计划生成时回写 `ShippingPlanApi.onNoticed`。删除草稿、关闭通知、拣货“按实拣完成”的缺货都会释放回订单。通知数量为订单单位，拣货、装箱、出货内部按基本单位。
+- **信用与款项**：提交通知时按参数做 CRM 信用检查（BLOCK 阻止、WARN 记 `credit_warning`），检查订单“出货前”未收款（`SalesOrderQueryApi.getUnpaidBeforeShipment`）记 `prepayment_unpaid`，二者与 `amountBase` 作为审批条件。出货单提交时再次检查信用；出货前款项按参数 NONE / WARN / BLOCK。
+- **拣货**：审核后按 `InventoryQueryApi.suggestBatches`（FIFO/FEFO）推荐批次与库位，库存不足的部分为“缺货”行。录入实拣时校验批次在出货仓的可用量（`ReservationApi` 未上线，不做预留）。未启用拣货（`shp.picking.enabled`=否）时审核后直接“已装箱”，出货单不带批次、由仓管员确认出库时分配。
+- **装箱**：按“通知行 + 批次”核对实拣与装箱数量；已完成装箱 / 已申请 OQC 后修改装箱会退回“拣货中”并取消未完成的 OQC。未启用装箱时拣货完成即“已装箱”，Packing List 按出货单行生成。库位在打印中以库位 ID 表示（仓库未提供库位查询接口）。
+- **OQC**：物料质量属性“出货检验”或参数 `shp.oqc.required-default` 决定通知行是否需要 OQC。申请 OQC 调用 `InspectionApi.requestOqc`（每个通知行 + 批次一张，本轮检验单 ID 记在 `oqc_inspection_ids`），监听 `InspectionJudgedEvent`：本轮全部判定后合格 / 特采 → 待出货，任一拒收 → 退回“已装箱”并提醒船务。出货单提交时需要 OQC 的行要求 `oqc_result = PASSED`。
+- **出货单**：从通知按箱生成（默认全部未出货箱，箱记录 `shipment_id`，一张通知可分多张出货单）；汇率取出货日期汇率（`CurrencyApi.getRate`，需先维护汇率）。提交 → `InventoryDocApi.createStockOut(SALES_OUT)`（来源 `SHP_SHIPMENT`，行 = 出货单行）；监听 `StockOutConfirmedEvent` → 已出货，回写出库数量、通知已出货、`SalesOrderWritebackApi.onShipped`，发布 `ShipmentConfirmedEvent`；监听 `StockDocEvent`：`OUT_REVERSED` → 回到待出库并冲回（`onShipmentReversed`、`ShipmentReversedEvent`、单证失效），`REJECTED` → 回到草稿。财务上线后在 `OUT_REVERSING` 中阻止已开票 / 核销的反确认。
+- **物流**：登记提单日期（不早于出货日期）时回写 `onBillOfLading` 并发布 `BillOfLadingReceivedEvent`，外销客户以提单为完成；物流状态不可倒退（倒退需说明），“已签收”或登记签收 → 已完成并发布 `ShipmentSignedEvent`。定时任务 `SHP_ETA_OVERDUE`（每天 08:20）提醒 ETA 已过 3 天未到港的出货。
+- **单证**：Invoice 英文大写金额按币别生成（如 “SAY US DOLLARS TWELVE THOUSAND FIVE HUNDRED ONLY”），收款银行取参数 `sal.print.bank-info`；报关资料按物料 HS 编码合并，申报要素给出模板默认值。字段权限 `shp:document:price` 控制通知、出货单、单证、报表中的价格与金额（无权限显示 `***`）。
+- **对外查询**：`ShipmentQueryApi.getShippedLines / getShipmentsByBatch / getShipmentsByOrder`（只返回已出货 / 已完成）。
+- **其他模块契约新增**：`SalesOrderQueryApi.getOrderHeaders`（订单头：客户 PO、付款条件、收货 / 开票地址、贸易条款、港口）。销售出货回写支持“反确认后再次出库”。
+- **限制**：拣货扫码仅支持扫描批次号；准时率的延期原因暂未关联 PMC 交期预警；出货通知、出货单列表的数据范围按经办人及部门，业务员按订单查看出货需通过订单详情；报关资料未上线申报要素模板维护。

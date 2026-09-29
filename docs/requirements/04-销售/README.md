@@ -131,7 +131,7 @@ SAL_QUOTATION（报价单，中/英）、SAL_ORDER（销售订单合同，中文
   - `SalesCostProvider.unitCosts(materialIds)`：标准成本（财务/成本模块实现）；未实现时取最新采购价（`PurchasePriceApi`），都没有按 `sal.price.no-cost-policy` 处理。用于底价、毛利率、RFQ 成本核算的材料单价。
   - `SalesOrderReferenceChecker.findReference(orderId)`：出货、生产等实现，被引用的订单不能反审核、作废。
   - `SalesReturnApi.recordJudgement(returnLineId, good, rework, scrap)`：品质模块登记退货判定；品质上线前在退货单详情“登记判定”手工录入（`sales:return:update`）。
-- **对外查询**：`SalesOrderQueryApi.getOpenLines / getLine / getLines / getOpenAmountByCustomer / getUnpaidBeforeShipment`（出货前应收未收，供出货检查“款到发货”）；`SalesOrderApi.updatePromisedDate`（PMC 回复交期，发布 `SalesOrderPromisedDateChangedEvent`）、`validateShipmentQty`（按 `sal.order.over-ship-pct` 校验超出货）；`ForecastApi.getNetForecast`；`SalesPriceApi.getPrice`。
+- **对外查询**：`SalesOrderQueryApi.getOpenLines / getLine / getLines / getOrderHeaders / getOpenAmountByCustomer / getUnpaidBeforeShipment`（`getOrderHeaders` 供出货取客户 PO、付款条件、收货 / 开票地址、贸易条款、港口）（出货前应收未收，供出货检查“款到发货”）；`SalesOrderApi.updatePromisedDate`（PMC 回复交期，发布 `SalesOrderPromisedDateChangedEvent`）、`validateShipmentQty`（按 `sal.order.over-ship-pct` 校验超出货）；`ForecastApi.getNetForecast`；`SalesPriceApi.getPrice`。
 - **信用**：销售实现 CRM 的 `CreditUsageProvider`（未出货订单金额，本位币含税）；订单、变更提交时信用检查为“警告”的返回 `needConfirm`，前端确认后以 `confirmCredit=true` 再次提交。
 - **库存**：退货审核后通过 `InventoryDocApi` 生成 `SALES_RETURN` 入库单（退货仓），监听入库确认回写已收货数量；作废退货单同时作废未入库的入库单。
 - **预测冲销**：订单审核时按 `sal.forecast.consume-window` 冲减已发布预测：先冲要求交期所在月，再按距离由近到远冲窗口内其他月份（同一月份先客户专属、后不分客户，不冲已过去的月份）；反审核、关闭（按已出货数量）、变更时重算；冲销明细见预测详情。
