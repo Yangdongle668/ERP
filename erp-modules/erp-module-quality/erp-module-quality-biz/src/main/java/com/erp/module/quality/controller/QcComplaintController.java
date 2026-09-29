@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.erp.module.quality.controller.vo.CommonVOs.ReasonReq;
+import com.erp.module.quality.controller.vo.ComplaintVOs;
 import com.erp.module.quality.controller.vo.ComplaintVOs.ComplaintDetail;
 import com.erp.module.quality.controller.vo.ComplaintVOs.ComplaintQuery;
 import com.erp.module.quality.controller.vo.ComplaintVOs.ComplaintRow;
@@ -38,6 +39,13 @@ public class QcComplaintController {
     @PreAuthorize("@ss.has('qc:complaint:query')")
     public CommonResult<PageResult<ComplaintRow>> page(@Valid ComplaintQuery q) {
         return CommonResult.success(service.page(q));
+    }
+
+    /** 登记客诉时选择联系人 */
+    @GetMapping("/customer-contacts")
+    @PreAuthorize("@ss.hasAny('qc:complaint:create','qc:complaint:update')")
+    public CommonResult<java.util.List<ComplaintVOs.ContactOption>> contacts(@org.springframework.web.bind.annotation.RequestParam Long customerId) {
+        return CommonResult.success(service.contacts(customerId));
     }
 
     @GetMapping("/{id}")

@@ -121,6 +121,8 @@ PUR_ORDER（采购订单，中文 + 英文，发给供应商）、PUR_RECEIPT（
 
 **监听事件**：仓库 `StockInConfirmedEvent` / `StockInReversingEvent` / `StockInReversedEvent`（采购入库、委外入库）、`StockOutConfirmedEvent`（采购退货出库、委外发料）；品质 `InspectionJudgedEvent`（IQC 结果回写到货行）、`SupplierQualityEvent`（评估用）；仓库 `StockDocRejectedEvent`（入库单被退回）。
 
+> 品质模块接入后新增 `PurchaseReceiptApi.revertInspection(receiptLineId)`：检验重判时到货行恢复为待检，清空合格 / 特采 / 不合格数量与检验单号。
+
 ## 12. 权限点汇总
 
 | 分组 | 权限点 |

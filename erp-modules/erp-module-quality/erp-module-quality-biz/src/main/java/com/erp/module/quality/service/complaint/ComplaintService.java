@@ -154,6 +154,11 @@ public class ComplaintService {
                 workflowApi.isRunning(QualityModuleConfig.COMPLAINT_CLOSE, id), c.getCancelReason(), c.getClosedAt(), c.getCreatedAt(), c.getVersion());
     }
 
+    public List<com.erp.module.quality.controller.vo.ComplaintVOs.ContactOption> contacts(Long customerId) {
+        return support.customerApi().getContacts(customerId).stream()
+                .map(c -> new com.erp.module.quality.controller.vo.ComplaintVOs.ContactOption(c.id(), c.name(), c.mobile() != null ? c.mobile() : c.phone())).toList();
+    }
+
     public QcComplaintDO get(Long id) {
         QcComplaintDO c = id == null ? null : mapper.selectById(id);
         if (c == null) throw BizException.of(QualityErrorCodes.NOT_EXISTS, "客诉");

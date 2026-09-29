@@ -68,4 +68,7 @@ public final class ComplaintVOs {
 
     public record NcrReq(BigDecimal qty, String responsibility) {
     }
+
+    public record ContactOption(Long id, String name, String phone) {
+    }
 }
