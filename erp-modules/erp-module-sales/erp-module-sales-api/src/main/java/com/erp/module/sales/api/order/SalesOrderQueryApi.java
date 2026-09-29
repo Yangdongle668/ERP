@@ -21,4 +21,7 @@ public interface SalesOrderQueryApi {
 
     /** 订单“出货前”付款节点尚未收齐的金额（原币），没有该类节点时为 0（出货通知保存时提示，SAL-PP-R02） */
     BigDecimal getUnpaidBeforeShipment(Long orderId);
+
+    /** 订单单头（不存在的订单忽略） */
+    Map<Long, SalesOrderHeaderDTO> getOrderHeaders(Collection<Long> orderIds);
 }

@@ -37,6 +37,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -167,9 +168,8 @@ public class OrderExecService implements SalesOrderApi, SalesOrderQueryApi, Sale
     @Transactional(rollbackFor = Exception.class)
     public void onShipped(ShipmentRecord shipment) {
         if (shipment == null || shipment.lines() == null || shipment.lines().isEmpty()) return;
-        if (execMapper.selectCount(new LambdaQueryWrapper<SalOrderExecDO>().eq(SalOrderExecDO::getExecType, SHIP).eq(SalOrderExecDO::getDocId, shipment.shipmentId())) > 0) {
-            return;
-        }
+        // 幂等：同一出货单已出货且未被冲回时忽略（反确认后再次确认出库需要重新回写）
+        if (netShipped(shipment.shipmentId()).values().stream().anyMatch(q -> q.signum() != 0)) return;
         LocalDate shipDate = shipment.shipDate() == null ? LocalDate.now() : shipment.shipDate();
         Map<Long, SalOrderLineDO> lines = orderService.linesByIds(shipment.lines().stream().map(Line::orderLineId).toList());
         Map<Long, BigDecimal> amountByOrder = new LinkedHashMap<>();
@@ -215,11 +215,22 @@ public class OrderExecService implements SalesOrderApi, SalesOrderQueryApi, Sale
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void onShipmentReversed(Long shipmentId) {
-        if (execMapper.selectCount(new LambdaQueryWrapper<SalOrderExecDO>().eq(SalOrderExecDO::getExecType, SHIP_REVERSE).eq(SalOrderExecDO::getDocId, shipmentId)) > 0) {
-            return;
+        // 只冲回尚未冲回的出货（出货 → 反确认 → 再出货 → 再反确认）
+        Map<Long, BigDecimal> net = netShipped(shipmentId);
+        Map<Long, BigDecimal> netAmount = new HashMap<>();
+        List<SalOrderExecDO> all = execMapper.selectList(new LambdaQueryWrapper<SalOrderExecDO>().in(SalOrderExecDO::getExecType, List.of(SHIP, SHIP_REVERSE))
+                .eq(SalOrderExecDO::getDocId, shipmentId).orderByAsc(SalOrderExecDO::getId));
+        for (SalOrderExecDO x : all) netAmount.merge(x.getOrderLineId(), SalSupport.nz(x.getAmount()), BigDecimal::add);
+        List<SalOrderExecDO> ships = new ArrayList<>();
+        Map<Long, SalOrderExecDO> lastShip = new LinkedHashMap<>();
+        for (SalOrderExecDO x : all) if (SHIP.equals(x.getExecType())) lastShip.put(x.getOrderLineId(), x);
+        for (SalOrderExecDO x : lastShip.values()) {
+            BigDecimal q = net.getOrDefault(x.getOrderLineId(), BigDecimal.ZERO);
+            if (q.signum() == 0) continue;
+            x.setQty(q);
+            x.setAmount(netAmount.getOrDefault(x.getOrderLineId(), BigDecimal.ZERO));
+            ships.add(x);
         }
-        List<SalOrderExecDO> ships = execMapper.selectList(new LambdaQueryWrapper<SalOrderExecDO>().eq(SalOrderExecDO::getExecType, SHIP)
-                .eq(SalOrderExecDO::getDocId, shipmentId));
         if (ships.isEmpty()) return;
         Map<Long, BigDecimal> amountByOrder = new LinkedHashMap<>();
         for (SalOrderExecDO s : ships) {
@@ -242,6 +253,14 @@ public class OrderExecService implements SalesOrderApi, SalesOrderQueryApi, Sale
             eventPublisher.publish(new SalesOrderShipmentChangedEvent(o.getId(), o.getDocNo(), OrderService.lineInfos(lineMapper.selectByParent(o.getId()))));
             orderService.openAmountChanged(o);
         }
+    }
+
+    /** 出货单在各订单行上的净出货数量（出货 + 冲回） */
+    private Map<Long, BigDecimal> netShipped(Long shipmentId) {
+        Map<Long, BigDecimal> net = new LinkedHashMap<>();
+        execMapper.selectList(new LambdaQueryWrapper<SalOrderExecDO>().in(SalOrderExecDO::getExecType, List.of(SHIP, SHIP_REVERSE))
+                .eq(SalOrderExecDO::getDocId, shipmentId)).forEach(x -> net.merge(x.getOrderLineId(), SalSupport.nz(x.getQty()), BigDecimal::add));
+        return net;
     }
 
     @Override
@@ -377,6 +396,16 @@ public class OrderExecService implements SalesOrderApi, SalesOrderQueryApi, Sale
         Map<Long, SalOrderDO> orders = orderService.byIds(lines.values().stream().map(SalOrderLineDO::getOrderId).toList());
         Map<Long, SalesOrderLineDTO> map = new HashMap<>();
         lines.values().forEach(l -> map.put(l.getId(), dto(orders.get(l.getOrderId()), l)));
+        return map;
+    }
+
+    @Override
+    public Map<Long, com.erp.module.sales.api.order.SalesOrderHeaderDTO> getOrderHeaders(Collection<Long> orderIds) {
+        Map<Long, com.erp.module.sales.api.order.SalesOrderHeaderDTO> map = new HashMap<>();
+        orderService.byIds(orderIds).values().forEach(o -> map.put(o.getId(), new com.erp.module.sales.api.order.SalesOrderHeaderDTO(o.getId(), o.getDocNo(),
+                o.getOrderType(), o.getStatus().name(), o.getCustomerId(), o.getCustomerPoNo(), o.getCurrency(), o.getExchangeRate(), o.getPaymentTermId(),
+                o.getPaymentTermSnapshot(), o.getTradeTerm(), o.getPortOfLoading(), o.getPortOfDestination(), o.getShipToAddressId(), o.getShipToSnapshot(),
+                o.getBillToAddressId(), o.getOwnerId(), o.getDeptId())));
         return map;
     }
 
