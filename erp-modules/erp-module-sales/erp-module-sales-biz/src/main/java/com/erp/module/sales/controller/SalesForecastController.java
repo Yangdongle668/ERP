@@ -126,7 +126,7 @@ public class SalesForecastController {
         return CommonResult.success(service.copy(id, true));
     }
 
-    @GetMapping("/forecasts/import-template")
+    @GetMapping({"/forecasts/import-template", "/forecasts/{id}/import-template"})
     @PreAuthorize("@ss.hasAny('sales:forecast:create', 'sales:forecast:update')")
     public void importTemplate(HttpServletResponse response) throws IOException {
         ExcelSupport.template(response, "销售预测", IMPORT_COLUMNS);

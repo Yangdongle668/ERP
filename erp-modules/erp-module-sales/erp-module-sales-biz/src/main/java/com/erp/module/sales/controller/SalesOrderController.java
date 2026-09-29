@@ -131,7 +131,7 @@ public class SalesOrderController {
     }
 
     @GetMapping("/orders/customer-defaults")
-    @PreAuthorize("@ss.hasAny('sales:order:create', 'sales:order:update', 'sales:quotation:create', 'sales:quotation:update')")
+    @PreAuthorize("@ss.hasAny('sales:order:create', 'sales:order:update', 'sales:quotation:create', 'sales:quotation:update', 'sales:rfq:create', 'sales:rfq:update')")
     public CommonResult<CustomerDefaults> customerDefaults(@RequestParam Long customerId) {
         return CommonResult.success(service.customerDefaults(customerId));
     }

@@ -138,7 +138,7 @@ public class SalesPriceListController {
         exportSupport.export(response, "销售价格表", EXPORT_COLUMNS, q.getColumns(), limit -> service.exportItems(q, limit));
     }
 
-    @GetMapping("/price-lists/import-template")
+    @GetMapping({"/price-lists/import-template", "/price-lists/{id}/import-template"})
     @PreAuthorize("@ss.has('sales:price-list:import')")
     public void importTemplate(HttpServletResponse response) throws IOException {
         ExcelSupport.template(response, "价格表明细", IMPORT_COLUMNS);
