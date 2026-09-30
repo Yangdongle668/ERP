@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { http } from '@/api/http'
+import { http, postSse } from '@/api/http'
 import { formatDateTime } from '@/utils/format'
 
 /**
- * 待办铃铛：角标显示待办数量（>99 显示 99+），每 60 秒刷新；点击显示最近 10 条待办，底部“查看全部”。
+ * 待办铃铛：角标显示待办数量（>99 显示 99+）；通过 SSE 实时推送刷新（待办 / 消息 / 预警变化时服务端推送 refresh），
+ * 连接正常时兜底轮询降为 5 分钟一次（多实例部署时推送只到本节点），连接断开后 60 秒轮询并自动重连；点击显示最近 10 条待办，底部“查看全部”。
  * 数据来自工作台模块（02-工作台 / 02-待办与审批）；接口未就绪时只显示铃铛。
  */
 interface Todo { id: string; title: string; createdAt: string; link?: string }
@@ -14,6 +15,43 @@ const router = useRouter()
 const count = ref(0)
 const list = ref<Todo[]>([])
 let timer = 0
+let abort: AbortController | undefined
+let connected = false
+let stopped = false
+const POLL_CONNECTED_MS = 5 * 60 * 1000
+const POLL_FALLBACK_MS = 60 * 1000
+
+function schedule() {
+  window.clearTimeout(timer)
+  timer = window.setTimeout(async () => {
+    await refreshCount()
+    schedule()
+  }, connected ? POLL_CONNECTED_MS : POLL_FALLBACK_MS)
+}
+
+/** 订阅实时推送；断开（网络、服务重启、30 分钟超时）后 5 秒重连 */
+async function connect() {
+  while (!stopped) {
+    abort = new AbortController()
+    try {
+      await postSse('/workbench/stream', {}, (event) => {
+        if (event === 'ready') {
+          connected = true
+          refreshCount()
+          schedule()
+        } else if (event === 'refresh') {
+          refreshCount()
+        }
+      }, { signal: abort.signal, silent: true })
+    } catch {
+      /* 断开或被取消，下面统一处理 */
+    }
+    connected = false
+    if (stopped) return
+    schedule()
+    await new Promise((r) => window.setTimeout(r, 5000))
+  }
+}
 
 async function refreshCount() {
   try {
@@ -39,9 +77,14 @@ function open(t: Todo) {
 
 onMounted(() => {
   refreshCount()
-  timer = window.setInterval(refreshCount, 60000)
+  schedule()
+  connect()
 })
-onBeforeUnmount(() => window.clearInterval(timer))
+onBeforeUnmount(() => {
+  stopped = true
+  abort?.abort()
+  window.clearTimeout(timer)
+})
 </script>
 
 <template>

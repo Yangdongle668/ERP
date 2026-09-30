@@ -10,14 +10,20 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * OpenAI 兼容 Chat Completions 接口适配器（DeepSeek、通义千问 / 阿里云百炼兼容模式、其他兼容服务）。
@@ -40,10 +46,16 @@ public class OpenAiCompatibleLlmAdapter implements LlmAdapter {
 
     @Override
     public LlmResult converse(LlmRequest req, ToolHandler handler) {
+        return converse(req, handler, null);
+    }
+
+    @Override
+    public LlmResult converse(LlmRequest req, ToolHandler handler, Consumer<String> onText) {
         ObjectNode body = json.createObjectNode();
         body.put("model", req.model());
         body.put("max_tokens", req.maxTokens());
-        body.put("stream", false);
+        body.put("stream", onText != null);
+        if (onText != null) body.putObject("stream_options").put("include_usage", true);
         ArrayNode messages = body.putArray("messages");
         messages.addObject().put("role", "system").put("content", req.system());
         for (Turn t : req.history()) {
@@ -68,7 +80,7 @@ public class OpenAiCompatibleLlmAdapter implements LlmAdapter {
         long out = 0;
         String lastText = "";
         for (int round = 0; round <= req.maxRounds(); round++) {
-            JsonNode resp = post(req, body);
+            JsonNode resp = onText != null ? postStream(req, body, onText) : post(req, body);
             JsonNode usage = resp.path("usage");
             in += usage.path("prompt_tokens").asLong(0);
             out += usage.path("completion_tokens").asLong(0);
@@ -118,6 +130,81 @@ public class OpenAiCompatibleLlmAdapter implements LlmAdapter {
             }
             return json.readTree(resp.body());
         } catch (IOException e) {
+            throw new IllegalStateException("调用大模型接口失败：" + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("调用大模型接口被中断", e);
+        }
+    }
+
+    /**
+     * 流式调用：读取 SSE（data: {...}），逐段回调文字，同时累积 content、tool_calls（按 index 拼接 arguments）、finish_reason、usage，
+     * 合成与非流式响应相同结构的 JSON，供工具调用循环复用。
+     */
+    private JsonNode postStream(LlmRequest req, ObjectNode body, Consumer<String> onText) {
+        String base = req.baseUrl().endsWith("/") ? req.baseUrl().substring(0, req.baseUrl().length() - 1) : req.baseUrl();
+        try {
+            HttpRequest request = HttpRequest.newBuilder(URI.create(base + "/chat/completions"))
+                    .timeout(Duration.ofSeconds(req.timeoutSeconds()))
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "text/event-stream")
+                    .header("Authorization", "Bearer " + req.apiKey())
+                    .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body), StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<Stream<String>> resp = http.send(request, HttpResponse.BodyHandlers.ofLines());
+            if (resp.statusCode() / 100 != 2) {
+                String err = resp.body().collect(Collectors.joining("\n"));
+                throw new IllegalStateException("HTTP " + resp.statusCode() + ": " + truncate(err));
+            }
+            StringBuilder content = new StringBuilder();
+            Map<Integer, ObjectNode> calls = new TreeMap<>();
+            String[] finish = new String[1];
+            JsonNode[] usage = new JsonNode[1];
+            try (Stream<String> lines = resp.body()) {
+                for (Iterator<String> it = lines.iterator(); it.hasNext(); ) {
+                    String line = it.next();
+                    if (!line.startsWith("data:")) continue;
+                    String data = line.substring(5).trim();
+                    if (data.isEmpty()) continue;
+                    if ("[DONE]".equals(data)) break;
+                    JsonNode chunk = json.readTree(data);
+                    if (chunk.hasNonNull("usage")) usage[0] = chunk.get("usage");
+                    JsonNode choice = chunk.path("choices").path(0);
+                    if (choice.hasNonNull("finish_reason")) finish[0] = choice.get("finish_reason").asText();
+                    JsonNode delta = choice.path("delta");
+                    if (delta.path("content").isTextual() && !delta.get("content").asText().isEmpty()) {
+                        String piece = delta.get("content").asText();
+                        content.append(piece);
+                        onText.accept(piece);
+                    }
+                    for (JsonNode tc : delta.path("tool_calls")) {
+                        ObjectNode call = calls.computeIfAbsent(tc.path("index").asInt(0), k -> {
+                            ObjectNode n = json.createObjectNode();
+                            n.put("type", "function");
+                            n.putObject("function").put("name", "").put("arguments", "");
+                            return n;
+                        });
+                        if (tc.hasNonNull("id")) call.put("id", tc.get("id").asText());
+                        ObjectNode fn = (ObjectNode) call.get("function");
+                        if (tc.path("function").hasNonNull("name")) fn.put("name", fn.get("name").asText() + tc.get("function").get("name").asText());
+                        if (tc.path("function").hasNonNull("arguments")) fn.put("arguments", fn.get("arguments").asText() + tc.get("function").get("arguments").asText());
+                    }
+                }
+            }
+            ObjectNode out = json.createObjectNode();
+            ObjectNode choice = out.putArray("choices").addObject();
+            ObjectNode message = choice.putObject("message");
+            message.put("role", "assistant");
+            if (content.length() > 0) message.put("content", content.toString());
+            else message.putNull("content");
+            if (!calls.isEmpty()) {
+                ArrayNode arr = message.putArray("tool_calls");
+                calls.values().forEach(arr::add);
+            }
+            if (finish[0] != null) choice.put("finish_reason", finish[0]);
+            if (usage[0] != null) out.set("usage", usage[0]);
+            return out;
+        } catch (IOException | UncheckedIOException e) {
             throw new IllegalStateException("调用大模型接口失败：" + e.getMessage(), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

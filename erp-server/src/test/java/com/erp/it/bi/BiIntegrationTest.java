@@ -361,4 +361,33 @@ class BiIntegrationTest extends ShippingTestSupport {
         User self = user("SELF", List.of("bi:dashboard:view"));
         assertThat(ok(doGet("/api/bi/ai/weekly-reports", self.token())).size()).isZero();
     }
+
+    /** AI 流式提问（SSE）：delta 文字、status 进度、done 最终消息；未启用时推送 error 事件 */
+    @Test
+    void aiQuestionStream() throws Exception {
+        String conv = conversation(admin);
+        String noAi = stream(conv, "上个月出货额是多少");
+        assertThat(noAi).contains("event:error").contains("AI 分析未启用");
+        enableAi();
+        YearMonth last = YearMonth.now().minusMonths(1);
+        llm.script.add((req, tools) -> {
+            tools.handle("bi_query", Map.of("metrics", List.of("sales_ship_amount"), "from", last.atDay(1).toString(), "to", last.atEndOfMonth().toString()));
+            return new LlmResult("上个月出货额见下表。\n图表：table", "end_turn", 100, 50);
+        });
+        String body = stream(conv, "上个月出货额是多少");
+        assertThat(body).contains("event:status").contains("正在查询数据").contains("event:delta").contains("上个月出货额见下表");
+        assertThat(body.indexOf("event:delta")).isLessThan(body.indexOf("event:done"));
+        String done = body.substring(body.indexOf("event:done"));
+        assertThat(done).contains("\"chart\":\"table\"").contains("sales_ship_amount");
+        assertThat(ok(doGet("/api/bi/ai/conversations/" + conv + "/messages", admin)).size()).isEqualTo(2);
+    }
+
+    private String stream(String conv, String question) throws Exception {
+        org.springframework.test.web.servlet.MvcResult started = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/bi/ai/conversations/" + conv + "/messages/stream").header("Authorization", admin)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(Map.of("question", question))))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.request().asyncStarted()).andReturn();
+        return mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch(started))
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+    }
 }

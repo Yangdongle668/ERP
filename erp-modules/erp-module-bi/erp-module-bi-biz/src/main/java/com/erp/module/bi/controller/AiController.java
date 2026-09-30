@@ -3,6 +3,7 @@ package com.erp.module.bi.controller;
 import com.erp.common.result.CommonResult;
 import com.erp.common.result.PageParam;
 import com.erp.common.result.PageResult;
+import com.erp.framework.web.SseStreams;
 import com.erp.module.bi.controller.vo.AiVOs.Ask;
 import com.erp.module.bi.controller.vo.AiVOs.ConversationSave;
 import com.erp.module.bi.controller.vo.AiVOs.Feedback;
@@ -11,16 +12,17 @@ import com.erp.module.bi.dal.dataobject.AiAnomalyDO;
 import com.erp.module.bi.dal.dataobject.AiConversationDO;
 import com.erp.module.bi.dal.dataobject.AiWeeklyReportDO;
 import com.erp.module.bi.service.ai.AiAnomalyService;
-import com.erp.module.bi.service.ai.AiChatService;
 import com.erp.module.bi.service.ai.AiChatService.LogRow;
 import com.erp.module.bi.service.ai.AiChatService.MessageView;
 import com.erp.module.bi.service.ai.AiChatService.Status;
 import com.erp.module.bi.service.ai.AiChatService.UsageRow;
+import com.erp.module.bi.service.ai.AiChatService;
 import com.erp.module.bi.service.ai.AiSettings;
 import com.erp.module.bi.service.ai.AiWeeklyReportService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,9 +33,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /** AI 分析（需求 13-04 第 6 节）：问数会话、反馈、异常、周报、用量与日志 */
 @Tag(name = "BI - AI 分析")
@@ -45,8 +50,11 @@ public class AiController {
     private final AiAnomalyService anomalyService;
     private final AiWeeklyReportService weeklyReportService;
     private final AiSettings settings;
+    private final SseStreams sse;
 
-    public AiController(AiChatService chatService, AiAnomalyService anomalyService, AiWeeklyReportService weeklyReportService, AiSettings settings) {
+    public AiController(AiChatService chatService, AiAnomalyService anomalyService, AiWeeklyReportService weeklyReportService, AiSettings settings,
+                        SseStreams sse) {
+        this.sse = sse;
         this.chatService = chatService;
         this.anomalyService = anomalyService;
         this.weeklyReportService = weeklyReportService;
@@ -95,6 +103,19 @@ public class AiController {
     @PreAuthorize("@ss.has('ai:query:use')")
     public CommonResult<MessageView> ask(@PathVariable Long id, @Valid @RequestBody Ask req) {
         return CommonResult.success(chatService.ask(id, req.question()));
+    }
+
+    /**
+     * 流式提问（SSE）：事件 status（进度提示 {"text"}）、delta（回答文字片段 {"text"}）、done（最终消息 MessageView，含图表与数据）、
+     * error（{"message"}）。delta 是模型的原始输出，最终展示以 done 为准（会去掉口径 / 图表标记）。
+     */
+    @PostMapping(value = "/conversations/{id}/messages/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("@ss.has('ai:query:use')")
+    public SseEmitter askStream(@PathVariable Long id, @Valid @RequestBody Ask req) {
+        return sse.stream(TimeUnit.MINUTES.toMillis(5), out -> {
+            MessageView v = chatService.ask(id, req.question(), t -> out.send("delta", Map.of("text", t)), t -> out.send("status", Map.of("text", t)));
+            out.send("done", v);
+        });
     }
 
     @PostMapping("/messages/{id}/feedback")

@@ -18,6 +18,16 @@ public interface LlmAdapter {
     LlmResult converse(LlmRequest request, ToolHandler handler);
 
     /**
+     * 流式对话：模型每输出一段文字就回调 onText（工具调用轮次的文字也会回调，最终以返回结果为准）。
+     * 默认实现不支持流式，整段回答生成后一次回调；OpenAI 兼容适配器逐段回调。
+     */
+    default LlmResult converse(LlmRequest request, ToolHandler handler, java.util.function.Consumer<String> onText) {
+        LlmResult r = converse(request, handler);
+        if (onText != null && r.text() != null && !r.text().isEmpty()) onText.accept(r.text());
+        return r;
+    }
+
+    /**
      * @param history   之前的对话轮次（只含文字）
      * @param maxTokens 每次调用的最大输出 token
      * @param maxRounds 最多工具调用轮次

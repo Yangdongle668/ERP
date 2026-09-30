@@ -17,10 +17,11 @@ import com.erp.module.bi.dal.mapper.AiQueryLogMapper;
 import com.erp.module.bi.service.ai.BiQueryTool.Execution;
 import com.erp.module.bi.service.ai.LlmAdapter.LlmRequest;
 import com.erp.module.bi.service.ai.LlmAdapter.LlmResult;
+import com.erp.module.bi.service.ai.LlmAdapter.ToolHandler;
 import com.erp.module.bi.service.ai.LlmAdapter.ToolOutcome;
 import com.erp.module.bi.service.ai.LlmAdapter.Turn;
-import com.erp.module.bi.service.metric.BiMetricService;
 import com.erp.module.bi.service.metric.BiMetricService.MetricInfo;
+import com.erp.module.bi.service.metric.BiMetricService;
 import com.erp.module.bi.service.metric.MetricRegistry;
 import com.erp.module.bi.service.query.BiQueryResult;
 import com.erp.module.system.api.user.UserApi;
@@ -163,6 +164,14 @@ public class AiChatService {
 
     /** 提问：校验启用 / 额度，调用模型（工具以当前用户身份执行），保存消息与问答日志 */
     public MessageView ask(Long conversationId, String question) {
+        return ask(conversationId, question, null, null);
+    }
+
+    /**
+     * 流式提问：onText 接收模型逐段输出的文字，onStatus 接收进度提示（如“正在查询数据”）；其余同 {@link #ask(Long, String)}。
+     * 两个回调都可为空。
+     */
+    public MessageView ask(Long conversationId, String question, java.util.function.Consumer<String> onText, java.util.function.Consumer<String> onStatus) {
         LoginUser user = SecurityUtils.getLoginUser();
         if (question == null || question.isBlank()) throw new BizException(BiErrorCodes.AI_QUESTION_REQUIRED);
         String q = truncate(question.trim(), 2000);
@@ -191,12 +200,14 @@ public class AiChatService {
                 TIMEOUT_SECONDS);
         LlmResult result;
         try {
-            result = adapter().converse(req, (name, input) -> {
+            ToolHandler handler = (name, input) -> {
                 if (!BiQueryTool.NAME.equals(name)) return new ToolOutcome("只能使用 bi_query 工具", true);
+                if (onStatus != null) onStatus.accept("正在查询数据…");
                 Execution e = tool.execute(input, s.mask());
                 executions.add(e);
                 return new ToolOutcome(e.modelContent(), e.error() != null);
-            });
+            };
+            result = onText == null ? adapter().converse(req, handler) : adapter().converse(req, handler, onText);
         } catch (BizException e) {
             throw e;
         } catch (RuntimeException e) {

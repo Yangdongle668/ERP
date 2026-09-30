@@ -190,6 +190,64 @@ export async function downloadPost(url: string, data: FormData | object, fallbac
   saveBlob(resp.data as Blob, filenameOf(String(resp.headers['content-disposition'] ?? '')) ?? fallbackName)
 }
 
+/**
+ * POST 并读取 Server-Sent Events 流（fetch + ReadableStream，可带 Authorization）。
+ * 每个事件回调 onEvent(event, data)（data 为 JSON 解析结果）；服务端 error 事件按业务错误提示（silent 时不提示）并抛出；令牌过期时刷新后重试一次。
+ */
+export async function postSse(url: string, body: unknown, onEvent: (event: string, data: any) => void, opts: { signal?: AbortSignal; silent?: boolean } = {}, retried = false): Promise<void> {
+  const store = useUserStore()
+  const resp = await fetch(`/api${url}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', ...(store.accessToken ? { Authorization: `Bearer ${store.accessToken}` } : {}) },
+    body: JSON.stringify(body),
+    signal: opts.signal
+  })
+  if (resp.status === 401 && !retried && (await tryRefresh())) return postSse(url, body, onEvent, opts, true)
+  if (!resp.ok || !resp.body) {
+    let err = new BizError(resp.status, '请求失败')
+    try {
+      const j = (await resp.json()) as CommonResult<unknown>
+      err = new BizError(j.code, j.msg, resp.status)
+    } catch {
+      /* 非 JSON 错误体 */
+    }
+    if (!opts.silent) notifyError(err)
+    throw err
+  }
+  const reader = resp.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    let idx: number
+    while ((idx = buffer.search(/\r?\n\r?\n/)) >= 0) {
+      const frame = buffer.slice(0, idx)
+      buffer = buffer.slice(idx).replace(/^\r?\n\r?\n/, '')
+      let event = 'message'
+      const data: string[] = []
+      for (const line of frame.split(/\r?\n/)) {
+        if (line.startsWith('event:')) event = line.slice(6).trim()
+        else if (line.startsWith('data:')) data.push(line.slice(5).replace(/^ /, ''))
+      }
+      if (!data.length) continue
+      let parsed: unknown = data.join('\n')
+      try {
+        parsed = JSON.parse(parsed as string)
+      } catch {
+        /* 保留原文 */
+      }
+      if (event === 'error') {
+        const err = new BizError(-1, (parsed as { message?: string })?.message ?? '操作失败')
+        if (!opts.silent) notifyError(err)
+        throw err
+      }
+      onEvent(event, parsed)
+    }
+  }
+}
+
 /** 取文件 Blob（用于预览、打印），失败时统一提示 */
 export async function fetchBlob(url: string, params?: object): Promise<Blob> {
   const resp = await requestRaw({ url, method: 'get', params, responseType: 'blob', timeout: 300000 })

@@ -1,4 +1,4 @@
-import { http, type PageParam, type PageResult } from '@/api/http'
+import { http, postSse, type PageParam, type PageResult } from '@/api/http'
 import type { StatusMap } from '@/components'
 
 /** BI / AI 接口（需求 13-BI与AI）：通用查询、驾驶舱、指标库、数据任务、AI 分析 */
@@ -124,6 +124,16 @@ export const aiApi = {
   remove: (id: string) => http.delete<void>(`/bi/ai/conversations/${id}`),
   messages: (id: string) => http.get<AiMessage[]>(`/bi/ai/conversations/${id}/messages`),
   ask: (id: string, question: string) => http.post<AiMessage>(`/bi/ai/conversations/${id}/messages`, { question }, { timeout: 300000 }),
+  /** 流式提问（SSE）：onDelta 逐段收到模型输出，onStatus 收到进度提示，返回最终消息 */
+  askStream: async (id: string, question: string, onDelta: (text: string) => void, onStatus?: (text: string) => void, signal?: AbortSignal) => {
+    let done: AiMessage | undefined
+    await postSse(`/bi/ai/conversations/${id}/messages/stream`, { question }, (event, data) => {
+      if (event === 'delta') onDelta((data as { text: string }).text)
+      else if (event === 'status') onStatus?.((data as { text: string }).text)
+      else if (event === 'done') done = data as AiMessage
+    }, { signal })
+    return done
+  },
   feedback: (id: string, feedback: 'UP' | 'DOWN' | null, remark?: string) => http.post<void>(`/bi/ai/messages/${id}/feedback`, { feedback, remark }),
   anomalies: (from?: string, to?: string) => http.get<Anomaly[]>('/bi/ai/anomalies', { from, to }),
   detect: () => http.post<number>('/bi/ai/anomalies/detect', undefined, { timeout: 300000 }),

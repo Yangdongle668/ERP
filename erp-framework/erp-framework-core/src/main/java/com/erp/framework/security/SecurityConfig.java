@@ -4,6 +4,7 @@ import com.erp.common.exception.ErrorCode;
 import com.erp.common.exception.GlobalErrorCodes;
 import com.erp.common.result.CommonResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -58,6 +59,8 @@ public class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // 异步（SSE 流式输出）完成时的 ASYNC 分派、错误分派不再重新鉴权：原始请求已通过 JWT 鉴权（无状态，分派时没有安全上下文）
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(e -> e

@@ -415,4 +415,30 @@ class WorkbenchIntegrationTest extends AbstractIntegrationTest {
         JsonNode summary = ok(doGet("/api/workbench/summary", sales.token()));
         assertThat(summary.at("/pollSeconds").asInt()).isEqualTo(60);
     }
+
+    /** 实时推送（SSE）：订阅后收到 ready；该用户新增待办后收到 refresh，其他用户的待办不推送给他 */
+    @Test
+    void pushRefreshOnTodo() throws Exception {
+        User me = user(List.of());
+        User other = user(List.of());
+        org.springframework.test.web.servlet.MvcResult conn = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/workbench/stream").header("Authorization", me.token()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.request().asyncStarted()).andReturn();
+        assertThat(conn.getResponse().getHeader("X-Accel-Buffering")).isEqualTo("no");
+        assertThat(conn.getResponse().getContentAsString()).contains("event:ready");
+
+        notifyApi.todo(new TodoCreatedEvent("PUSH_" + uniq(), List.of(other.id()), TodoCreatedEvent.Category.TASK, "PUSH", 1L, "P-1", "别人的待办",
+                "/x", TodoCreatedEvent.Priority.NORMAL, null));
+        Thread.sleep(1000);
+        assertThat(conn.getResponse().getContentAsString()).doesNotContain("event:refresh");
+
+        notifyApi.todo(new TodoCreatedEvent("PUSH_" + uniq(), List.of(me.id()), TodoCreatedEvent.Category.TASK, "PUSH", 2L, "P-2", "我的待办",
+                "/x", TodoCreatedEvent.Priority.NORMAL, null));
+        String body = "";
+        for (int i = 0; i < 50 && !body.contains("event:refresh"); i++) {
+            Thread.sleep(100);
+            body = conn.getResponse().getContentAsString();
+        }
+        assertThat(body).contains("event:refresh");
+    }
 }

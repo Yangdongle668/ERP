@@ -2,6 +2,7 @@ package com.erp.module.workbench.controller;
 
 import com.erp.common.result.CommonResult;
 import com.erp.common.result.PageResult;
+import com.erp.framework.security.SecurityUtils;
 import com.erp.module.workbench.controller.vo.WbVOs.AlertQuery;
 import com.erp.module.workbench.controller.vo.WbVOs.AlertStats;
 import com.erp.module.workbench.controller.vo.WbVOs.AlertVO;
@@ -20,9 +21,11 @@ import com.erp.module.workbench.service.WbSupport;
 import com.erp.module.workbench.service.alert.AlertService;
 import com.erp.module.workbench.service.dashboard.DashboardService;
 import com.erp.module.workbench.service.message.MessageService;
+import com.erp.module.workbench.service.push.WorkbenchPushService;
 import com.erp.module.workbench.service.todo.TodoService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,6 +36,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -48,17 +54,33 @@ public class WorkbenchController {
     private final MessageService messageService;
     private final AlertService alertService;
     private final WbSupport support;
+    private final WorkbenchPushService pushService;
 
-    public WorkbenchController(DashboardService dashboardService, TodoService todoService, MessageService messageService, AlertService alertService,
+    public WorkbenchController(DashboardService dashboardService, TodoService todoService, MessageService messageService, AlertService alertService, WorkbenchPushService pushService,
                                WbSupport support) {
         this.dashboardService = dashboardService;
         this.todoService = todoService;
         this.messageService = messageService;
         this.alertService = alertService;
         this.support = support;
+        this.pushService = pushService;
     }
 
     // ==================== 首页 ====================
+
+    /**
+     * 实时推送（SSE）：待办、消息、预警变化时推送 refresh 事件（约每 25 秒一个 ping 心跳），前端收到后刷新角标。
+     * 用 POST 是为了与前端统一的 fetch 流式读取（可带 Authorization 头，EventSource 做不到）。
+     */
+    @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public SseEmitter stream() {
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes a && a.getResponse() != null) {
+            a.getResponse().setHeader("X-Accel-Buffering", "no");
+            a.getResponse().setHeader("Cache-Control", "no-cache");
+        }
+        return pushService.subscribe(SecurityUtils.getLoginUser().id());
+    }
 
     @GetMapping("/summary")
     @PreAuthorize("isAuthenticated()")

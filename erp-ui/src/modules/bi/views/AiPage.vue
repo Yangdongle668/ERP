@@ -27,6 +27,10 @@ const messages = ref<AiMessage[]>([])
 const question = ref('')
 const asking = ref(false)
 const pending = ref<string>()
+/** 流式输出中的回答（模型原始输出，结束后以保存的消息为准） */
+const streaming = ref('')
+const statusText = ref('')
+const streamShown = computed(() => streaming.value.replace(/\n?图表[：:]\s*\w*\s*$/, ''))
 const scroller = ref<HTMLElement>()
 const EXAMPLES = ['上个月哪 5 个客户的出货额下降最多？', '本季度来料合格率最低的供应商是哪家？', '近 6 个月接单额和出货额的趋势如何？', '本月各业务员的回款额排名']
 
@@ -70,15 +74,21 @@ async function send(text?: string) {
   asking.value = true
   pending.value = q
   question.value = ''
+  streaming.value = ''
+  statusText.value = ''
   scrollDown()
   try {
-    await aiApi.ask(current.value, q)
+    await aiApi.askStream(current.value, q, (t) => {
+      streaming.value += t
+      scrollDown()
+    }, (t) => (statusText.value = t))
   } catch (e) {
     question.value = q
     throw e
   } finally {
     asking.value = false
     pending.value = undefined
+    streaming.value = ''
     messages.value = await aiApi.messages(current.value)
     await loadConversations()
     status.value = await aiApi.status()
@@ -189,7 +199,10 @@ onMounted(async () => {
                 </div>
               </div>
               <div v-if="pending" class="ai-msg is-user"><div class="ai-msg__bubble"><div class="ai-msg__text">{{ pending }}</div></div></div>
-              <div v-if="asking" class="ai-msg is-ai"><div class="ai-msg__bubble ai-msg__thinking">正在查询与分析…</div></div>
+              <div v-if="asking" class="ai-msg is-ai">
+                <div v-if="streamShown" class="ai-msg__bubble"><div class="ai-msg__text">{{ streamShown }}</div></div>
+                <div v-else class="ai-msg__bubble ai-msg__thinking">{{ statusText || '正在查询与分析…' }}</div>
+              </div>
             </div>
             <div class="ai-input">
               <el-input v-model="question" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" maxlength="2000" resize="none"

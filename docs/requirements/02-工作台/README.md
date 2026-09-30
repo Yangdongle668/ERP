@@ -35,7 +35,7 @@ wb_todo、wb_message、wb_alert、wb_alert_user、wb_notice、wb_notice_read、w
 
 | 编码 | 分组 | 名称 | 类型 | 默认 | 说明 |
 |---|---|---|---|---|---|
-| wb.todo.poll-seconds | 待办 | 待办角标刷新间隔（秒） | INT(30～600) | 60 | |
+| wb.todo.poll-seconds | 待办 | 待办角标兜底轮询间隔（秒） | INT(30～600) | 60 | 实时推送（SSE）连接正常时前端降为 5 分钟一次；推送断开时按本参数轮询 |
 | wb.message.retention-days | 消息 | 消息保留天数 | INT | 180 | |
 | wb.todo.retention-days | 待办 | 已处理待办保留天数 | INT | 365 | |
 | wb.email.enabled | 邮件 | 启用邮件通知 | BOOL | 否 | 需先配置 SMTP（`spring.mail.*`） |
@@ -49,6 +49,7 @@ wb_todo、wb_message、wb_alert、wb_alert_user、wb_notice、wb_notice_read、w
 
 - **数据表**：迁移脚本 `V1__workbench.sql`（wb_todo、wb_message、wb_alert、wb_alert_user、wb_notice、wb_notice_read、wb_layout、wb_shortcut）。
 - **事件存储**：`TodoCreatedEvent` / `TodoDoneEvent` / `MessageSendEvent` / `AlertRaisedEvent` / `AlertResolvedEvent` 均在业务事务提交后（`@TransactionalEventListener(AFTER_COMMIT, fallbackExecution = true)`）以独立事务写入，工作台写入失败只记日志，不影响业务；业务回滚时不会产生待办。待办按 `(todo_key, user_id)` 幂等更新（WB-TODO-R02）；已处理待办、消息的清理使用物理删除，便于同一键再次创建。
+- **实时推送**：`POST /workbench/stream`（SSE）。`WorkbenchPushService` 监听上述同一批事件，在待办、消息、预警变化时向相关用户（无法确定用户时向所有在线用户）推送 `refresh`（延后 400ms 等待存储写入并合并同一用户的多次变化），约每 25 秒一个 `ping` 心跳；前端铃铛收到 refresh 后刷新角标。只推送到本节点的连接，多实例部署由前端兜底轮询覆盖。
 - **待办**：审批类待办键为 `WF_TASK:{taskId}`，列表返回 `taskId`，前端快捷通过 / 驳回 / 批量通过直接调用系统管理审批流接口（`/system/workflow/tasks/{id}/approve|reject`、`/tasks/batch-approve`），“我已处理”“我发起的”也直接使用审批流接口（`/tasks/my?status=DONE`、`/instances/my`、撤回）。审批类不能手工完成，任务类可“标记完成”。用户停用（`UserDeactivatedEvent`）后其任务类待办转给主部门负责人，负责人已有同键待办或未设置负责人时取消（R03）。定时任务 `WB_TODO_RECONCILE`（每天 02:00）用 `WorkflowApi.getTaskStatuses` 对账（R04），`WB_CLEANUP`（02:30）清理超期待办与消息（R05、WB-MSG-R03）。
 - **消息与邮件**：参数 `wb.email.enabled` 为是且配置了 `spring.mail.*` 时异步发送，失败按 1、5、15 分钟重试 3 次（WB-MSG-R01），用户无邮箱不发（R02）。
 - **公告**：内容用 jsoup `Safelist.relaxed()`（去掉 iframe）过滤脚本、事件属性（WB-NTC-R01）；按部门发布时含下级部门；应读人数 = 范围内的启用用户（`UserApi.listEnabled`）；首页只显示已发布、已到发布时间、未过期的公告；首页加载时对未读重要公告弹窗，“我已阅读”后不再弹出（R02）。编辑器暂为 HTML 文本 + 预览（富文本编辑器组件待引入）。
