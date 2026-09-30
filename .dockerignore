@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.vscode
+**/target
+**/.flattened-pom.xml
+erp-ui/node_modules
+erp-ui/dist
+data
+logs
+backups
+docs
+.env
+*.log

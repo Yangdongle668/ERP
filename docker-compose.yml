@@ -1,0 +1,69 @@
+# 一键部署：MySQL 8 + 后端（Spring Boot）+ 前端（Nginx）。配置见 .env（由 deploy.sh 从 .env.example 生成）
+name: erp
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${ERP_DB_NAME:-erp}
+      MYSQL_USER: ${ERP_DB_USER:-erp}
+      MYSQL_PASSWORD: ${ERP_DB_PASSWORD:?请在 .env 中设置 ERP_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${ERP_DB_ROOT_PASSWORD:?请在 .env 中设置 ERP_DB_ROOT_PASSWORD}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+08:00
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  erp-server:
+    build:
+      context: .
+      dockerfile: deploy/server.Dockerfile
+      args:
+        MAVEN_MIRROR: ${MAVEN_MIRROR:-}
+    image: erp-server:${ERP_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ERP_PROFILE: mysql
+      ERP_DB_HOST: mysql
+      ERP_DB_PORT: "3306"
+      ERP_DB_NAME: ${ERP_DB_NAME:-erp}
+      ERP_DB_USER: ${ERP_DB_USER:-erp}
+      ERP_DB_PASSWORD: ${ERP_DB_PASSWORD}
+      ERP_JWT_SECRET: ${ERP_JWT_SECRET:?请在 .env 中设置 ERP_JWT_SECRET}
+      ERP_AI_API_KEY: ${ERP_AI_API_KEY:-}
+      ERP_AI_BASE_URL: ${ERP_AI_BASE_URL:-}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75 -Duser.timezone=Asia/Shanghai -Dfile.encoding=UTF-8}
+      # 健康检查不包含邮件服务器（邮件在 docker-compose.override.yml 中配置，见 README）
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+    volumes:
+      - erp-data:/app/data
+
+  erp-ui:
+    build:
+      context: .
+      dockerfile: deploy/ui.Dockerfile
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-}
+    image: erp-ui:${ERP_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      erp-server:
+        condition: service_healthy
+    ports:
+      - "${ERP_HTTP_PORT:-80}:80"
+
+volumes:
+  mysql-data:
+  erp-data:

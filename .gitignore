@@ -16,3 +16,9 @@ logs/
 # 前端
 erp-ui/node_modules/
 erp-ui/dist/
+
+# Docker 部署
+.env
+backups/
+deploy/certs/*.crt
+docker-compose.override.yml
