@@ -2,8 +2,10 @@
 # 前端镜像：Node 构建 erp-ui → Nginx 提供静态页面并把 /api 反向代理到 erp-server
 FROM node:22-alpine AS build
 # 可选：npm 镜像源（如 https://registry.npmmirror.com）
-ENV NODE_OPTIONS="--max-old-space-size=1536"
 ARG NPM_REGISTRY=""
+# Node 堆上限：打包约需 1GB。类型检查（vue-tsc）需要 2GB 以上，镜像构建中不执行，由 CI 的 npm run build 保证
+ARG NODE_HEAP_MB=1024
+ENV NODE_OPTIONS="--max-old-space-size=${NODE_HEAP_MB}"
 WORKDIR /src
 COPY deploy/certs/ /tmp/certs/
 COPY erp-ui/package.json erp-ui/package-lock.json ./
@@ -13,7 +15,7 @@ RUN --mount=type=cache,target=/root/.npm \
     if [ -n "$NPM_REGISTRY" ]; then npm config set registry "$NPM_REGISTRY"; fi; \
     npm ci --no-audit --no-fund
 COPY erp-ui/ ./
-RUN npm run build
+RUN npm run build:docker
 
 FROM nginx:1.27-alpine
 ENV TZ=Asia/Shanghai

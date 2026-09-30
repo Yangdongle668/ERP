@@ -96,8 +96,9 @@ for img in $IMAGES; do
 done
 
 # ---------- 构建与重启 ----------
-info "构建新镜像…"
-$COMPOSE build
+info "构建新镜像（逐个构建以降低内存占用）…"
+$COMPOSE build erp-server
+$COMPOSE build erp-ui
 info "重启服务…"
 if ! $COMPOSE up -d; then
   $COMPOSE logs --tail=100 erp-server || true

@@ -5,6 +5,8 @@ FROM maven:3.9-eclipse-temurin-21 AS build
 # 需要经代理访问外网时传入标准的 HTTPS_PROXY 构建参数（http://[user:pass@]host:port），自动写入 Maven 代理配置
 ARG MAVEN_MIRROR=""
 ARG HTTPS_PROXY=""
+# 构建内存上限（2G 内存的服务器也能构建）
+ENV MAVEN_OPTS="-Xmx512m -XX:+UseSerialGC"
 WORKDIR /src
 # 可选：企业代理 / 内网仓库的 CA 证书（deploy/certs/*.crt，一个文件可含多张证书）
 COPY deploy/certs/ /tmp/certs/
@@ -31,7 +33,7 @@ RUN --mount=type=cache,target=/root/.m2/repository \
 
 FROM eclipse-temurin:21-jre
 ENV TZ=Asia/Shanghai \
-    JAVA_OPTS="-XX:MaxRAMPercentage=75 -Duser.timezone=Asia/Shanghai -Dfile.encoding=UTF-8"
+    JAVA_OPTS="-Xms256m -Xmx1024m -XX:+UseG1GC -Duser.timezone=Asia/Shanghai -Dfile.encoding=UTF-8"
 RUN useradd --system --uid 1001 --home-dir /app erp && mkdir -p /app/data/files && chown -R erp /app
 WORKDIR /app
 COPY --from=build --chown=erp /src/erp-server/target/erp-server.jar app.jar

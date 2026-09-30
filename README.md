@@ -62,6 +62,8 @@ cd ERP
                           └──▶ mysql（MySQL 8，数据卷 mysql-data）
 ```
 
+**小内存服务器（2 核 2G）**：`deploy.sh` 检测到内存 ≤ 3.5GB 时自动使用低内存配置（JVM 堆 640MB、MySQL 缓冲池 128MB 并关闭 performance_schema，运行时合计约 0.8GB），镜像逐个构建；前端镜像构建只打包、不做类型检查（类型检查在 CI 中执行），打包约需 1GB 内存。建议首次部署使用 `sudo ./deploy.sh --cn --swap`，自动创建 2GB 交换文件。配置写在 `.env` 的 `ERP_MEMORY_PROFILE`、`JAVA_OPTS`、`MYSQL_*` 中，可手工调整。
+
 常用命令：
 
 ```bash

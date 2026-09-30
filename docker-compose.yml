@@ -15,9 +15,13 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_0900_ai_ci
       - --default-time-zone=+08:00
+      # 内存占用（小内存服务器由 deploy.sh 自动调低）
+      - --innodb-buffer-pool-size=${MYSQL_BUFFER_POOL_SIZE:-256M}
+      - --performance-schema=${MYSQL_PERFORMANCE_SCHEMA:-ON}
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
+      start_period: 60s
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 10s
       timeout: 5s
@@ -44,7 +48,7 @@ services:
       ERP_JWT_SECRET: ${ERP_JWT_SECRET:?请在 .env 中设置 ERP_JWT_SECRET}
       ERP_AI_API_KEY: ${ERP_AI_API_KEY:-}
       ERP_AI_BASE_URL: ${ERP_AI_BASE_URL:-}
-      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75 -Duser.timezone=Asia/Shanghai -Dfile.encoding=UTF-8}
+      JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx1024m -XX:+UseG1GC -Duser.timezone=Asia/Shanghai -Dfile.encoding=UTF-8}
       # 健康检查不包含邮件服务器（邮件在 docker-compose.override.yml 中配置，见 README）
       MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
     volumes:
