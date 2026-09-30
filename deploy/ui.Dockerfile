@@ -2,6 +2,7 @@
 # 前端镜像：Node 构建 erp-ui → Nginx 提供静态页面并把 /api 反向代理到 erp-server
 FROM node:22-alpine AS build
 # 可选：npm 镜像源（如 https://registry.npmmirror.com）
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 ARG NPM_REGISTRY=""
 WORKDIR /src
 COPY deploy/certs/ /tmp/certs/
