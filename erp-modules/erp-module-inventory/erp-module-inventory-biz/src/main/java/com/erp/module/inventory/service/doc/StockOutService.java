@@ -477,7 +477,7 @@ public class StockOutService {
                     .forEach(s -> list.add(new BatchSuggestion(s.getBatchNo().isEmpty() ? null : s.getBatchNo(),
                             s.getLocationId() == 0 ? null : s.getLocationId(), s.getQty(), null, null)));
         } else {
-            list.addAll(queryService.suggestBatches(materialId, warehouseId, new BigDecimal("999999999999")));
+            list.addAll(queryService.suggestIgnoringReservation(materialId, warehouseId, new BigDecimal("999999999999")));
         }
         List<BatchSuggestion> result = new ArrayList<>();
         for (BatchSuggestion s : list) {

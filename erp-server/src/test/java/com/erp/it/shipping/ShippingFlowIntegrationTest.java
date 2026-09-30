@@ -1,7 +1,13 @@
 package com.erp.it.shipping;
 
+import com.erp.module.inventory.api.stock.BatchSuggestion;
+import com.erp.module.inventory.api.stock.InventoryQueryApi;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.math.BigDecimal;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -58,6 +64,11 @@ class ShippingFlowIntegrationTest extends ShippingTestSupport {
                 "批次「" + b1 + "」可用数量不足（可用 200）");
         // SHP-PK-T02：实拣 580 → 数量不一致；按实拣完成后缺货 20
         ok(doPut("/api/shipping/pickings/" + p + "/lines", admin, Map.of("lines", List.of(pickLine(nl, b1, "200"), pickLine(nl, b2, "380")))));
+        // SHP-PK-R02 预留：所拣批次被预留，其他单据推荐批次时扣除（B1 全部预留，B2 只剩 120）
+        assertThat(reserved(m)).isEqualByComparingTo("580");
+        List<BatchSuggestion> others = inventoryQueryApi.suggestBatches(Long.valueOf(m), Long.valueOf(W_FG), new BigDecimal("1000"));
+        assertThat(others).extracting(BatchSuggestion::batchNo).containsExactly(b2);
+        assertThat(others.get(0).qty()).isEqualByComparingTo("120");
         assertThat(noticeDetail(n).at("/noticeStatus").asText()).isEqualTo("PICKING");
         assertThat(picking(p).at("/pickingStatus").asText()).isEqualTo("PICKING");
         // 拣货已开始不能反审核（此时状态已是拣货中）
@@ -126,6 +137,7 @@ class ShippingFlowIntegrationTest extends ShippingTestSupport {
         // SHP-SH-T02：确认出库 → 已出货，订单已出货数量增加
         submitAndConfirm(s1);
         assertThat(orderLineDto(ol).shippedQty()).isEqualByComparingTo("200");
+        assertThat(reserved(m)).as("出库后预留减少").isEqualByComparingTo("380");
         d = noticeDetail(n);
         assertThat(d.at("/lines/0/shippedQty").decimalValue()).isEqualByComparingTo("200");
         assertThat(d.at("/noticeStatus").asText()).isEqualTo("PACKED");
@@ -138,6 +150,7 @@ class ShippingFlowIntegrationTest extends ShippingTestSupport {
         assertThat(shipment(s2).at("/totalQty").decimalValue()).isEqualByComparingTo("380");
         assertThat(shipment(s2).at("/cartonCount").asInt()).isEqualTo(4);
         submitAndConfirm(s2);
+        assertThat(reserved(m)).as("全部出货后释放").isEqualByComparingTo("0");
         assertThat(noticeDetail(n).at("/noticeStatus").asText()).isEqualTo("SHIPPED");
         assertThat(orderLineDto(ol).shippedQty()).isEqualByComparingTo("580");
         assertError(doPost("/api/shipping/notices/" + n + "/shipments", admin, Map.of()), "出货通知尚未完成装箱/OQC");
@@ -273,5 +286,16 @@ class ShippingFlowIntegrationTest extends ShippingTestSupport {
         m.put("batchNo", batchNo);
         m.put("pickedQty", qty);
         return m;
+    }
+
+    @Autowired
+    JdbcTemplate jdbc;
+    @Autowired
+    InventoryQueryApi inventoryQueryApi;
+
+    /** 物料的有效库存预留 */
+    private BigDecimal reserved(String materialId) {
+        return jdbc.queryForObject("SELECT COALESCE(SUM(qty - released_qty), 0) FROM inv_reservation WHERE material_id = ? AND status = 'ACTIVE'",
+                BigDecimal.class, Long.valueOf(materialId));
     }
 }

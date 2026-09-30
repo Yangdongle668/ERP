@@ -116,7 +116,7 @@ INV_STOCK_IN、INV_STOCK_OUT、INV_TRANSFER、INV_COUNT、INV_BATCH（见 01-系
 |---|---|---|
 | `InventoryDocApi` | `createStockIn(StockInRequest)`、`createStockOut(StockOutRequest)`、`createTransfer(TransferRequest)`、`cancelBySource(sourceType, sourceId)` | 业务模块生成仓库单据；来源单据反审核时撤销未确认的仓库单据 |
 | `InventoryQueryApi` | `getAvailableQty(materialId[, warehouseId])`、`getStockSummary(materialIds)`、`suggestBatches(materialId, warehouseId, qty)`、`getOnHandByWarehouseType(...)` | 查询 |
-| `ReservationApi` | `reserve(bizType, bizId, lines)`、`release(bizType, bizId)` | 库存预留（P1） |
+| `ReservationApi` | `reserve(bizType, bizId, lines)`、`release(bizType, bizId)` | 库存预留（P1）：可用量扣除全部有效预留；`suggestBatches` 推荐批次时扣除其他单据的批次预留（可排除调用方自己的预留）；出库确认分配批次时不扣预留。当前使用方：出货拣货 |
 | `InventoryApi` | `post`、`reverse`（已定义，模块内部使用；其他模块不直接调用） | 过账引擎 |
 | `WarehouseApi` | `get`、`getDefaultWarehouse(categoryId, warehouseType)`、`listByType(type)` | 仓库查询 |
 | `InventoryCostApi` | `isPeriodClosed(period)`（早于启用期间视为已结账）、`getPeriodTxns(period)`（不含调拨）、`getOpeningBalances(period)`（上期结存金额，没有时按流水推算）、`applyCosts(period, unitCostByTxn)`（只回填本期流水 unit_cost / amount）、`saveClosingCosts(period, unitCostByMaterial)`（期末结存金额写入 inv_period_balance） | 财务成本核算（12-07） |

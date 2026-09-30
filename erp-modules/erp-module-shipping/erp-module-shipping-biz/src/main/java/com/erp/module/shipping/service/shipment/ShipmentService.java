@@ -72,6 +72,7 @@ import com.erp.module.shipping.service.ShpStateMachines;
 import com.erp.module.shipping.service.ShpSupport;
 import com.erp.module.shipping.service.notice.NoticeFlow;
 import com.erp.module.shipping.service.picking.PackingService;
+import com.erp.module.shipping.service.picking.PickingService;
 import com.erp.module.shipping.service.picking.PackingService.Unit;
 import com.erp.module.system.api.user.UserDTO;
 import com.erp.module.system.api.workflow.ApprovalCompletedEvent;
@@ -121,6 +122,7 @@ public class ShipmentService {
     private final WorkflowApi workflowApi;
     private final DomainEventPublisher eventPublisher;
     private final PackingService packingService;
+    private final PickingService pickingService;
     private final NoticeFlow flow;
     private final ShpSupport support;
 
@@ -128,7 +130,8 @@ public class ShipmentService {
                            ShpCartonLineMapper cartonLineMapper, ShpForwarderMapper forwarderMapper, ShpLogisticsEventMapper eventMapper,
                            ShpPackingListMapper packingListMapper, ShpInvoiceMapper invoiceMapper, ShpCustomsMapper customsMapper,
                            SalesOrderQueryApi orderQueryApi, SalesOrderWritebackApi writebackApi, CreditApi creditApi, InventoryDocApi inventoryDocApi,
-                           WorkflowApi workflowApi, DomainEventPublisher eventPublisher, PackingService packingService, NoticeFlow flow, ShpSupport support) {
+                           WorkflowApi workflowApi, DomainEventPublisher eventPublisher, PackingService packingService, PickingService pickingService,
+                           NoticeFlow flow, ShpSupport support) {
         this.mapper = mapper;
         this.lineMapper = lineMapper;
         this.noticeLineMapper = noticeLineMapper;
@@ -146,6 +149,7 @@ public class ShipmentService {
         this.workflowApi = workflowApi;
         this.eventPublisher = eventPublisher;
         this.packingService = packingService;
+        this.pickingService = pickingService;
         this.flow = flow;
         this.support = support;
     }
@@ -494,6 +498,7 @@ public class ShipmentService {
         eventPublisher.publish(new ShipmentConfirmedEvent(s.getId(), s.getDocNo(), s.getCustomerId(), s.getCurrency(), s.getExchangeRate(), s.getShipDate(),
                 s.getTotalAmount(), s.getTotalAmountBase(), evLines));
         flow.refreshShipped(s.getNoticeId());
+        pickingService.syncReservation(s.getNoticeId());
     }
 
     /** 仓库反确认（已出货 → 待出库，冲回各方数据、单证失效）；出库单退回（待出库 → 草稿） */
@@ -518,6 +523,7 @@ public class ShipmentService {
             writebackApi.onShipmentReversed(s.getId());
             eventPublisher.publish(new ShipmentReversedEvent(s.getId(), s.getDocNo(), s.getCustomerId(), e.getReason()));
             flow.refreshShipped(s.getNoticeId());
+            pickingService.syncReservation(s.getNoticeId());
             support.message(List.of(s.getOwnerId()), "出货单 " + s.getDocNo() + " 已反确认出库", Objects.toString(e.getReason(), ""), "/shipping/shipment/" + s.getId());
         } else if (e.getKind() == StockDocEvent.Kind.REJECTED && st == ShipmentStatus.SUBMITTED) {
             s.setStockOutId(null);

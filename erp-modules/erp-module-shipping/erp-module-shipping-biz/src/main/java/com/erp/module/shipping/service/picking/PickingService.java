@@ -10,6 +10,7 @@ import com.erp.module.crm.api.customer.CustomerDTO;
 import com.erp.module.engineering.api.material.MaterialDTO;
 import com.erp.module.inventory.api.stock.BatchSuggestion;
 import com.erp.module.inventory.api.stock.InventoryQueryApi;
+import com.erp.module.inventory.api.stock.ReservationApi;
 import com.erp.module.shipping.api.ShippingErrorCodes;
 import com.erp.module.shipping.config.ShippingModuleConfig;
 import com.erp.module.shipping.controller.vo.PickingVOs.BatchOption;
@@ -23,10 +24,12 @@ import com.erp.module.shipping.dal.dataobject.ShpNoticeDO;
 import com.erp.module.shipping.dal.dataobject.ShpNoticeLineDO;
 import com.erp.module.shipping.dal.dataobject.ShpPickingDO;
 import com.erp.module.shipping.dal.dataobject.ShpPickingLineDO;
+import com.erp.module.shipping.dal.dataobject.ShpShipmentLineDO;
 import com.erp.module.shipping.dal.mapper.ShpNoticeLineMapper;
 import com.erp.module.shipping.dal.mapper.ShpNoticeMapper;
 import com.erp.module.shipping.dal.mapper.ShpPickingLineMapper;
 import com.erp.module.shipping.dal.mapper.ShpPickingMapper;
+import com.erp.module.shipping.dal.mapper.ShpShipmentLineMapper;
 import com.erp.module.shipping.service.NoticeStatus;
 import com.erp.module.shipping.service.PickingStatus;
 import com.erp.module.shipping.service.ShpAction;
@@ -63,16 +66,21 @@ public class PickingService {
     private final ShpNoticeMapper noticeMapper;
     private final ShpNoticeLineMapper noticeLineMapper;
     private final InventoryQueryApi inventoryQueryApi;
+    private final ReservationApi reservationApi;
+    private final ShpShipmentLineMapper shipmentLineMapper;
     private final NoticeFlow flow;
     private final ShpSupport support;
 
     public PickingService(ShpPickingMapper mapper, ShpPickingLineMapper lineMapper, ShpNoticeMapper noticeMapper, ShpNoticeLineMapper noticeLineMapper,
-                          InventoryQueryApi inventoryQueryApi, NoticeFlow flow, ShpSupport support) {
+                          InventoryQueryApi inventoryQueryApi, ReservationApi reservationApi, ShpShipmentLineMapper shipmentLineMapper, NoticeFlow flow,
+                          ShpSupport support) {
         this.mapper = mapper;
         this.lineMapper = lineMapper;
         this.noticeMapper = noticeMapper;
         this.noticeLineMapper = noticeLineMapper;
         this.inventoryQueryApi = inventoryQueryApi;
+        this.reservationApi = reservationApi;
+        this.shipmentLineMapper = shipmentLineMapper;
         this.flow = flow;
         this.support = support;
     }
@@ -126,7 +134,50 @@ public class PickingService {
     /** SHP-PK-R06：通知关闭 / 反审核时拣货单作废 */
     public void cancelFor(Long noticeId, String reason) {
         ShpPickingDO p = flow.activePicking(noticeId);
-        if (p != null) fire(p, ShpAction.CANCEL, reason);
+        if (p != null) {
+            fire(p, ShpAction.CANCEL, reason);
+            reservationApi.release(BIZ_TYPE, p.getId());
+        }
+    }
+
+    /**
+     * SHP-PK-R02 库存预留：拣货开始后预留所拣批次（未录入实拣时按推荐批次），数量 = 拣货数量 − 该通知已确认出库的数量（按物料 + 批次）。
+     * 拣货取消、通知已出货 / 关闭 / 作废时释放全部预留。出货单出库确认、反确认后由出货单调用本方法重新计算。
+     */
+    public void syncReservation(Long noticeId) {
+        ShpPickingDO p = flow.activePicking(noticeId);
+        if (p == null) return;
+        ShpNoticeDO n = flow.get(noticeId);
+        NoticeStatus ns = NoticeFlow.status(n);
+        PickingStatus ps = PickingStatus.valueOf(p.getPickingStatus());
+        if (ps == PickingStatus.WAITING || ps == PickingStatus.CANCELED || ns == NoticeStatus.SHIPPED || ns == NoticeStatus.CLOSED
+                || ns == NoticeStatus.VOIDED) {
+            reservationApi.release(BIZ_TYPE, p.getId());
+            return;
+        }
+        List<ShpPickingLineDO> lines = lineMapper.selectByParent(p.getId());
+        boolean anyPicked = lines.stream().anyMatch(l -> ShpSupport.nz(l.getPickedQty()).signum() > 0);
+        Map<String, BigDecimal> shipped = new HashMap<>();
+        List<Long> noticeLineIds = lines.stream().map(ShpPickingLineDO::getNoticeLineId).distinct().toList();
+        if (!noticeLineIds.isEmpty()) {
+            for (ShpShipmentLineDO sl : shipmentLineMapper.selectList(new LambdaQueryWrapper<ShpShipmentLineDO>()
+                    .in(ShpShipmentLineDO::getNoticeLineId, noticeLineIds).gt(ShpShipmentLineDO::getOutQty, 0))) {
+                shipped.merge(sl.getMaterialId() + "|" + Objects.toString(sl.getBatchNo(), ""), sl.getOutQty(), BigDecimal::add);
+            }
+        }
+        List<ReservationApi.Line> out = new ArrayList<>();
+        for (ShpPickingLineDO l : lines) {
+            if (Boolean.TRUE.equals(l.getShortage()) && !anyPicked) continue;
+            BigDecimal q = anyPicked ? ShpSupport.nz(l.getPickedQty()) : ShpSupport.nz(l.getSuggestedQty());
+            String key = l.getMaterialId() + "|" + Objects.toString(l.getBatchNo(), "");
+            BigDecimal s = shipped.getOrDefault(key, BigDecimal.ZERO);
+            BigDecimal used = s.min(q);
+            shipped.put(key, s.subtract(used));
+            q = q.subtract(used);
+            if (q.signum() > 0) out.add(new ReservationApi.Line(l.getId(), l.getMaterialId(), p.getWarehouseId(), l.getBatchNo(), q));
+        }
+        if (out.isEmpty()) reservationApi.release(BIZ_TYPE, p.getId());
+        else reservationApi.reserve(BIZ_TYPE, p.getId(), p.getDocNo(), out);
     }
 
     // ==================== 拣货 ====================
@@ -146,6 +197,7 @@ public class PickingService {
         fire(p, ShpAction.START_PICK, null);
         ShpNoticeDO n = flow.get(p.getNoticeId());
         if (NoticeFlow.status(n) == NoticeStatus.APPROVED) flow.fire(n, ShpAction.START_PICK, "拣货单 " + p.getDocNo());
+        syncReservation(p.getNoticeId());
     }
 
     /** 录入实拣批次与数量（SHP-PK-R02：批次可用数量校验；未开始时自动开始） */
@@ -173,7 +225,7 @@ public class PickingService {
             BigDecimal max = NoticeFlow.effectiveQty(nl);
             if (e.getValue().compareTo(max) > 0) throw BizException.of(ShippingErrorCodes.PK_PICK_EXCEED, nl.getLineNo(), ShpSupport.plain(max));
         }
-        checkBatches(p.getWarehouseId(), list.stream().map(s -> new Pick(nls.get(s.noticeLineId()).getMaterialId(), s.batchNo(), s.pickedQty())).toList());
+        checkBatches(p.getId(), p.getWarehouseId(), list.stream().map(s -> new Pick(nls.get(s.noticeLineId()).getMaterialId(), s.batchNo(), s.pickedQty())).toList());
         lineMapper.deleteByParent(id);
         int no = 1;
         for (PickLineSave s : list) {
@@ -185,20 +237,21 @@ public class PickingService {
         }
         p = get(id);
         mapper.updateByIdOrFail(p);
+        syncReservation(p.getNoticeId());
     }
 
     private record Pick(Long materialId, String batchNo, BigDecimal qty) {
     }
 
-    /** SHP-PK-R02：批次在出货仓的可用数量（ReservationApi 未上线，仅做校验） */
-    private void checkBatches(Long warehouseId, List<Pick> picks) {
+    /** SHP-PK-R02：批次在出货仓的可用数量（已扣除其他单据的预留，本拣货单自己的预留不扣） */
+    private void checkBatches(Long pickingId, Long warehouseId, List<Pick> picks) {
         Map<Long, Map<String, BigDecimal>> need = new LinkedHashMap<>();
         for (Pick p : picks) {
             if (p.qty().signum() <= 0) continue;
             need.computeIfAbsent(p.materialId(), k -> new LinkedHashMap<>()).merge(Objects.toString(ShpSupport.trim(p.batchNo()), ""), p.qty(), BigDecimal::add);
         }
         for (Map.Entry<Long, Map<String, BigDecimal>> e : need.entrySet()) {
-            Map<String, BigDecimal> avail = available(e.getKey(), warehouseId);
+            Map<String, BigDecimal> avail = available(e.getKey(), warehouseId, pickingId);
             for (Map.Entry<String, BigDecimal> b : e.getValue().entrySet()) {
                 BigDecimal a = avail.getOrDefault(b.getKey(), BigDecimal.ZERO);
                 if (b.getValue().compareTo(a) > 0) throw BizException.of(ShippingErrorCodes.PK_BATCH_SHORT, b.getKey(), ShpSupport.plain(a));
@@ -206,9 +259,9 @@ public class PickingService {
         }
     }
 
-    private Map<String, BigDecimal> available(Long materialId, Long warehouseId) {
+    private Map<String, BigDecimal> available(Long materialId, Long warehouseId, Long pickingId) {
         Map<String, BigDecimal> map = new HashMap<>();
-        for (BatchSuggestion s : inventoryQueryApi.suggestBatches(materialId, warehouseId, ALL)) {
+        for (BatchSuggestion s : inventoryQueryApi.suggestBatches(materialId, warehouseId, ALL, BIZ_TYPE, pickingId)) {
             map.merge(Objects.toString(s.batchNo(), ""), s.qty(), BigDecimal::add);
         }
         return map;
@@ -219,7 +272,7 @@ public class PickingService {
         ShpPickingDO p = get(id);
         ShpNoticeLineDO nl = noticeLineMapper.selectById(noticeLineId);
         if (nl == null) throw BizException.of(ShippingErrorCodes.NOT_EXISTS, "通知行");
-        return inventoryQueryApi.suggestBatches(nl.getMaterialId(), p.getWarehouseId(), ALL).stream()
+        return inventoryQueryApi.suggestBatches(nl.getMaterialId(), p.getWarehouseId(), ALL, BIZ_TYPE, p.getId()).stream()
                 .map(s -> new BatchOption(s.batchNo(), s.locationId(), s.qty(), s.productionDate(), s.expireDate())).toList();
     }
 
@@ -249,7 +302,7 @@ public class PickingService {
                 shortages.put(nl, need.subtract(q));
             }
         }
-        checkBatches(p.getWarehouseId(), lines.stream().map(l -> new Pick(l.getMaterialId(), l.getBatchNo(), ShpSupport.nz(l.getPickedQty()))).toList());
+        checkBatches(p.getId(), p.getWarehouseId(), lines.stream().map(l -> new Pick(l.getMaterialId(), l.getBatchNo(), ShpSupport.nz(l.getPickedQty()))).toList());
         boolean packing = support.params().getBool(ShippingModuleConfig.P_PACKING);
         for (ShpNoticeLineDO nl : nls) {
             BigDecimal q = Decimals.qty(picked.getOrDefault(nl.getId(), BigDecimal.ZERO));
@@ -273,6 +326,7 @@ public class PickingService {
             n = flow.get(n.getId());
             flow.fire(n, ShpAction.PACK, "未启用装箱，拣货完成即已装箱");
         }
+        syncReservation(n.getId());
     }
 
     private void fire(ShpPickingDO p, ShpAction action, String reason) {

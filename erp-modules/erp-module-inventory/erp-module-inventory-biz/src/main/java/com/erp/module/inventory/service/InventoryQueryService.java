@@ -170,6 +170,20 @@ public class InventoryQueryService implements InventoryQueryApi, ReservationApi,
 
     @Override
     public List<BatchSuggestion> suggestBatches(Long materialId, Long warehouseId, BigDecimal qty) {
+        return suggestBatches(materialId, warehouseId, qty, null, null);
+    }
+
+    @Override
+    public List<BatchSuggestion> suggestBatches(Long materialId, Long warehouseId, BigDecimal qty, String excludeBizType, Long excludeBizId) {
+        return suggest(materialId, warehouseId, qty, true, excludeBizType, excludeBizId);
+    }
+
+    /** 出库确认时的批次 / 库位分配：出库即实际占用，不扣预留（预留在来源单据出库后由来源模块释放） */
+    public List<BatchSuggestion> suggestIgnoringReservation(Long materialId, Long warehouseId, BigDecimal qty) {
+        return suggest(materialId, warehouseId, qty, false, null, null);
+    }
+
+    private List<BatchSuggestion> suggest(Long materialId, Long warehouseId, BigDecimal qty, boolean netReserved, String excludeBizType, Long excludeBizId) {
         List<StockDO> stocks = stockMapper.selectList(new LambdaQueryWrapper<StockDO>().eq(StockDO::getMaterialId, materialId)
                 .eq(StockDO::getWarehouseId, warehouseId).gt(StockDO::getQty, 0));
         UsableFilter f = usableFilter(stocks);
@@ -186,11 +200,22 @@ public class InventoryQueryService implements InventoryQueryApi, ReservationApi,
                     return fefo ? (b.getExpireDate() == null ? LocalDate.MAX : b.getExpireDate()) : b.getFirstInDate();
                 }).thenComparing(StockDO::getBatchNo).thenComparing(StockDO::getLocationId))
                 .toList();
+        // 其他单据的批次预留（非批次物料的预留按空批次）依次从该批次的各库位扣除
+        Map<String, BigDecimal> reserved = new HashMap<>();
+        if (netReserved) reservationMapper.selectList(new LambdaQueryWrapper<ReservationDO>().eq(ReservationDO::getMaterialId, materialId)
+                        .eq(ReservationDO::getWarehouseId, warehouseId).eq(ReservationDO::getStatus, ACTIVE))
+                .stream().filter(r -> excludeBizType == null || !(excludeBizType.equals(r.getBizType()) && r.getBizId().equals(excludeBizId)))
+                .forEach(r -> reserved.merge(r.getBatchNo() == null ? "" : r.getBatchNo(), r.getQty().subtract(r.getReleasedQty()).max(BigDecimal.ZERO),
+                        BigDecimal::add));
         List<BatchSuggestion> out = new ArrayList<>();
         BigDecimal rest = qty == null ? BigDecimal.ZERO : qty;
         for (StockDO s : candidates) {
             if (rest.signum() <= 0) break;
-            BigDecimal take = s.getQty().min(rest);
+            BigDecimal held = reserved.getOrDefault(s.getBatchNo(), BigDecimal.ZERO);
+            BigDecimal free = s.getQty().subtract(held);
+            reserved.put(s.getBatchNo(), held.subtract(s.getQty()).max(BigDecimal.ZERO));
+            if (free.signum() <= 0) continue;
+            BigDecimal take = free.min(rest);
             BatchDO b = batches.get(s.getBatchNo());
             out.add(new BatchSuggestion(s.getBatchNo().isEmpty() ? null : s.getBatchNo(), s.getLocationId() == 0 ? null : s.getLocationId(), take,
                     b == null ? null : b.getProductionDate(), b == null ? null : b.getExpireDate()));

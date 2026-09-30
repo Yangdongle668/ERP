@@ -24,6 +24,12 @@ public interface InventoryQueryApi {
      */
     List<BatchSuggestion> suggestBatches(Long materialId, Long warehouseId, BigDecimal qty);
 
+    /**
+     * 同 {@link #suggestBatches(Long, Long, BigDecimal)}，已扣除其他单据在该仓库的批次预留（{@link ReservationApi}）；
+     * excludeBizType / excludeBizId 为调用方自己的预留，不扣除（为空表示全部扣除）。
+     */
+    List<BatchSuggestion> suggestBatches(Long materialId, Long warehouseId, BigDecimal qty, String excludeBizType, Long excludeBizId);
+
     /** 按仓库类型汇总的现存量 */
     Map<WarehouseType, BigDecimal> getOnHandByWarehouseType(Long materialId);
 }
