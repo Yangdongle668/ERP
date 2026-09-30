@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -285,6 +286,13 @@ public class WorkflowEngine implements WorkflowApi {
                     ids.stream().map(id -> users.containsKey(id) ? users.get(id).realName() : String.valueOf(id)).toList(),
                     ins.getInitiatorId(), ins.getStartedAt());
         });
+    }
+
+    @Override
+    public Map<Long, String> getTaskStatuses(Collection<Long> taskIds) {
+        List<Long> ids = taskIds == null ? List.of() : taskIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) return Map.of();
+        return taskMapper.selectBatchIds(ids).stream().collect(java.util.stream.Collectors.toMap(WfTaskDO::getId, WfTaskDO::getStatus));
     }
 
     /** R12：用户停用时，其待处理任务转交给主部门负责人（负责人即本人或为空时转给流程管理员） */

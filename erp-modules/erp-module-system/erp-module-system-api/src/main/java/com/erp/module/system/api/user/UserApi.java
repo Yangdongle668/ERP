@@ -27,4 +27,7 @@ public interface UserApi {
 
     /** 拥有某权限的启用用户（含超级管理员），用于发送提醒 */
     List<UserDTO> listByPermission(String permission);
+
+    /** 启用用户；deptIds 为空时返回全部启用用户，否则只返回主部门在其中的用户（公告应读人数等） */
+    List<UserDTO> listEnabled(Collection<Long> deptIds);
 }

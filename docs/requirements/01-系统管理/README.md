@@ -78,7 +78,7 @@
 | 接口 | 方法 | 说明 |
 |---|---|---|
 | `CurrentUserApi` | `current()` | 当前用户：ID、姓名、主部门、所属公司、角色、数据范围 |
-| `UserApi` | `get(id)`、`list(ids)`、`getDeptLeader(deptId)`、`getSuperior(userId)` | 用户查询、部门负责人、直属上级 |
+| `UserApi` | `get(id)`、`list(ids)`、`getDeptLeader(deptId)`、`getSuperior(userId)`、`listByPermission(permission)`、`listEnabled(deptIds)` | 用户查询、部门负责人、直属上级、按权限 / 部门取启用用户（工作台预警接收人、公告应读人数） |
 | `OrgApi` | `get(id)`、`getChildrenIds(id)`、`getCompanyOf(deptId)` | 组织查询 |
 | `@DataScope` / `SecurityUtils.currentDataScope()`（框架） | — | 当前用户的数据范围：注解自动拼条件，或手工读取后拼条件 |
 | `CodeRuleApi` | `nextCode(bizCode)` | 生成编码（已实现） |
@@ -87,11 +87,13 @@
 | `PaymentTermApi` | `get(id)`、`calcDueDates(termId, amount, events)` | 付款条件与到期日计算 |
 | `CurrencyApi` | `getBaseCurrency()`、`getRate(currency, date)`、`getPrecision(currency)` | 币别汇率 |
 | `ParamApi` | `getString/getInt/getDecimal/getBool(key)` | 系统参数 |
-| `WorkflowApi` | `start(bizType, bizId, bizNo, title, variables, bizUsers, initiatorId)`、`withdraw(...)`、`isRunning(...)`、`getRunning(...)` | 审批流（已实现）。`start` 返回 `isStarted()=false`（NOT_REQUIRED 未配置 / AUTO_APPROVED 全部自动通过）时调用方直接审核；为 true 时单据置为待审批，结果以 `ApprovalCompletedEvent` 在审批动作的同一事务内通知 |
+| `WorkflowApi` | `start(bizType, bizId, bizNo, title, variables, bizUsers, initiatorId)`、`withdraw(...)`、`isRunning(...)`、`getRunning(...)`、`getTaskStatuses(taskIds)`（工作台待办对账） | 审批流（已实现）。`start` 返回 `isStarted()=false`（NOT_REQUIRED 未配置 / AUTO_APPROVED 全部自动通过）时调用方直接审核；为 true 时单据置为待审批，结果以 `ApprovalCompletedEvent` 在审批动作的同一事务内通知 |
 | `NotifyApi` | `todo(...)`、`done(...)`、`message(...)`、`alert(...)`、`resolve(alertKey)` | 各模块发待办、消息、预警的统一入口，发布 `TodoCreatedEvent` 等事件，由工作台监听（契约已实现） |
 | `DocLogApi` | `record(bizType, bizId, bizNo, action, fromStatus, toStatus, reason)` | 单据操作日志 |
 | `FileApi` | `bind(fileIds, bizType, bizId)`、`list(bizType, bizId)`、`deleteByBiz(...)`、`saveGenerated(...)` | 附件（已实现）；访问控制扩展点 `FileAccessChecker` |
 | `AsyncTaskApi` | `submit(type, name, moduleCode, TaskRunner)` | 提交后台任务（异步导出等，已实现）；定时任务用 `@ErpJob` 声明 |
+
+**用户事件**：`UserDeactivatedEvent`（用户停用后发布；工作台把其任务类待办转给部门负责人）。
 
 ## 7. 开发分期
 

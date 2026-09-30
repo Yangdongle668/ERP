@@ -1,5 +1,6 @@
 package com.erp.module.system.api.workflow;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 
@@ -28,4 +29,7 @@ public interface WorkflowApi {
 
     /** 单据当前审批状态（没有进行中的审批时为空）。 */
     Optional<ApprovalSummary> getRunning(String bizType, Long bizId);
+
+    /** 审批任务当前状态（PENDING / APPROVED / REJECTED / TRANSFERRED / CANCELED / AUTO_PASSED），不存在的任务不出现在结果中；工作台对账用 */
+    Map<Long, String> getTaskStatuses(Collection<Long> taskIds);
 }

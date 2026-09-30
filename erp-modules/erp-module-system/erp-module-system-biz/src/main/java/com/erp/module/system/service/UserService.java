@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.erp.common.enums.EnableStatus;
 import com.erp.common.exception.BizException;
 import com.erp.common.result.PageResult;
+import com.erp.framework.datascope.DataScopes;
 import com.erp.framework.excel.ImportRow;
 import com.erp.framework.security.LoginUser;
 import com.erp.framework.security.SecurityUtils;
@@ -30,6 +31,7 @@ import com.erp.module.system.dal.mapper.UserMapper;
 import com.erp.module.system.dal.mapper.UserRoleMapper;
 import com.erp.module.system.service.support.SystemCaches;
 import com.erp.module.system.service.support.UserDisabledEvent;
+import com.erp.module.system.api.user.UserDeactivatedEvent;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -351,6 +353,7 @@ public class UserService implements UserApi {
         userMapper.increaseTokenVersion(id);
         caches.evictLoginUser(id);
         eventPublisher.publishEvent(new UserDisabledEvent(id));
+        eventPublisher.publishEvent(new UserDeactivatedEvent(id));
     }
 
     /** 批量停用：逐条执行，部分失败时返回每条结果 */
@@ -538,6 +541,13 @@ public class UserService implements UserApi {
     @Override
     public List<UserDTO> listByPermission(String permission) {
         return userMapper.selectByPermission(permission).stream().map(this::toDTO).toList();
+    }
+
+    @Override
+    public List<UserDTO> listEnabled(Collection<Long> deptIds) {
+        boolean all = deptIds == null || deptIds.isEmpty();
+        return DataScopes.ignore(() -> userMapper.selectList(new LambdaQueryWrapper<UserDO>().eq(UserDO::getStatus, EnableStatus.ENABLED)
+                .in(!all, UserDO::getDeptId, all ? List.of() : deptIds))).stream().map(this::toDTO).toList();
     }
 
     private static String trim(String s) {

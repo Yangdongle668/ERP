@@ -27,6 +27,10 @@
         </dependency>
         <dependency>
             <groupId>com.erp</groupId>
+            <artifactId>erp-module-workbench-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.erp</groupId>
             <artifactId>erp-module-engineering-api</artifactId>
         </dependency>
         <dependency>
