@@ -176,3 +176,4 @@ CI（`.github/workflows/ci.yml`）：后端 `mvn -B verify`，前端 `npm ci && 
 - [后端架构设计](docs/architecture/后端架构设计.md)
 - [UI 设计规范](docs/ui/UI设计规范.md)
 - [并行开发指南](docs/并行开发指南.md)
+- [待完成与优化清单](docs/待完成与优化清单.md)
