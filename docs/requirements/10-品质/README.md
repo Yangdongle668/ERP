@@ -132,7 +132,7 @@ QC_IQC、QC_IPQC、QC_FQC、QC_OQC、QC_RETURN（`RI-yyyyMMdd-3`）、QC_RECHECK
 - **其他模块契约新增**：`StockInConfirmedEvent` 增加 `supplierId` / `customerId`；`PurchaseReceiptApi.revertInspection`（重判撤销）；生产报工依赖 quality-api。
 - **限制**：
   - 采购退货暂无生成草稿的接口：“通知采购退货”向采购员发待办，退货单号在处置明细中手工登记。
-  - 参数 `qc.defect.alert-threshold`（同一不良当日预警）暂未生效；IPQC 不合格时生产订单工序的警示暂未显示。
+  - 同一不良当日预警（参数 `qc.defect.alert-threshold`）：IPQC 判定后，按缺陷代码汇总当天已判定 IPQC 的缺陷数，达到阈值时向品质主管发工作台预警（每个缺陷代码每天一次）。IPQC 不合格时生产订单工序的警示暂未显示。
   - 质量追溯的出货记录取批次的销售出库流水，出货客户待出货模块上线后补充。
   - SCAR 加严抽样（QC-SCAR-R04，P2）、检验报告与 8D 报告的英文模板暂未提供（SCAR 已有英文模板）。
   - 质量报表的图表以条形图表示，制程良率、直通率沿用生产报表。

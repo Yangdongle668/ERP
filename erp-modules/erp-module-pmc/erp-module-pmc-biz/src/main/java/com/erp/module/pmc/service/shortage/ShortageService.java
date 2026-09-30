@@ -393,7 +393,7 @@ public class ShortageService {
 
     public List<SnapshotRow> snapshots() {
         List<PmcShortageOrderDO> list = orderMapper.selectList(new LambdaQueryWrapper<PmcShortageOrderDO>()
-                .ge(PmcShortageOrderDO::getCreatedAt, LocalDateTime.now().minusDays(30)).orderByDesc(PmcShortageOrderDO::getCreatedAt));
+                .ge(PmcShortageOrderDO::getCreatedAt, LocalDateTime.now().minusDays(30)).orderByDesc(PmcShortageOrderDO::getCreatedAt).orderByDesc(PmcShortageOrderDO::getId));
         Map<String, List<PmcShortageOrderDO>> by = list.stream().collect(Collectors.groupingBy(PmcShortageOrderDO::getSnapshotNo, LinkedHashMap::new,
                 Collectors.toList()));
         Map<Long, UserDTO> users = support.users(list.stream().map(PmcShortageOrderDO::getCreatedBy).toList());

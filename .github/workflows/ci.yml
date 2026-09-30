@@ -23,6 +23,37 @@ jobs:
       # 编译 + 单元测试 + 集成测试（H2）+ 模块边界检查（ArchUnit）
       - run: mvn -B verify
 
+  backend-mysql:
+    name: 后端集成测试（MySQL 8）
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: erp_it
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -uroot -proot --silent"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    env:
+      # 覆盖测试配置中的 H2 连接，同一套集成测试在 MySQL 8 上再跑一遍（发现保留字、方言差异等 H2 测不出的问题）
+      SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/erp_it?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true&sendFractionalSeconds=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: 设置 MySQL 字符集与时区
+        run: |
+          mysql -h127.0.0.1 -uroot -proot -e "ALTER DATABASE erp_it CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci; SET GLOBAL time_zone = '+08:00';"
+      - run: mvn -B verify
+
   frontend:
     name: 前端类型检查与构建
     runs-on: ubuntu-latest

@@ -1,6 +1,7 @@
 spring:
+  # sendFractionalSeconds=false：DATETIME 不带毫秒，MySQL 默认对毫秒四舍五入（可能把“现在”存成下一秒），改为截断
   datasource:
-    url: jdbc:mysql://${ERP_DB_HOST:localhost}:${ERP_DB_PORT:3306}/${ERP_DB_NAME:erp}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true
+    url: jdbc:mysql://${ERP_DB_HOST:localhost}:${ERP_DB_PORT:3306}/${ERP_DB_NAME:erp}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&rewriteBatchedStatements=true&sendFractionalSeconds=false
     username: ${ERP_DB_USER:erp}
     password: ${ERP_DB_PASSWORD:erp}
     hikari:

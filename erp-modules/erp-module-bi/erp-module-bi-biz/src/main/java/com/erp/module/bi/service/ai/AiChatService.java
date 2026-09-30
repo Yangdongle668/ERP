@@ -121,7 +121,7 @@ public class AiChatService {
 
     public List<AiConversationDO> conversations() {
         return conversationMapper.selectList(new LambdaQueryWrapper<AiConversationDO>().eq(AiConversationDO::getUserId, SecurityUtils.getLoginUser().id())
-                .orderByDesc(AiConversationDO::getUpdatedAt).last("LIMIT 200"));
+                .orderByDesc(AiConversationDO::getUpdatedAt).orderByDesc(AiConversationDO::getId).last("LIMIT 200"));
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -349,7 +349,7 @@ public class AiChatService {
     public PageResult<LogRow> logs(PageParam page, Long userId, Boolean success, String feedback) {
         PageResult<AiQueryLogDO> p = logMapper.selectPage(page, new LambdaQueryWrapper<AiQueryLogDO>().eq(userId != null, AiQueryLogDO::getUserId, userId)
                 .eq(success != null, AiQueryLogDO::getSuccess, success).eq(feedback != null && !feedback.isBlank(), AiQueryLogDO::getFeedback, feedback)
-                .orderByDesc(AiQueryLogDO::getCreatedAt));
+                .orderByDesc(AiQueryLogDO::getCreatedAt).orderByDesc(AiQueryLogDO::getId));
         Set<Long> ids = new HashSet<>();
         p.list().forEach(l -> ids.add(l.getUserId()));
         Map<Long, UserDTO> users = userApi.list(ids);

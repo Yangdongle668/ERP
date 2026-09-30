@@ -50,11 +50,11 @@ cd ERP
 脚本会：
 
 1. 检查 Docker 环境；
-2. 首次运行时由 `.env.example` 生成 `.env`，并随机生成数据库密码、root 密码与 JWT 密钥（`.env` 权限 600，请妥善保管）；
+2. 首次运行时由 `.env.example` 生成 `.env`，并随机生成数据库密码、root 密码、JWT 密钥与敏感参数加密密钥（`.env` 权限 600，请妥善保管）；
 3. 构建后端与前端镜像，启动 3 个容器：`mysql`（MySQL 8）、`erp-server`（Spring Boot）、`erp-ui`（Nginx 静态页面 + `/api` 反向代理）；
 4. 等待后端健康检查通过（首次启动自动执行全部模块的建表脚本）。
 
-完成后访问 `http://服务器IP`（端口可在 `.env` 的 `ERP_HTTP_PORT` 修改），初始账号 **`admin / admin123`**，首次登录后请立即修改密码。
+完成后访问 `http://服务器IP`（端口可在 `.env` 的 `ERP_HTTP_PORT` 修改），初始账号 **`admin / admin123`**，首次登录会强制修改密码。
 
 ```
 浏览器 ──80──▶ erp-ui（Nginx：静态页面，/api → erp-server:8080）
@@ -133,7 +133,8 @@ cd erp-ui && npm run build
 | `ERP_PROFILE` | `mysql` | `mysql` / `h2` |
 | `ERP_DB_HOST` / `ERP_DB_PORT` / `ERP_DB_NAME` | `localhost` / `3306` / `erp` | MySQL 连接 |
 | `ERP_DB_USER` / `ERP_DB_PASSWORD` | `erp` / `erp` | 数据库账号 |
-| `ERP_JWT_SECRET` | 开发用默认值 | **生产必须设置**，至少 32 位随机字符串 |
+| `ERP_JWT_SECRET` | 开发用默认值 | **生产必须设置**，至少 32 位随机字符串（`mysql` profile 下仍为默认值时拒绝启动） |
+| `ERP_SECRET_KEY` | 空（由 JWT 密钥派生） | 敏感参数（如 AI API Key）的加密密钥；设置后不要再修改，否则已保存的密文无法解密 |
 | `ERP_SERVER_PORT` | `8080` | 后端端口 |
 | `ERP_FILE_STORAGE` / `ERP_FILE_PATH` | `local` / `./data/files` | 附件存储 |
 | `ERP_AI_API_KEY` / `ERP_AI_BASE_URL` | 空 | AI 分析的 API Key / 接口地址（也可在“系统参数”页面配置） |
@@ -169,7 +170,7 @@ docs/                       需求、架构、UI 规范、并行开发指南
 - 数量金额统一 `BigDecimal`；业务错误抛 `BizException`，错误码按模块号段。
 - 接口权限 `@PreAuthorize("@ss.has('模块:资源:操作')")`，数据权限（本人 / 部门 / 公司 / 全部）通过 Mapper 上的 `@DataScope` 自动过滤。
 
-CI（`.github/workflows/ci.yml`）：后端 `mvn -B verify`，前端 `npm ci && npm run build`。
+CI（`.github/workflows/ci.yml`）：后端 `mvn -B verify`（H2）；同一套集成测试在 MySQL 8 服务容器上再跑一遍；前端 `npm ci && npm run build`。实体列名、迁移脚本列名、SQL 别名不能使用 MySQL 保留字（`SqlReservedWordTest` 检查）。
 
 ## 文档
 

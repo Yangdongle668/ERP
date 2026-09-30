@@ -120,7 +120,8 @@ PMC_MPS、PMC_MRP_RUN、PMC_SHIPPING_PLAN。
 - **production-api 新增**：`ProductionQueryApi.getOpenOrders`、`ProductionOrderApi.release`、`ProductionOrderApi.updatePlanDates`。
 - **限制**：
   - 净变更运算目前按全量计算。
-  - 参数 `pmc.mrp.use-substitute`（替代料）与 `pmc.mrp.po-date-basis`（在途日期依据）暂未生效：在途日期固定取确认交期，无则取要求日期。
+  - 替代料（参数 `pmc.mrp.use-substitute`，运算弹窗可临时指定）：由默认 BOM 展开的相关需求（计划订单子件、按 BOM 分配的在制需求）在主料供应不足时，按优先级用替代料的期初可用库存抵扣（替代料数量 = 主料 × 比例）；替代料尚未计算时先为其自身已知需求（含安全库存）保留库存。替代料只用库存、不生成建议；抵扣在供需平衡中显示为“替代料”行。已有生产订单按用料清单分配的需求不做替代。
+  - 在途日期（参数 `pmc.mrp.po-date-basis`）：CONFIRMED 取确认交期（无则要求日期），REQUIRED 取要求日期；MRP 与缺料分析一致。
   - 生产提前期按物料提前期（天），暂不按工艺工时换算。
   - 甘特图用点击调整代替拖拽。
   - 出货计划的明细只能由“生成计划”带出（可调整、删除）。

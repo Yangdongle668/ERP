@@ -73,6 +73,12 @@
 
 同一编码被两个模块重复声明时启动失败，并在日志中指出冲突的编码和模块。
 
+**敏感参数**：`ParamDefinition.secret(...)` 声明 `SECRET` 类型参数（如 `ai.api-key`）。值用 AES-GCM 加密保存（前缀 `enc:v1:`，密钥取环境变量 `ERP_SECRET_KEY`，为空时由 JWT 密钥派生），参数页面只显示后 4 位、以密码框输入（原样提交脱敏值视为未修改），修改日志只记“已修改 / 已清空”；`ParamApi` 返回解密后的明文。
+
+**引用检查扩展点**：`OrgReferenceChecker`（删除组织）、`CurrencyReferenceChecker`（修改本位币）由各业务模块实现，只查本模块的表；组织引用可直接使用框架类 `ModuleOrgReferences`（自动检查本模块单据头的 `org_id` / `dept_id` 及指定主数据表）。
+
+**安全默认值**：启动时若 `admin` 仍使用初始密码 `admin123`，自动置为“下次登录必须修改密码”（`erp.security.force-default-password-change`，默认开启）；`mysql` profile 下 JWT 密钥为开发默认值时拒绝启动。
+
 ## 6. 对其他模块提供的 API（system-api）
 
 | 接口 | 方法 | 说明 |
