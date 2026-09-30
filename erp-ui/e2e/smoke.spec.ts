@@ -38,7 +38,7 @@ test('管理员打开所有菜单页面：无脚本错误、无 5xx 接口', asy
     await page.goto(r)
     // 工作台有 SSE 长连接，不会出现 networkidle：固定留一点时间让页面接口返回
     await page.waitForTimeout(600)
-    await expect(page.locator('.layout')).toBeVisible()
+    await expect(page.locator('section.el-container.layout')).toBeVisible()
     if (/\/login/.test(page.url())) failed.push(`${r} → 被重定向到登录页`)
     if (problems.length) failed.push(`${r} → ${problems.join('; ')}`)
   }
