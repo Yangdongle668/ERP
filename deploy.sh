@@ -5,6 +5,9 @@
 #   ./deploy.sh          首次部署（已部署时相当于按当前代码重新构建并启动）
 #   ./deploy.sh --cn     使用国内镜像源构建（Maven 阿里云、npm npmmirror），写入 .env
 #   ./deploy.sh --swap   内存 ≤ 3.5GB 且没有足够交换空间时，自动创建 2GB 交换文件 /swapfile（需要 root）
+#   ./deploy.sh --backup-cron   部署完成后安装每日定时备份（数据库 + 附件，见 backup.sh）
+#   ./deploy.sh --https  使用 Caddy 自动申请 HTTPS 证书（需在 .env 设置 ERP_DOMAIN，80/443 端口可从公网访问）
+#   ./deploy.sh --monitoring   同时启动 Prometheus 监控（docker-compose.monitoring.yml）
 #   ./deploy.sh --help
 #
 # 小内存服务器（如 2 核 2G）：自动使用低内存配置（JVM 堆 640MB、MySQL 缓冲池 128MB），镜像逐个构建；
@@ -12,12 +15,15 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-CN=0; SWAP=0
+CN=0; SWAP=0; BACKUP_CRON_INSTALL=0; HTTPS=0; MONITORING=0
 for arg in "$@"; do
   case "$arg" in
     --cn) CN=1 ;;
     --swap) SWAP=1 ;;
-    -h|--help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --backup-cron) BACKUP_CRON_INSTALL=1 ;;
+    --https) HTTPS=1 ;;
+    --monitoring) MONITORING=1 ;;
+    -h|--help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "未知参数：$arg（--help 查看用法）"; exit 1 ;;
   esac
 done
@@ -44,6 +50,7 @@ if [ ! -f .env ]; then
   set_env ERP_DB_ROOT_PASSWORD "$(rand 24)"
   set_env ERP_JWT_SECRET "$(rand 64)"
   set_env ERP_SECRET_KEY "$(rand 64)"
+  set_env ERP_METRICS_TOKEN "$(rand 40)"
   chmod 600 .env
   info "已生成 .env（数据库密码、JWT 密钥为随机值，请妥善保管）"
 fi
@@ -81,6 +88,24 @@ if [ "$CN" = 1 ]; then
   set_env NPM_REGISTRY "https://registry.npmmirror.com"
   info "已启用国内镜像源（写入 .env）"
 fi
+# ---------- HTTPS / 监控（组合 compose 文件，写入 .env 的 COMPOSE_FILE，update.sh 与 docker compose 命令自动沿用） ----------
+env_val() { grep -E "^$1=" .env | tail -1 | cut -d= -f2- | tr -d '"'; }
+if [ "$HTTPS" = 1 ]; then
+  [ -n "$(env_val ERP_DOMAIN)" ] || fail "启用 HTTPS 需要在 .env 中设置 ERP_DOMAIN（已解析到本机的域名）"
+  set_env ERP_HTTPS true
+  # 前端容器只在本机监听，公网 80/443 由 Caddy 接管
+  case "$(env_val ERP_HTTP_PORT)" in ""|80) set_env ERP_HTTP_PORT 127.0.0.1:8088 ;; esac
+fi
+if [ "$MONITORING" = 1 ]; then
+  set_env ERP_MONITORING true
+  [ -n "$(env_val ERP_METRICS_TOKEN)" ] || set_env ERP_METRICS_TOKEN "$(rand 40)"
+fi
+FILES="docker-compose.yml"
+[ "$(env_val ERP_HTTPS)" = true ] && FILES="$FILES:docker-compose.https.yml"
+[ "$(env_val ERP_MONITORING)" = true ] && FILES="$FILES:docker-compose.monitoring.yml"
+[ -f docker-compose.override.yml ] && FILES="$FILES:docker-compose.override.yml"
+set_env COMPOSE_FILE "$FILES"
+
 set -a; . ./.env; set +a
 [ -n "${ERP_DB_PASSWORD:-}" ] && [ -n "${ERP_DB_ROOT_PASSWORD:-}" ] && [ -n "${ERP_JWT_SECRET:-}" ] \
   || fail ".env 中 ERP_DB_PASSWORD / ERP_DB_ROOT_PASSWORD / ERP_JWT_SECRET 不能为空"
@@ -120,7 +145,13 @@ wait_healthy erp-ui 120 || fail "前端未能正常启动（docker compose logs 
 PORT=${ERP_HTTP_PORT:-80}
 HOST=$(hostname -I 2>/dev/null | awk '{print $1}')
 info "部署完成！"
-echo "  访问地址：http://${HOST:-localhost}$([ "$PORT" = 80 ] || echo ":$PORT")"
-echo "  初始账号：admin / admin123（首次登录后请立即修改密码）"
+if [ "${ERP_HTTPS:-}" = true ]; then
+  echo "  访问地址：https://$ERP_DOMAIN（首次访问时 Caddy 自动申请证书）"
+else
+  echo "  访问地址：http://${HOST:-localhost}$([ "$PORT" = 80 ] || echo ":$PORT")"
+fi
+[ "${ERP_MONITORING:-}" = true ] && echo "  监控：Prometheus http://127.0.0.1:9090、Grafana http://127.0.0.1:3000（仅本机，可用 SSH 隧道访问）"
+if [ "$BACKUP_CRON_INSTALL" = 1 ]; then ./backup.sh --install-cron; else echo "  定时备份：./backup.sh --install-cron（每天 02:30 备份数据库与附件）"; fi
+echo "  初始账号：admin / admin123（首次登录会要求修改密码）"
 echo "  查看日志：docker compose logs -f erp-server"
 echo "  后续更新：./update.sh"

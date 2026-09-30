@@ -1,0 +1,44 @@
+groups:
+  - name: erp
+    rules:
+      - alert: ErpServerDown
+        expr: up{job="erp-server"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "ERP 后端无法访问"
+          description: "Prometheus 连续 2 分钟抓取不到 erp-server 指标"
+      - alert: ErpHeapHigh
+        expr: sum(jvm_memory_used_bytes{job="erp-server",area="heap"}) / sum(jvm_memory_max_bytes{job="erp-server",area="heap"}) > 0.9
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "ERP 后端堆内存使用超过 90%"
+          description: "持续 10 分钟，考虑调大 .env 的 JAVA_OPTS -Xmx 或排查内存占用"
+      - alert: ErpHttp5xx
+        expr: sum(rate(http_server_requests_seconds_count{job="erp-server",status=~"5.."}[5m])) > 0.1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "ERP 接口 5xx 错误增多"
+          description: "最近 5 分钟平均每秒超过 0.1 次服务器错误，请查看 docker compose logs erp-server（按 traceId 定位）"
+      - alert: ErpSlowRequests
+        expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job="erp-server",uri!~".*(export|stream|ai).*"}[10m]))) > 3
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "ERP 接口 P95 响应超过 3 秒"
+          description: "持续 10 分钟（不含导出、AI 与流式接口）"
+      - alert: ErpDbPoolExhausted
+        expr: hikaricp_connections_pending{job="erp-server"} > 5
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "数据库连接池等待过多"
+          description: "等待连接的请求持续超过 5 个"
+      - alert: ErpJobFailed
+        expr: increase(erp_job_runs_total{job="erp-server",result="FAILED"}[1h]) > 0
+        labels: { severity: warning }
+        annotations:
+          summary: "定时任务执行失败：{{ $labels.code }}"
+          description: "最近 1 小时定时任务 {{ $labels.code }} 有失败记录，请在系统管理 → 定时任务查看日志"

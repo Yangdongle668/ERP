@@ -77,14 +77,7 @@ fi
 # ---------- 备份数据库 ----------
 if [ "$BACKUP" = 1 ]; then
   if [ -n "$($COMPOSE ps -q mysql 2>/dev/null)" ]; then
-    mkdir -p backups
-    FILE="backups/erp-$(date +%Y%m%d-%H%M%S)-$OLD.sql.gz"
-    info "备份数据库 → $FILE"
-    $COMPOSE exec -T mysql sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines --triggers --databases "$MYSQL_DATABASE"' \
-      | gzip > "$FILE"
-    [ -s "$FILE" ] || fail "数据库备份失败"
-    KEEP=${BACKUP_KEEP:-10}
-    ls -1t backups/erp-*.sql.gz 2>/dev/null | tail -n +$((KEEP + 1)) | xargs -r rm -f
+    ./backup.sh --db-only --tag "$OLD" || fail "数据库备份失败"
   else
     warn "MySQL 未运行，跳过备份"
   fi

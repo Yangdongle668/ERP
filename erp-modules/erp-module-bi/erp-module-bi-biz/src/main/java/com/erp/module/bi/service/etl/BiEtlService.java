@@ -24,6 +24,7 @@ import com.erp.module.bi.dal.mapper.BiAggPurchaseMapper;
 import com.erp.module.bi.dal.mapper.BiAggQualityMapper;
 import com.erp.module.bi.dal.mapper.BiAggSalesMapper;
 import com.erp.module.bi.dal.mapper.BiEtlJobMapper;
+import com.erp.module.bi.dal.mapper.BiEtlLockMapper;
 import com.erp.module.bi.dal.mapper.BiEtlLogMapper;
 import com.erp.module.crm.api.customer.CustomerApi;
 import com.erp.module.engineering.api.material.MaterialApi;
@@ -121,12 +122,18 @@ public class BiEtlService {
     private final CostQueryApi costQueryApi;
     private final TransactionTemplate tx;
     private final ReentrantLock lock = new ReentrantLock();
+    /** 跨实例互斥（多实例部署）：JVM 内锁之外再抢数据库锁；到期时间兜底节点崩溃 */
+    private static final String DB_LOCK = "ETL";
+    private static final int DB_LOCK_MINUTES = 120;
+    private final String nodeId = java.util.UUID.randomUUID().toString().substring(0, 8);
+    private final BiEtlLockMapper lockMapper;
 
     public BiEtlService(ObjectProvider<BiFactProvider> providers, BiAggSalesMapper salesMapper, BiAggPurchaseMapper purchaseMapper,
                         BiAggProductionMapper productionMapper, BiAggQualityMapper qualityMapper, BiAggInventorySnapshotMapper snapshotMapper,
                         BiAggInventoryMonthlyMapper monthlyMapper, BiAggFinanceMapper financeMapper, BiEtlJobMapper jobMapper, BiEtlLogMapper logMapper,
                         MaterialApi materialApi, CustomerApi customerApi, SupplierApi supplierApi, UserApi userApi, OrgApi orgApi,
-                        CostQueryApi costQueryApi, PlatformTransactionManager txManager) {
+                        CostQueryApi costQueryApi, PlatformTransactionManager txManager, BiEtlLockMapper lockMapper) {
+        this.lockMapper = lockMapper;
         this.providers = providers;
         this.salesMapper = salesMapper;
         this.purchaseMapper = purchaseMapper;
@@ -180,11 +187,16 @@ public class BiEtlService {
         if (!lock.tryLock()) {
             throw BizException.of(BiErrorCodes.ETL_RUNNING, currentRunning());
         }
+        if (!tryDbLock()) {
+            lock.unlock();
+            throw BizException.of(BiErrorCodes.ETL_RUNNING, currentRunning());
+        }
         try {
             execute(job);
         } catch (IllegalStateException e) {
             // 失败原因已写入 bi_etl_job / bi_etl_log
         } finally {
+            dbUnlock();
             lock.unlock();
         }
         return ensureJob(job);
@@ -201,10 +213,34 @@ public class BiEtlService {
             throw BizException.of(BiErrorCodes.ETL_RUNNING, currentRunning());
         }
         try {
-            return execute(job);
+            // 其他节点正在运行时每 5 秒重试，最多等 30 分钟
+            long deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(30);
+            while (!tryDbLock()) {
+                if (System.currentTimeMillis() > deadline) throw BizException.of(BiErrorCodes.ETL_RUNNING, currentRunning());
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw BizException.of(BiErrorCodes.ETL_RUNNING, currentRunning());
+                }
+            }
+            try {
+                return execute(job);
+            } finally {
+                dbUnlock();
+            }
         } finally {
             lock.unlock();
         }
+    }
+
+    private boolean tryDbLock() {
+        LocalDateTime now = LocalDateTime.now();
+        return lockMapper.tryLock(DB_LOCK, nodeId, now, now.plusMinutes(DB_LOCK_MINUTES)) > 0;
+    }
+
+    private void dbUnlock() {
+        lockMapper.unlock(DB_LOCK, nodeId);
     }
 
     private String currentRunning() {

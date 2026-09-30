@@ -1,0 +1,27 @@
+# HTTPS：Caddy 自动申请 / 续期 Let's Encrypt 证书，反向代理到前端容器。
+# 由 ./deploy.sh --https 启用（写入 .env 的 COMPOSE_FILE），需要 .env 的 ERP_DOMAIN，且公网可访问本机 80 / 443 端口。
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - erp-ui
+    environment:
+      ERP_DOMAIN: ${ERP_DOMAIN:?启用 HTTPS 需要在 .env 中设置 ERP_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+volumes:
+  caddy-data:
+  caddy-config:

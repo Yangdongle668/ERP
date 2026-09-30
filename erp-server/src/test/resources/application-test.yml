@@ -4,6 +4,8 @@ spring:
     username: sa
     password:
 erp:
+  monitoring:
+    metrics-token: test-metrics-token
   file:
     local-path: ${java.io.tmpdir}/erp-it-files
   security:

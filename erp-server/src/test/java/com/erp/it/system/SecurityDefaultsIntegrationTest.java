@@ -90,4 +90,25 @@ class SecurityDefaultsIntegrationTest extends AbstractIntegrationTest {
         custom.setSecret("a-random-secret-with-more-than-32-characters");
         new JwtTokenService(custom, prod);
     }
+
+    /** Prometheus 指标端点：需要令牌；定时任务执行后有 erp_job_runs_total 指标 */
+    @Test
+    void prometheusEndpointRequiresToken() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/actuator/prometheus"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isUnauthorized());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/actuator/prometheus")
+                        .header("Authorization", "Bearer wrong"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isUnauthorized());
+        ok(doPost("/api/system/jobs/SYS_LOG_CLEANUP/run", loginAsAdmin(), null));
+        String body = null;
+        for (int i = 0; i < 50; i++) {
+            body = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/actuator/prometheus")
+                            .header("Authorization", "Bearer test-metrics-token"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            if (body.contains("erp_job_runs_total")) break;
+            Thread.sleep(100);
+        }
+        assertThat(body).contains("jvm_memory_used_bytes").contains("http_server_requests_seconds").contains("erp_job_runs_total");
+    }
 }

@@ -1,0 +1,21 @@
+# 域名取环境变量 ERP_DOMAIN；证书自动申请与续期，数据保存在 caddy-data 数据卷
+{$ERP_DOMAIN} {
+	encode gzip
+	# 与前端 Nginx 一致：附件上传上限
+	request_body {
+		max_size 520MB
+	}
+	reverse_proxy erp-ui:80 {
+		# AI 问答使用 SSE 流式输出，关闭缓冲
+		flush_interval -1
+		transport http {
+			read_timeout 600s
+			write_timeout 600s
+		}
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}

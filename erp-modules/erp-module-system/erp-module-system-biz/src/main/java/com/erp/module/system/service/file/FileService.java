@@ -14,6 +14,7 @@ import com.erp.module.system.dal.dataobject.FileDO;
 import com.erp.module.system.dal.mapper.FileMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -34,8 +35,10 @@ import java.util.Collection;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * 附件（需求 01-系统管理/12 第 1 节）：上传校验（大小、扩展名、文件头）、访问控制（FileAccessChecker）、绑定、清理。
@@ -53,14 +56,19 @@ public class FileService implements FileApi {
     private static final DateTimeFormatter DIR = DateTimeFormatter.ofPattern("yyyy/MM");
 
     private final FileMapper fileMapper;
+    /** 新附件写入的存储（erp.file.storage） */
     private final FileStorage storage;
+    /** 全部可用存储，按附件记录的 storage 读取 / 删除（切换存储后历史附件仍可用） */
+    private final Map<String, FileStorage> storages;
     private final ParamApi paramApi;
     /** 延迟获取：业务模块的 checker 可能依赖 FileApi，避免循环依赖 */
     private final ObjectProvider<FileAccessChecker> checkers;
 
-    public FileService(FileMapper fileMapper, FileStorage storage, ParamApi paramApi, ObjectProvider<FileAccessChecker> checkers) {
+    public FileService(FileMapper fileMapper, List<FileStorage> storages, @Value("${erp.file.storage:local}") String active, ParamApi paramApi,
+                       ObjectProvider<FileAccessChecker> checkers) {
         this.fileMapper = fileMapper;
-        this.storage = storage;
+        this.storages = storages.stream().collect(Collectors.toMap(FileStorage::type, s -> s));
+        this.storage = this.storages.getOrDefault(active.trim().toUpperCase(), this.storages.get(FileDO.STORAGE_LOCAL));
         this.paramApi = paramApi;
         this.checkers = checkers;
     }
@@ -126,7 +134,7 @@ public class FileService implements FileApi {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCompletion(int status) {
-                    if (status == STATUS_ROLLED_BACK) deleteQuietly(path);
+                    if (status == STATUS_ROLLED_BACK) deleteQuietly(storage.type(), path);
                 }
             });
         }
@@ -162,7 +170,7 @@ public class FileService implements FileApi {
 
     public InputStream open(FileDO f) {
         try {
-            return storage.open(f.getPath());
+            return storageOf(f.getStorage()).open(f.getPath());
         } catch (IOException e) {
             log.error("[附件] 物理文件不存在或无法读取 id={} path={}", f.getId(), f.getPath(), e);
             throw BizException.of(SystemErrorCodes.FILE_NOT_EXISTS);
@@ -288,12 +296,18 @@ public class FileService implements FileApi {
 
     private void purge(FileDO f) {
         fileMapper.purge(f.getId());
-        if (fileMapper.countAlive(f.getPath()) == 0) deleteQuietly(f.getPath());
+        if (fileMapper.countAlive(f.getPath()) == 0) deleteQuietly(f.getStorage(), f.getPath());
     }
 
-    private void deleteQuietly(String path) {
+    private FileStorage storageOf(String type) {
+        FileStorage s = type == null ? null : storages.get(type);
+        if (s == null) throw new IllegalStateException("附件存储 " + type + " 未启用，请检查 ERP_FILE_STORAGE 与对象存储配置");
+        return s;
+    }
+
+    private void deleteQuietly(String type, String path) {
         try {
-            storage.delete(path);
+            storageOf(type).delete(path);
         } catch (IOException | RuntimeException e) {
             log.warn("[附件] 删除物理文件失败 {}", path, e);
         }

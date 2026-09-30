@@ -1,0 +1,16 @@
+# 模板：启动时替换 __WEBHOOK_URL__（.env 的 ALERT_WEBHOOK_URL）；未配置时删除 webhook 段并改用 none
+route:
+  receiver: webhook
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: none
+  # webhook-begin
+  - name: webhook
+    webhook_configs:
+      - url: "__WEBHOOK_URL__"
+        send_resolved: true
+  # webhook-end

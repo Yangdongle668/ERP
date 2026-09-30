@@ -2,7 +2,6 @@ package com.erp.module.system.service.file;
 
 import com.erp.module.system.dal.dataobject.FileDO;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -11,9 +10,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
-/** 本地磁盘存储（默认）。根目录 erp.file.local-path，默认 ./data/files。 */
+/** 本地磁盘存储（默认）。根目录 erp.file.local-path，默认 ./data/files。切换为对象存储后仍用于读取历史的本地附件。 */
 @Component
-@ConditionalOnProperty(name = "erp.file.storage", havingValue = "local", matchIfMissing = true)
 public class LocalFileStorage implements FileStorage {
 
     private final Path root;

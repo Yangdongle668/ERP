@@ -1,0 +1,50 @@
+# 监控：Prometheus（抓取后端 /actuator/prometheus、告警规则）+ Alertmanager（Webhook 通知）+ Grafana。
+# 由 ./deploy.sh --monitoring 启用。端口只绑定本机（127.0.0.1），远程查看请用 SSH 隧道：ssh -L 3000:127.0.0.1:3000 服务器。
+# 内存占用约 300MB，2G 小内存服务器不建议启用。
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    restart: unless-stopped
+    environment:
+      ERP_METRICS_TOKEN: ${ERP_METRICS_TOKEN:?启用监控需要在 .env 中设置 ERP_METRICS_TOKEN}
+    # 令牌写入文件供 authorization.credentials_file 使用
+    entrypoint: ["/bin/sh", "-c", "printf '%s' \"$$ERP_METRICS_TOKEN\" > /tmp/metrics-token && exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --storage.tsdb.retention.time=15d --web.enable-lifecycle"]
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    restart: unless-stopped
+    environment:
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+    # 没有配置 Webhook 时告警只在 Prometheus / Alertmanager 页面显示
+    entrypoint: ["/bin/sh", "-c", "if [ -n \"$$ALERT_WEBHOOK_URL\" ]; then sed \"s|__WEBHOOK_URL__|$$ALERT_WEBHOOK_URL|\" /etc/alertmanager/alertmanager.tmpl.yml > /tmp/am.yml; else sed '/# webhook-begin/,/# webhook-end/d; s/receiver: webhook/receiver: none/' /etc/alertmanager/alertmanager.tmpl.yml > /tmp/am.yml; fi && exec /bin/alertmanager --config.file=/tmp/am.yml --storage.path=/alertmanager"]
+    volumes:
+      - ./deploy/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.tmpl.yml:ro
+    ports:
+      - "127.0.0.1:9093:9093"
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./deploy/monitoring/grafana-datasource.yml:/etc/grafana/provisioning/datasources/erp.yml:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  prometheus-data:
+  grafana-data:

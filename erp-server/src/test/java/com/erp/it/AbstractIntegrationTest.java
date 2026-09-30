@@ -3,6 +3,7 @@ package com.erp.it;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpMethod;
@@ -21,6 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 /** 集成测试基类：H2（MySQL 模式）+ 全部模块迁移脚本 + 完整 Spring 上下文。 */
 @SpringBootTest
 @AutoConfigureMockMvc
+@AutoConfigureObservability(tracing = false)
 @ActiveProfiles("test")
 public abstract class AbstractIntegrationTest {
 

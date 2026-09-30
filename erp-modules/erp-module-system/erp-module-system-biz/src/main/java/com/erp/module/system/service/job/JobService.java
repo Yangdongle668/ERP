@@ -12,9 +12,11 @@ import com.erp.module.system.dal.mapper.JobLogMapper;
 import com.erp.module.system.dal.mapper.JobMapper;
 import com.erp.module.system.service.job.ErpJobCollector.JobHandle;
 import com.erp.module.system.service.support.NodeId;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.support.AopUtils;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationContext;
@@ -48,6 +50,7 @@ public class JobService {
     public static final String TRIGGER_MANUAL = "MANUAL";
     private static final int MESSAGE_MAX = 1000;
 
+    private final ObjectProvider<MeterRegistry> meterRegistry;
     private final JobMapper jobMapper;
     private final JobLogMapper jobLogMapper;
     private final ErpJobCollector collector;
@@ -58,7 +61,9 @@ public class JobService {
     private final Map<String, ScheduledFuture<?>> futures = new ConcurrentHashMap<>();
 
     public JobService(JobMapper jobMapper, JobLogMapper jobLogMapper, ErpJobCollector collector, ApplicationContext context, NodeId node,
-                      @Value("${erp.job.lock-minutes:120}") int lockMinutes, @Value("${erp.job.pool-size:4}") int poolSize) {
+                      @Value("${erp.job.lock-minutes:120}") int lockMinutes, @Value("${erp.job.pool-size:4}") int poolSize,
+                      ObjectProvider<MeterRegistry> meterRegistry) {
+        this.meterRegistry = meterRegistry;
         this.jobMapper = jobMapper;
         this.jobLogMapper = jobLogMapper;
         this.collector = collector;
@@ -187,6 +192,11 @@ public class JobService {
         logRow.setResult(result);
         logRow.setMessage(message);
         jobLogMapper.updateById(logRow);
+        MeterRegistry registry = meterRegistry.getIfAvailable();
+        if (registry != null) {
+            registry.counter("erp.job.runs", "code", code, "result", result).increment();
+            registry.timer("erp.job.duration", "code", code).record(Duration.ofMillis(logRow.getDurationMs()));
+        }
         JobDO j = jobMapper.selectOne(new LambdaQueryWrapper<JobDO>().eq(JobDO::getCode, code));
         jobMapper.finish(code, logRow.getStartedAt(), result, message,
                 j != null && Boolean.TRUE.equals(j.getEnabled()) ? next(j.getCron()) : null);

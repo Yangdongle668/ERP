@@ -12,6 +12,7 @@ import lombok.EqualsAndHashCode;
 public class FileDO extends BaseDO {
 
     public static final String STORAGE_LOCAL = "LOCAL";
+    public static final String STORAGE_S3 = "S3";
 
     private String bizType;
     private Long bizId;

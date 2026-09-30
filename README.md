@@ -64,6 +64,19 @@ cd ERP
 
 **小内存服务器（2 核 2G）**：`deploy.sh` 检测到内存 ≤ 3.5GB 时自动使用低内存配置（JVM 堆 640MB、MySQL 缓冲池 128MB 并关闭 performance_schema，运行时合计约 0.8GB），镜像逐个构建；前端镜像构建只打包、不做类型检查（类型检查在 CI 中执行），打包约需 1GB 内存。建议首次部署使用 `sudo ./deploy.sh --cn --swap`，自动创建 2GB 交换文件。配置写在 `.env` 的 `ERP_MEMORY_PROFILE`、`JAVA_OPTS`、`MYSQL_*` 中，可手工调整。
 
+**HTTPS、监控、备份**：
+
+```bash
+./deploy.sh --https            # .env 设置 ERP_DOMAIN 后，Caddy 自动申请并续期证书（需公网 80/443）
+./deploy.sh --monitoring       # Prometheus + Alertmanager + Grafana（仅本机端口，SSH 隧道访问；约 300MB 内存）
+./backup.sh --install-cron     # 每天 02:30 备份数据库与附件（BACKUP_KEEP 保留份数，BACKUP_REMOTE 异地复制）
+./backup.sh --restore-db 备份文件   # 恢复（也支持 --restore-files 恢复附件）
+```
+
+监控指标在 `/actuator/prometheus`，需请求头 `Authorization: Bearer <ERP_METRICS_TOKEN>`（deploy.sh 自动生成；未配置令牌时端点关闭）。告警规则见 `deploy/monitoring/alerts.yml`，设置 `ALERT_WEBHOOK_URL` 后通过 Webhook 推送。
+
+**附件存储**：默认本地数据卷；`ERP_FILE_STORAGE=s3` 并配置 `ERP_S3_ENDPOINT / ERP_S3_BUCKET / ERP_S3_ACCESS_KEY / ERP_S3_SECRET_KEY`（MinIO、阿里云 OSS、腾讯云 COS、AWS S3）后新附件写入对象存储；历史本地附件仍可读取。OSS、COS 需设置 `ERP_S3_PATH_STYLE=false`。
+
 常用命令：
 
 ```bash
@@ -136,7 +149,9 @@ cd erp-ui && npm run build
 | `ERP_JWT_SECRET` | 开发用默认值 | **生产必须设置**，至少 32 位随机字符串（`mysql` profile 下仍为默认值时拒绝启动） |
 | `ERP_SECRET_KEY` | 空（由 JWT 密钥派生） | 敏感参数（如 AI API Key）的加密密钥；设置后不要再修改，否则已保存的密文无法解密 |
 | `ERP_SERVER_PORT` | `8080` | 后端端口 |
-| `ERP_FILE_STORAGE` / `ERP_FILE_PATH` | `local` / `./data/files` | 附件存储 |
+| `ERP_FILE_STORAGE` / `ERP_FILE_PATH` | `local` / `./data/files` | 附件存储（`local` / `s3`） |
+| `ERP_S3_ENDPOINT` / `ERP_S3_REGION` / `ERP_S3_BUCKET` / `ERP_S3_ACCESS_KEY` / `ERP_S3_SECRET_KEY` / `ERP_S3_PATH_STYLE` / `ERP_S3_PREFIX` | 空 / 空 / 空 / 空 / 空 / `true` / `erp/` | 对象存储（`ERP_FILE_STORAGE=s3` 时） |
+| `ERP_METRICS_TOKEN` | 空 | Prometheus 指标端点令牌，为空时端点关闭 |
 | `ERP_AI_API_KEY` / `ERP_AI_BASE_URL` | 空 | AI 分析的 API Key / 接口地址（也可在“系统参数”页面配置） |
 | `SPRING_MAIL_HOST` 等 | 空 | 邮件通知（工作台参数 `wb.email.enabled` 开启后生效），Docker 部署时写在 `docker-compose.override.yml` |
 

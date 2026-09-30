@@ -5,6 +5,7 @@ import com.erp.common.exception.GlobalErrorCodes;
 import com.erp.common.result.CommonResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,6 +40,7 @@ public class SecurityConfig {
             "/api/system/auth/password-policy",
             "/api/system/params/public",
             "/actuator/health",
+            "/actuator/prometheus",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
@@ -46,7 +48,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtTokenService tokenService,
-                                                   LoginUserLoader loginUserLoader, ObjectMapper objectMapper) throws Exception {
+                                                   LoginUserLoader loginUserLoader, ObjectMapper objectMapper,
+                                                   @Value("${erp.monitoring.metrics-token:}") String metricsToken) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> {
                 })
@@ -66,7 +69,8 @@ public class SecurityConfig {
                                 write(resp, objectMapper, HttpServletResponse.SC_FORBIDDEN,
                                         CommonResult.error(GlobalErrorCodes.FORBIDDEN))))
                 .addFilterBefore(new JwtAuthenticationFilter(tokenService, loginUserLoader, objectMapper),
-                        UsernamePasswordAuthenticationFilter.class);
+                        UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new MetricsTokenFilter(metricsToken), JwtAuthenticationFilter.class);
         return http.build();
     }
 
