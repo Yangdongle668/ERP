@@ -1,6 +1,8 @@
 package com.erp.module.inventory.api.warehouse;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /** 仓库查询（需求 08-仓库/01 第 5 节）。 */
@@ -18,4 +20,7 @@ public interface WarehouseApi {
 
     /** 某类型的启用仓库 */
     List<WarehouseDTO> listByType(WarehouseType type);
+
+    /** 库位编码：库位 ID → 编码（不存在的 ID 不在结果中），用于单据打印与显示 */
+    Map<Long, String> getLocationCodes(Collection<Long> locationIds);
 }

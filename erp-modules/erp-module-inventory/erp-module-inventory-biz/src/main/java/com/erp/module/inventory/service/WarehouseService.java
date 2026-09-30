@@ -518,6 +518,13 @@ public class WarehouseService implements WarehouseApi {
                 .eq(WarehouseDO::getStatus, EnableStatus.ENABLED).orderByAsc(WarehouseDO::getCode)).stream().map(WarehouseService::toDto).toList();
     }
 
+    @Override
+    public Map<Long, String> getLocationCodes(java.util.Collection<Long> locationIds) {
+        List<Long> ids = locationIds == null ? List.of() : locationIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) return Map.of();
+        return locationMapper.selectBatchIds(ids).stream().collect(Collectors.toMap(LocationDO::getId, LocationDO::getCode));
+    }
+
     static WarehouseDTO toDto(WarehouseDO w) {
         return new WarehouseDTO(w.getId(), w.getCode(), w.getName(), w.getWarehouseType(), w.getWarehouseType().available(),
                 Boolean.TRUE.equals(w.getLocationEnabled()), w.getStatus() == EnableStatus.ENABLED, Boolean.TRUE.equals(w.getIsDefault()));

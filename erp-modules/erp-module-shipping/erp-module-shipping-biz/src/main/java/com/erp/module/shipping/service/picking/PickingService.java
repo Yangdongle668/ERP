@@ -447,10 +447,11 @@ public class PickingService {
         m.put("customerName", d.customerName());
         m.put("warehouseName", d.warehouseName());
         m.put("shipDate", d.shipDate());
-        m.put("lines", d.lines().stream().sorted(Comparator.comparing((PickingLineVO l) -> l.locationId() == null ? Long.MAX_VALUE : l.locationId())
+        Map<Long, String> locations = support.warehouseApi().getLocationCodes(d.lines().stream().map(PickingLineVO::locationId).toList());
+        m.put("lines", d.lines().stream().sorted(Comparator.comparing((PickingLineVO l) -> l.locationId() == null ? "\uffff" : locations.getOrDefault(l.locationId(), String.valueOf(l.locationId())))
                 .thenComparing(PickingLineVO::lineNo)).map(l -> {
             Map<String, Object> r = new LinkedHashMap<>();
-            r.put("locationCode", l.locationId() == null ? "" : String.valueOf(l.locationId()));
+            r.put("locationCode", l.locationId() == null ? "" : locations.getOrDefault(l.locationId(), String.valueOf(l.locationId())));
             r.put("materialCode", l.materialCode());
             r.put("materialName", l.materialName());
             r.put("batchNo", Objects.toString(l.batchNo(), ""));
