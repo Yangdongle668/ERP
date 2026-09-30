@@ -243,7 +243,17 @@ class BiIntegrationTest extends ShippingTestSupport {
         assertThat(logs.get(0).at("/feedback").asText()).isEqualTo("UP");
         assertThat(logs.get(0).at("/toolCalls").asText()).contains("sales_ship_amount");
         assertThat(ok(doGet("/api/bi/ai/usage", admin)).get(0).at("/questions").asLong()).isGreaterThanOrEqualTo(1);
-        assertThat(ok(doGet("/api/bi/ai/settings", admin)).at("/maskedKey").asText()).isEqualTo("****1234");
+        JsonNode settings = ok(doGet("/api/bi/ai/settings", admin));
+        assertThat(settings.at("/maskedKey").asText()).isEqualTo("****1234");
+        // 默认供应商 DeepSeek（OpenAI 兼容接口），地址与模型按供应商默认
+        assertThat(settings.at("/provider").asText()).isEqualTo("DEEPSEEK");
+        assertThat(settings.at("/baseUrl").asText()).isEqualTo("https://api.deepseek.com");
+        assertThat(settings.at("/model").asText()).isEqualTo("deepseek-chat");
+        setParam("ai.provider", "QWEN");
+        settings = ok(doGet("/api/bi/ai/settings", admin));
+        assertThat(settings.at("/baseUrl").asText()).isEqualTo("https://dashscope.aliyuncs.com/compatible-mode/v1");
+        assertThat(settings.at("/model").asText()).isEqualTo("qwen-plus");
+        resetParam("ai.provider");
 
         // AI-R05 模型调用失败
         llm.script.add((req, tools) -> {

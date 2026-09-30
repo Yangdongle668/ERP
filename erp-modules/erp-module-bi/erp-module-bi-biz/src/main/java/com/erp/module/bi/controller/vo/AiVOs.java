@@ -20,6 +20,6 @@ public final class AiVOs {
     }
 
     /** AI 设置（只读展示；修改在系统参数页面） */
-    public record Settings(boolean enabled, String provider, String model, String maskedKey, String keySource, boolean mask, int quota) {
+    public record Settings(boolean enabled, String provider, String baseUrl, String model, String maskedKey, String keySource, boolean mask, int quota) {
     }
 }

@@ -73,7 +73,7 @@ public class AiWeeklyReportService {
         AiSettings.Snapshot s = settings.get();
         if (s.ready()) {
             try {
-                LlmResult r = chatService.adapter(s.provider()).converse(new LlmRequest(s.model(), s.apiKey(),
+                LlmResult r = chatService.adapter().converse(new LlmRequest(s.baseUrl(), s.model(), s.apiKey(),
                         "你是 ERP 经营数据分析助手。根据给定的上周经营数据（JSON）写一份中文经营周报总结：300 字以内，分“总体”“销售与交付”“质量与库存”“关注事项”四段，"
                                 + "只引用数据中出现的数字，变化用环比百分比表述，不要编造数据。",
                         List.of(), toJson(masked(data, s.mask())), List.of(), 2048, 0, 60), ToolHandler.NONE);

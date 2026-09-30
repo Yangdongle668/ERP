@@ -135,7 +135,7 @@ public class AiController {
     @PreAuthorize("@ss.has('ai:setting:manage')")
     public CommonResult<Settings> settings() {
         AiSettings.Snapshot s = settings.get();
-        return CommonResult.success(new Settings(s.enabled(), s.provider(), s.model(), s.maskedKey(), s.keySource(), s.mask(), s.quota()));
+        return CommonResult.success(new Settings(s.enabled(), s.provider(), s.baseUrl(), s.model(), s.maskedKey(), s.keySource(), s.mask(), s.quota()));
     }
 
     @GetMapping("/usage")

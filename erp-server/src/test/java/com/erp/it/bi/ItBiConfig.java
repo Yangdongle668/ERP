@@ -32,7 +32,7 @@ class ItBiConfig {
 
         @Override
         public String provider() {
-            return "ANTHROPIC";
+            return "OPENAI_COMPATIBLE";
         }
 
         @Override

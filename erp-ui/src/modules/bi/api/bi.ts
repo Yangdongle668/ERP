@@ -105,13 +105,14 @@ export interface Anomaly {
   baseValue?: number; changePct: number; method: 'SIGMA' | 'MOM'; level: 'INFO' | 'WARNING'; explanation?: string
 }
 export interface WeeklyReport { id: string; weekStart: string; title: string; dataJson?: string; summary?: string; createdAt: string }
-export interface AiSettings { enabled: boolean; provider: string; model: string; maskedKey?: string; keySource: string; mask: boolean; quota: number }
+export interface AiSettings { enabled: boolean; provider: string; baseUrl?: string; model?: string; maskedKey?: string; keySource: string; mask: boolean; quota: number }
 export interface UsageRow { date: string; userId: string; userName?: string; questions: number; tokens: number; failures: number }
 export interface AiLog {
   id: string; userId: string; userName?: string; question: string; toolCalls?: string; resultRows: number; latencyMs: number; tokens: number
   success: boolean; error?: string; feedback?: string; createdAt: string
 }
 
+export const AI_PROVIDER: Record<string, string> = { DEEPSEEK: 'DeepSeek', QWEN: '通义千问（阿里云百炼）', OPENAI_COMPATIBLE: '其他 OpenAI 兼容接口' }
 export const ANOMALY_LEVEL: StatusMap = { WARNING: { label: '警告', type: 'warning' }, INFO: { label: '提示', type: 'info' } }
 export const ANOMALY_METHOD: Record<string, string> = { SIGMA: '同星期 3σ', MOM: '近 30 天环比' }
 

@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRoute } from 'vue-router'
-import { aiApi, type AiLog, type AiMessage, type AiSettings, type AiStatus, type Anomaly, ANOMALY_LEVEL, ANOMALY_METHOD, type Conversation, metricApi,
+import { AI_PROVIDER, aiApi, type AiLog, type AiMessage, type AiSettings, type AiStatus, type Anomaly, ANOMALY_LEVEL, ANOMALY_METHOD, type Conversation, metricApi,
   type UsageRow, type WeeklyReport } from '../api/bi'
 import { useUserStore } from '@/stores/user'
 import { formatDateTime } from '@/utils/format'
@@ -238,8 +238,9 @@ onMounted(async () => {
         <ErpPanel title="AI 设置" description="在“系统参数”中修改（BI/AI 模块，AI 分组）">
           <el-descriptions v-if="settings" :column="3" border>
             <el-descriptions-item label="启用">{{ settings.enabled ? '是' : '否' }}</el-descriptions-item>
-            <el-descriptions-item label="供应商">{{ settings.provider }}</el-descriptions-item>
-            <el-descriptions-item label="模型">{{ settings.model }}</el-descriptions-item>
+            <el-descriptions-item label="供应商">{{ AI_PROVIDER[settings.provider] ?? settings.provider }}</el-descriptions-item>
+            <el-descriptions-item label="模型">{{ settings.model ?? '未配置' }}</el-descriptions-item>
+            <el-descriptions-item label="接口地址" :span="3">{{ settings.baseUrl ?? '未配置' }}</el-descriptions-item>
             <el-descriptions-item label="API Key">{{ settings.maskedKey ?? '未配置' }}（{{ settings.keySource === 'ENV' ? '环境变量' : settings.keySource === 'PARAM' ? '系统参数' : '-' }}）</el-descriptions-item>
             <el-descriptions-item label="敏感字段脱敏">{{ settings.mask ? '是' : '否' }}</el-descriptions-item>
             <el-descriptions-item label="每用户每日上限">{{ settings.quota }}</el-descriptions-item>

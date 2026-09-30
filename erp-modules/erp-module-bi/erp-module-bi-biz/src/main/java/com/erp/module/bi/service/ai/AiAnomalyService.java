@@ -223,7 +223,7 @@ public class AiAnomalyService {
                 + "说明变化幅度和可能的业务原因（只能作为推测，用“可能”表述），并给出建议关注点。不要编造数据中没有的数字。"
                 + "每项输出一行，格式为“#序号 解释”，不要输出其他内容。";
         try {
-            LlmResult r = chatService.adapter(s.provider()).converse(new LlmRequest(s.model(), s.apiKey(), system, List.of(), data.toString(), List.of(),
+            LlmResult r = chatService.adapter().converse(new LlmRequest(s.baseUrl(), s.model(), s.apiKey(), system, List.of(), data.toString(), List.of(),
                     2048, 0, 60), ToolHandler.NONE);
             Matcher m = LINE.matcher(r.text() == null ? "" : r.text());
             while (m.find()) {

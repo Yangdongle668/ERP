@@ -4,14 +4,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 大模型供应商适配器（需求 13-04 AI-R06）。默认实现为 Anthropic Messages API（{@link AnthropicLlmAdapter}），
- * 其他供应商（如 OpenAI 兼容接口）实现本接口并返回对应的 {@link #provider()} 即可；测试中可替换为模拟实现。
+ * 大模型调用适配器（需求 13-04 AI-R06）。默认实现为 OpenAI 兼容的 Chat Completions 接口（{@link OpenAiCompatibleLlmAdapter}），
+ * DeepSeek、通义千问等供应商都通过它接入；其他协议实现本接口并返回对应的 {@link #provider()} 即可；测试中可替换为模拟实现。
  *
  * <p>适配器负责完整的工具调用循环：模型请求调用工具时回调 {@link ToolHandler}，把结果交还模型，直到模型给出最终回答。
  */
 public interface LlmAdapter {
 
-    /** 供应商编码，对应参数 ai.provider（如 ANTHROPIC） */
+    /** 调用协议编码（如 OPENAI_COMPATIBLE） */
     String provider();
 
     /** 执行一次对话（含工具调用循环）；网络错误、超时等抛出异常，由调用方记录并提示“AI 服务暂时不可用” */
@@ -22,7 +22,7 @@ public interface LlmAdapter {
      * @param maxTokens 每次调用的最大输出 token
      * @param maxRounds 最多工具调用轮次
      */
-    record LlmRequest(String model, String apiKey, String system, List<Turn> history, String userMessage, List<ToolSpec> tools, int maxTokens,
+    record LlmRequest(String baseUrl, String model, String apiKey, String system, List<Turn> history, String userMessage, List<ToolSpec> tools, int maxTokens,
                       int maxRounds, int timeoutSeconds) {
     }
 

@@ -49,11 +49,6 @@
             <groupId>com.erp</groupId>
             <artifactId>erp-module-sales-api</artifactId>
         </dependency>
-        <!-- AI 分析：Anthropic Messages API 官方 SDK（LlmAdapter 默认实现） -->
-        <dependency>
-            <groupId>com.anthropic</groupId>
-            <artifactId>anthropic-java</artifactId>
-        </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

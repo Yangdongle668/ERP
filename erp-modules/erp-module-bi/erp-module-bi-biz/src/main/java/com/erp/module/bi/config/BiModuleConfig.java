@@ -34,13 +34,16 @@ public class BiModuleConfig {
     public static final String P_SLOW_DAYS = "bi.inventory.slow-moving-days";
     public static final String P_AI_ENABLED = "ai.enabled";
     public static final String P_AI_PROVIDER = "ai.provider";
+    public static final String P_AI_BASE_URL = "ai.base-url";
     public static final String P_AI_MODEL = "ai.model";
     public static final String P_AI_KEY = "ai.api-key";
     public static final String P_AI_MASK = "ai.mask-sensitive";
     public static final String P_AI_QUOTA = "ai.daily-quota-per-user";
 
-    /** 默认模型 */
-    public static final String DEFAULT_MODEL = "claude-opus-5-5";
+    /** 供应商：DeepSeek、通义千问（阿里云百炼）、其他 OpenAI 兼容接口 */
+    public static final String VENDOR_DEEPSEEK = "DEEPSEEK";
+    public static final String VENDOR_QWEN = "QWEN";
+    public static final String VENDOR_CUSTOM = "OPENAI_COMPATIBLE";
 
     @Bean
     public ErpModule biModule() {
@@ -78,9 +81,15 @@ public class BiModuleConfig {
                 ParamDefinition.integer(P_FISCAL_START, MODULE, "口径", "财年起始月", 1, 1, 12, "“本年”期间从该月开始").sort(10),
                 ParamDefinition.integer(P_SLOW_DAYS, MODULE, "口径", "呆滞天数", 180, 30, 3650, "超过该天数无出库（从无出库按最近入库）的库存计为呆滞").sort(20),
                 ParamDefinition.bool(P_AI_ENABLED, MODULE, "AI", "启用 AI 分析", false, "").sort(10),
-                ParamDefinition.enumOf(P_AI_PROVIDER, MODULE, "AI", "大模型供应商", "ANTHROPIC",
-                        List.of(new ParamDefinition.Option("ANTHROPIC", "Anthropic Messages API")), "适配器可扩展（LlmAdapter）").sort(20),
-                ParamDefinition.string(P_AI_MODEL, MODULE, "AI", "模型", DEFAULT_MODEL, "").sort(30),
+                ParamDefinition.enumOf(P_AI_PROVIDER, MODULE, "AI", "大模型供应商", VENDOR_DEEPSEEK,
+                        List.of(new ParamDefinition.Option(VENDOR_DEEPSEEK, "DeepSeek"), new ParamDefinition.Option(VENDOR_QWEN, "通义千问（阿里云百炼）"),
+                                new ParamDefinition.Option(VENDOR_CUSTOM, "其他 OpenAI 兼容接口")),
+                        "均通过 OpenAI 兼容的 Chat Completions 接口（工具调用）接入").sort(20),
+                ParamDefinition.string(P_AI_BASE_URL, MODULE, "AI", "接口地址", "",
+                        "为空时按供应商默认：DeepSeek https://api.deepseek.com，千问 https://dashscope.aliyuncs.com/compatible-mode/v1；"
+                                + "“其他 OpenAI 兼容接口”必须填写（如 https://host/v1）").sort(25),
+                ParamDefinition.string(P_AI_MODEL, MODULE, "AI", "模型", "",
+                        "为空时按供应商默认：deepseek-chat / qwen-plus；需支持工具调用（function calling）").sort(30),
                 ParamDefinition.string(P_AI_KEY, MODULE, "AI", "API Key", "",
                         "页面只显示后 4 位；也可用环境变量 ERP_AI_API_KEY 注入（优先使用参数）").sort(40),
                 ParamDefinition.bool(P_AI_MASK, MODULE, "AI", "敏感字段脱敏", true, "成本、价格、毛利额等数值不发送给模型，只发送比例、排名和变化率").sort(50),

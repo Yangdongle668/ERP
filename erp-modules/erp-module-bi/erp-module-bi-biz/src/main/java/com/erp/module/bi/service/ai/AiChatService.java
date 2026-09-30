@@ -111,9 +111,9 @@ public class AiChatService {
                 .ge(AiQueryLogDO::getCreatedAt, LocalDate.now().atStartOfDay()));
     }
 
-    /** 按 ai.provider 选择适配器（同一供应商有多个实现时取排序最前的） */
-    LlmAdapter adapter(String provider) {
-        return adapters.orderedStream().filter(a -> a.provider().equalsIgnoreCase(provider == null ? AnthropicLlmAdapter.PROVIDER : provider))
+    /** OpenAI 兼容协议的适配器（同一协议有多个实现时取排序最前的，测试中替换为模拟实现） */
+    LlmAdapter adapter() {
+        return adapters.orderedStream().filter(a -> OpenAiCompatibleLlmAdapter.PROVIDER.equalsIgnoreCase(a.provider()))
                 .findFirst().orElseThrow(() -> new BizException(BiErrorCodes.AI_DISABLED));
     }
 
@@ -187,11 +187,11 @@ public class AiChatService {
         List<MetricInfo> visible = metricService.listVisible(user);
         List<Execution> executions = new ArrayList<>();
         long t0 = System.currentTimeMillis();
-        LlmRequest req = new LlmRequest(s.model(), s.apiKey(), systemPrompt(visible, LocalDate.now()), history, q, List.of(tool.spec(visible)), 4096, 4,
+        LlmRequest req = new LlmRequest(s.baseUrl(), s.model(), s.apiKey(), systemPrompt(visible, LocalDate.now()), history, q, List.of(tool.spec(visible)), 4096, 4,
                 TIMEOUT_SECONDS);
         LlmResult result;
         try {
-            result = adapter(s.provider()).converse(req, (name, input) -> {
+            result = adapter().converse(req, (name, input) -> {
                 if (!BiQueryTool.NAME.equals(name)) return new ToolOutcome("只能使用 bi_query 工具", true);
                 Execution e = tool.execute(input, s.mask());
                 executions.add(e);
