@@ -9,5 +9,7 @@
 | 前端 | `erp-ui/src/modules/bi/` |
 | API 路径前缀 | `/api/bi/` |
 | 错误码号段 | `1_013_xxx_xxx` |
+| 数据来源扩展点 | `BiFactProvider`（各业务模块在自己的 biz 中实现，BI 只合并事实、不访问业务表） |
+| 大模型适配器 | `LlmAdapter`（默认 `AnthropicLlmAdapter`，官方 Java SDK） |
 
 并行开发规则见 [docs/并行开发指南.md](../../docs/并行开发指南.md)。

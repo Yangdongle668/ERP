@@ -31,6 +31,10 @@
         </dependency>
         <dependency>
             <groupId>com.erp</groupId>
+            <artifactId>erp-module-bi-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.erp</groupId>
             <artifactId>erp-module-crm-api</artifactId>
         </dependency>
         <dependency>

@@ -37,6 +37,20 @@
   --erp-color-info-bg: #F0F0F1;
   --erp-color-focus-ring: rgba(43, 108, 230, 0.16);
 
+  /* ---------- 图表（BI 分析）：类别色板最多 8 色，按顺序使用；“其他”用 other ---------- */
+  --erp-chart-1: #2B6CE6;
+  --erp-chart-2: #1A9E5F;
+  --erp-chart-3: #E08A00;
+  --erp-chart-4: #7B61D9;
+  --erp-chart-5: #0FA3B1;
+  --erp-chart-6: #C2549B;
+  --erp-chart-7: #6B8E23;
+  --erp-chart-8: #8C6D46;
+  --erp-chart-other: #BBBFC4;
+  --erp-chart-grid: #EFF0F2;
+  --erp-chart-up: #1A9E5F;             /* 指标向好 */
+  --erp-chart-down: #D93D3D;           /* 指标变差 */
+
   /* ---------- 字体 ---------- */
   --erp-font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Hiragino Sans GB", -apple-system, "Segoe UI", sans-serif;
   --erp-font-family-mono: "JetBrains Mono", Consolas, "Microsoft YaHei", monospace;

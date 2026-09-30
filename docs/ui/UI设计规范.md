@@ -50,7 +50,9 @@
 | 错误 / 危险 / 负数 | `--erp-color-error` | #D93D3D |
 | 信息 / 中性状态 | `--erp-color-info` | #646A73 |
 
-每个语义色有对应浅底色 `--erp-color-*-bg`，用于徽标和选中背景。Element Plus 的 `--el-color-*`（含 light/dark 梯度）、`--el-text-color-*`、`--el-border-color-*`、`--el-fill-color-*` 已映射到上表，组件库自动继承。
+每个语义色有对应浅底色 `--erp-color-*-bg`，用于徽标和选中背景。
+
+图表（BI 分析）使用类别色板 `--erp-chart-1` ～ `--erp-chart-8`（按序取色，一个图表不超过 8 类），“其他”使用 `--erp-chart-other`，网格线 `--erp-chart-grid`，指标向好 / 变差用 `--erp-chart-up` / `--erp-chart-down`。图表颜色只能引用这些 token。Element Plus 的 `--el-color-*`（含 light/dark 梯度）、`--el-text-color-*`、`--el-border-color-*`、`--el-fill-color-*` 已映射到上表，组件库自动继承。
 
 ### 2.3 字体与字号（Typography）
 
@@ -325,7 +327,7 @@
 
 ### T7 报表页
 
-- 查询区（同 T1）+ 汇总指标卡片（可选）+ 图表（可选，`ECharts`，按需引入）+ 明细表格。
+- 查询区（同 T1）+ 汇总指标卡片（可选）+ 图表（可选；BI 模块提供 SVG 图表组件 `modules/bi/components/Bi*Chart`，颜色取 `--erp-chart-*`）+ 明细表格。
 - 所有报表支持导出 Excel，导出内容与当前查询条件一致。
 - 报表数据截止时间显示在右上角：“数据更新于 2026-09-24 10:00”。
 
