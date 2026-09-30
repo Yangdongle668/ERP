@@ -43,6 +43,7 @@ if [ ! -f .env ]; then
   set_env ERP_DB_PASSWORD "$(rand 24)"
   set_env ERP_DB_ROOT_PASSWORD "$(rand 24)"
   set_env ERP_JWT_SECRET "$(rand 64)"
+  set_env ERP_SECRET_KEY "$(rand 64)"
   chmod 600 .env
   info "已生成 .env（数据库密码、JWT 密钥为随机值，请妥善保管）"
 fi

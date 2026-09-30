@@ -36,6 +36,10 @@ erp:
     storage: ${ERP_FILE_STORAGE:local}
     local-path: ${ERP_FILE_PATH:./data/files}
   security:
+    # 敏感参数（如 AI API Key）加密密钥；未设置时使用 JWT 密钥（更换后需重新填写敏感参数）
+    secret-key: ${ERP_SECRET_KEY:}
+    # 初始管理员仍使用默认密码时，要求下次登录修改
+    force-default-password-change: true
     jwt:
       # 生产环境务必通过环境变量 ERP_JWT_SECRET 注入随机密钥
       secret: ${ERP_JWT_SECRET:change-me-please-this-is-a-dev-only-secret-key}

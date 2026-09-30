@@ -6,3 +6,5 @@ spring:
 erp:
   file:
     local-path: ${java.io.tmpdir}/erp-it-files
+  security:
+    force-default-password-change: false

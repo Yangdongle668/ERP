@@ -36,6 +36,11 @@ public record ParamDefinition(String key, String moduleCode, String groupName, S
         return new ParamDefinition(key, module, group, name, ParamType.STRING, def, desc, List.of(), null, null, 0);
     }
 
+    /** 敏感字符串：加密存储，页面只显示后 4 位 */
+    public static ParamDefinition secret(String key, String module, String group, String name, String desc) {
+        return new ParamDefinition(key, module, group, name, ParamType.SECRET, "", desc, List.of(), null, null, 0);
+    }
+
     public static ParamDefinition integer(String key, String module, String group, String name, int def, int min, int max, String desc) {
         return new ParamDefinition(key, module, group, name, ParamType.INT, String.valueOf(def), desc, List.of(),
                 String.valueOf(min), String.valueOf(max), 0);

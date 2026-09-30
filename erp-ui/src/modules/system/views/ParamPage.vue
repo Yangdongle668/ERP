@@ -73,6 +73,7 @@ function display(p: ParamRow, v?: string): string {
     case 'BOOL': return v === 'true' ? '是' : '否'
     case 'ENUM': return optionLabel(p, v) ?? v
     case 'USER_LIST': return `${v.split(',').filter(Boolean).length} 人`
+    case 'SECRET': return v.startsWith('****') ? v : '（新值）'
     default: return v
   }
 }
@@ -174,6 +175,8 @@ onMounted(async () => {
             </div>
             <div class="control">
               <el-input v-if="p.valueType === 'STRING'" v-model="draft[p.key]" maxlength="500" />
+              <el-input v-else-if="p.valueType === 'SECRET'" v-model="draft[p.key]" type="password" show-password autocomplete="new-password"
+                        maxlength="500" placeholder="未设置；输入后加密保存" class="w320" />
               <NumberInput v-else-if="p.valueType === 'INT' || p.valueType === 'DECIMAL'" v-model="draft[p.key]"
                            :precision="p.valueType === 'INT' ? 0 : 4" :min="numMin(p)" :max="numMax(p)" trim-zeros allow-negative class="w200" />
               <el-switch v-else-if="p.valueType === 'BOOL'" :model-value="boolOf(p)" @update:model-value="setBool(p, $event)" />
@@ -196,6 +199,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.w320 { width: 320px; }
 .search { width: 280px; }
 .pending { display: inline-flex; align-items: center; gap: 6px; font-size: var(--erp-font-size-secondary); color: var(--erp-color-text-secondary); }
 .pending__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--el-color-warning); }

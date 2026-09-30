@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.erp.common.exception.BizException;
 import com.erp.framework.module.ErpModule;
 import com.erp.module.system.api.SystemErrorCodes;
+import com.erp.framework.security.SecretCipher;
 import com.erp.module.system.api.param.ParamApi;
 import com.erp.module.system.api.param.ParamDefinition;
 import com.erp.module.system.api.param.ParamType;
@@ -39,13 +40,17 @@ import java.util.stream.Collectors;
 @Service
 public class ParamService implements ParamApi {
 
+    private final SecretCipher cipher;
+
     private final ParamMapper paramMapper;
     private final SystemCaches caches;
     private final ObjectMapper objectMapper;
     private final Map<String, String> moduleNames;
     private final Map<String, Integer> moduleOrders;
 
-    public ParamService(ParamMapper paramMapper, SystemCaches caches, ObjectMapper objectMapper, List<ErpModule> modules) {
+    public ParamService(ParamMapper paramMapper, SystemCaches caches, ObjectMapper objectMapper, List<ErpModule> modules,
+                        SecretCipher cipher) {
+        this.cipher = cipher;
         this.paramMapper = paramMapper;
         this.caches = caches;
         this.objectMapper = objectMapper;
@@ -83,6 +88,10 @@ public class ParamService implements ParamApi {
             p.setDescription(d.description());
             p.setSort(d.sort());
             p.setActive(true);
+            // 敏感参数：旧的明文值（如由 STRING 改为 SECRET）加密保存
+            if (d.type() == ParamType.SECRET && p.getValue() != null && !p.getValue().isEmpty() && !SecretCipher.isEncrypted(p.getValue())) {
+                p.setValue(cipher.encrypt(p.getValue()));
+            }
             if (isNew) paramMapper.insert(p);
             else paramMapper.updateByIdOrFail(p);
         }
@@ -123,7 +132,19 @@ public class ParamService implements ParamApi {
         for (ParamChange c : changes) {
             ParamDO p = paramMapper.selectByKey(c.key());
             if (p == null || !Boolean.TRUE.equals(p.getActive())) throw BizException.of(SystemErrorCodes.PARAM_NOT_EXISTS, c.key());
-            String value = normalize(p, c.value());
+            String value;
+            if (p.getValueType() == ParamType.SECRET) {
+                // 页面回传的掩码值（****1234）表示未修改
+                if (c.value() != null && c.value().startsWith("****")) continue;
+                String plain = c.value() == null ? "" : c.value().trim();
+                if (Objects.equals(plain, cipher.decrypt(p.getValue()))) continue;
+                value = plain.isEmpty() ? "" : cipher.encrypt(plain);
+                diffs.add(p.getGroupName() + " / " + p.getName() + "：" + (plain.isEmpty() ? "已清空" : "已修改"));
+                p.setValue(value);
+                paramMapper.updateByIdOrFail(p);
+                continue;
+            }
+            value = normalize(p, c.value());
             if (Objects.equals(value, p.getValue())) continue;
             diffs.add(p.getGroupName() + " / " + p.getName() + "：" + display(p.getValue()) + " → " + display(value));
             p.setValue(value);
@@ -225,6 +246,12 @@ public class ParamService implements ParamApi {
     }
 
     private ParamResp toResp(ParamDO p) {
+        if (p.getValueType() == ParamType.SECRET) {
+            String plain = cipher.decrypt(p.getValue());
+            boolean set = plain != null && !plain.isEmpty();
+            return new ParamResp(p.getParamKey(), p.getModuleCode(), p.getGroupName(), p.getName(), p.getValueType().name(),
+                    options(p), null, null, set ? SecretCipher.mask(plain) : "", "", p.getDescription(), set);
+        }
         return new ParamResp(p.getParamKey(), p.getModuleCode(), p.getGroupName(), p.getName(), p.getValueType().name(),
                 options(p), p.getMinValue(), p.getMaxValue(), p.getValue(), p.getDefaultValue(), p.getDescription(),
                 !Objects.equals(p.getValue(), p.getDefaultValue()));
@@ -254,7 +281,9 @@ public class ParamService implements ParamApi {
     private HashMap<String, String> values() {
         return caches.get(SystemCaches.PARAM, "all", () -> {
             HashMap<String, String> m = new HashMap<>();
-            for (ParamDO p : paramMapper.selectList(null)) m.put(p.getParamKey(), p.getValue());
+            for (ParamDO p : paramMapper.selectList(null)) {
+                m.put(p.getParamKey(), p.getValueType() == ParamType.SECRET ? cipher.decrypt(p.getValue()) : p.getValue());
+            }
             return m;
         });
     }

@@ -90,7 +90,7 @@ public class BiModuleConfig {
                                 + "“其他 OpenAI 兼容接口”必须填写（如 https://host/v1）").sort(25),
                 ParamDefinition.string(P_AI_MODEL, MODULE, "AI", "模型", "",
                         "为空时按供应商默认：deepseek-chat / qwen-plus；需支持工具调用（function calling）").sort(30),
-                ParamDefinition.string(P_AI_KEY, MODULE, "AI", "API Key", "",
+                ParamDefinition.secret(P_AI_KEY, MODULE, "AI", "API Key",
                         "页面只显示后 4 位；也可用环境变量 ERP_AI_API_KEY 注入（优先使用参数）").sort(40),
                 ParamDefinition.bool(P_AI_MASK, MODULE, "AI", "敏感字段脱敏", true, "成本、价格、毛利额等数值不发送给模型，只发送比例、排名和变化率").sort(50),
                 ParamDefinition.integer(P_AI_QUOTA, MODULE, "AI", "每用户每日提问上限", 50, 1, 10000, "").sort(60));

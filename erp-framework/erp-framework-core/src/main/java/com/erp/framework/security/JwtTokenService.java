@@ -28,7 +28,11 @@ public class JwtTokenService {
     private final JwtProperties properties;
     private final SecretKey key;
 
-    public JwtTokenService(JwtProperties properties) {
+    public JwtTokenService(JwtProperties properties, org.springframework.core.env.Environment environment) {
+        if (JwtProperties.DEV_DEFAULT_SECRET.equals(properties.getSecret())
+                && environment.acceptsProfiles(org.springframework.core.env.Profiles.of("mysql"))) {
+            throw new IllegalStateException("生产环境（mysql）不能使用默认 JWT 密钥：请通过环境变量 ERP_JWT_SECRET 设置至少 32 位的随机字符串");
+        }
         this.properties = properties;
         this.key = Keys.hmacShaKeyFor(properties.getSecret().getBytes(StandardCharsets.UTF_8));
     }

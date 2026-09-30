@@ -11,7 +11,7 @@ export interface ParamRow {
   moduleCode: string
   groupName: string
   name: string
-  valueType: 'STRING' | 'INT' | 'DECIMAL' | 'BOOL' | 'ENUM' | 'USER_LIST' | 'TIME'
+  valueType: 'STRING' | 'INT' | 'DECIMAL' | 'BOOL' | 'ENUM' | 'USER_LIST' | 'TIME' | 'SECRET'
   options: { value: string; label: string }[]
   minValue?: string
   maxValue?: string
