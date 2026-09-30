@@ -124,6 +124,8 @@ export interface OperationResp {
   id: string; seq: number; operation: string; workCenterId?: string; workCenterName?: string; reportPoint: boolean; inspectionPoint: boolean
   outsourced: boolean; stdRunSeconds?: string; stdSetupMinutes?: string; goodQty: string; defectQty: string; scrapQty: string; repairedQty: string
   dispatchedQty: string; actualHours: string; stdHours: string; opStatus: string; reportableQty: string
+  /** 最近一次 IPQC 判定为拒收（警示） */
+  ipqcRejectedId?: string; ipqcRejectedNo?: string
 }
 export interface ProdOrderDetail {
   id: string; docNo: string; orderType: string; prodStatus: string; materialId: string; materialCode: string; materialName: string; materialSpec?: string

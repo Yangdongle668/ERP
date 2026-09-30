@@ -124,7 +124,7 @@ const materialColumns: TableColumn<MaterialResp>[] = [
 ]
 const opColumns: TableColumn<OperationResp>[] = [
   { prop: 'seq', label: '工序号', width: 70 },
-  { prop: 'operation', label: '工序', minWidth: 120 },
+  { prop: 'operation', label: '工序', minWidth: 160 },
   { prop: 'workCenterName', label: '工作中心', width: 130 },
   { prop: 'reportPoint', label: '报工点', width: 70, type: 'bool' },
   { prop: 'inspectionPoint', label: '检验点', width: 70, type: 'bool' },
@@ -139,6 +139,7 @@ const opColumns: TableColumn<OperationResp>[] = [
   { prop: 'opStatus', label: '状态', width: 80, type: 'status', statusMap: OP_STATUS }
 ]
 const asMat = (r: unknown) => r as MaterialResp
+const asOp = (r: unknown) => r as OperationResp
 
 // ---------- 齐套检查 ----------
 const kit = ref<KitCheck>()
@@ -318,7 +319,14 @@ onMounted(load)
             </ErpTable>
           </el-tab-pane>
           <el-tab-pane :label="`工序(${d.operations.length})`" name="ops">
-            <ErpTable :columns="opColumns" :data="d.operations" storage-key="mfg.prod-order-ops" empty-text="没有工艺路线：按末道报工" />
+            <ErpTable :columns="opColumns" :data="d.operations" storage-key="mfg.prod-order-ops" empty-text="没有工艺路线：按末道报工">
+              <template #col-operation="{ row }">
+                {{ asOp(row).operation }}
+                <el-tooltip v-if="asOp(row).ipqcRejectedId" :content="`IPQC ${asOp(row).ipqcRejectedNo} 判定拒收，点击查看`">
+                  <ErpBadge type="danger" :dot="false" class="clickable" @click="router.push(`/quality/inspection/${asOp(row).ipqcRejectedId}`)">IPQC 不合格</ErpBadge>
+                </el-tooltip>
+              </template>
+            </ErpTable>
           </el-tab-pane>
           <el-tab-pane :label="`关联单据(${d.related.length})`" name="related"><RelatedDocs :docs="d.related" /></el-tab-pane>
           <el-tab-pane label="审批记录" name="approval" lazy><ApprovalTimeline biz-type="MFG_PROD_ORDER" :biz-id="id" /></el-tab-pane>
@@ -428,4 +436,5 @@ onMounted(load)
 .reason { width: 320px; }
 .subst { display: flex; gap: var(--erp-space-2); }
 .add-row { margin-top: var(--erp-space-3); }
+.clickable { cursor: pointer; margin-left: var(--erp-space-1); }
 </style>

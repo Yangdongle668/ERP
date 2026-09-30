@@ -20,4 +20,7 @@ public interface InspectionQueryApi {
      * “首件检验未通过，不能报工”。参数关闭时直接返回。
      */
     void checkFirstArticle(Long prodOrderId);
+
+    /** 生产订单各工序最近一次已判定 IPQC 为拒收的记录（之后又判定合格的工序不返回） */
+    List<IpqcRejectDTO> getIpqcRejected(Long prodOrderId);
 }

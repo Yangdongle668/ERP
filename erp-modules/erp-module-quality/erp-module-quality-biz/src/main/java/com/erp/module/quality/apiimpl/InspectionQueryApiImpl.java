@@ -2,6 +2,7 @@ package com.erp.module.quality.apiimpl;
 
 import com.erp.module.quality.api.inspection.InspectionDTO;
 import com.erp.module.quality.api.inspection.InspectionQueryApi;
+import com.erp.module.quality.api.inspection.IpqcRejectDTO;
 import com.erp.module.quality.service.inspection.InspectionQueryService;
 import org.springframework.stereotype.Service;
 
@@ -29,5 +30,10 @@ public class InspectionQueryApiImpl implements InspectionQueryApi {
     @Override
     public void checkFirstArticle(Long prodOrderId) {
         queryService.checkFirstArticle(prodOrderId);
+    }
+
+    @Override
+    public List<IpqcRejectDTO> getIpqcRejected(Long prodOrderId) {
+        return queryService.ipqcRejected(prodOrderId);
     }
 }

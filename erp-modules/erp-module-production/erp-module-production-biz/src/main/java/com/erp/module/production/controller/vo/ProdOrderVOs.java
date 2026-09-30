@@ -82,11 +82,14 @@ public final class ProdOrderVOs {
     public record SubstituteOption(Long substituteId, String code, String name, BigDecimal ratio) {
     }
 
-    /** @param stdHours 标准工时 = 合格 × 标准秒 ÷ 3600 */
+    /**
+     * @param stdHours        标准工时 = 合格 × 标准秒 ÷ 3600
+     * @param ipqcRejectedId  该工序最近一次 IPQC 判定为拒收时的检验单（警示），否则为空
+     */
     public record OperationResp(Long id, int seq, String operation, Long workCenterId, String workCenterName, boolean reportPoint,
                                 boolean inspectionPoint, boolean outsourced, BigDecimal stdRunSeconds, BigDecimal stdSetupMinutes, BigDecimal goodQty,
                                 BigDecimal defectQty, BigDecimal scrapQty, BigDecimal repairedQty, BigDecimal dispatchedQty, BigDecimal actualHours,
-                                BigDecimal stdHours, String opStatus, BigDecimal reportableQty) {
+                                BigDecimal stdHours, String opStatus, BigDecimal reportableQty, Long ipqcRejectedId, String ipqcRejectedNo) {
     }
 
     /** @param finishableQty 可申请完工入库 = 完工 − 已申请；pendingDefectQty 待处理不良 */

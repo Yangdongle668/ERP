@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.erp.common.enums.DocStatus;
 import com.erp.common.exception.BizException;
 import com.erp.common.result.PageResult;
+import com.erp.framework.datascope.DataScopes;
 import com.erp.module.crm.api.customer.CustomerDTO;
 import com.erp.module.engineering.api.material.MaterialDTO;
 import com.erp.module.production.api.order.OpenOrderDTO;
@@ -12,6 +13,7 @@ import com.erp.module.purchase.api.supplier.SupplierDTO;
 import com.erp.module.quality.api.QualityErrorCodes;
 import com.erp.module.quality.api.inspection.InspectType;
 import com.erp.module.quality.api.inspection.InspectionDTO;
+import com.erp.module.quality.api.inspection.IpqcRejectDTO;
 import com.erp.module.quality.config.QualityModuleConfig;
 import com.erp.module.quality.controller.vo.BasicVOs.SamplingResult;
 import com.erp.module.quality.controller.vo.InspectionVOs.DefectRow;
@@ -287,6 +289,20 @@ public class InspectionQueryService {
                 .in(QcInspectionDO::getInspStatus, List.of(InspStatus.JUDGED.name(), InspStatus.HANDLED.name()))
                 .ne(QcInspectionDO::getResult, InspectionService.REJECTED)) > 0;
         if (!passed) throw new BizException(QualityErrorCodes.INS_FIRST_ARTICLE);
+    }
+
+    /** 生产订单各工序最近一次已判定的 IPQC 为拒收时返回（跳过数据权限：供生产订单详情显示警示） */
+    public List<IpqcRejectDTO> ipqcRejected(Long prodOrderId) {
+        if (prodOrderId == null) return List.of();
+        List<QcInspectionDO> list = DataScopes.ignore(() -> mapper.selectList(new LambdaQueryWrapper<QcInspectionDO>()
+                .eq(QcInspectionDO::getInspectType, InspectType.IPQC.name()).eq(QcInspectionDO::getProdOrderId, prodOrderId)
+                .isNotNull(QcInspectionDO::getOperationSeq)
+                .in(QcInspectionDO::getInspStatus, List.of(InspStatus.JUDGED.name(), InspStatus.HANDLED.name()))
+                .orderByDesc(QcInspectionDO::getJudgeAt).orderByDesc(QcInspectionDO::getId)));
+        Map<Integer, QcInspectionDO> latest = new LinkedHashMap<>();
+        for (QcInspectionDO d : list) latest.putIfAbsent(d.getOperationSeq(), d);
+        return latest.values().stream().filter(d -> InspectionService.REJECTED.equals(d.getResult()))
+                .map(d -> new IpqcRejectDTO(d.getOperationSeq(), d.getId(), d.getDocNo(), d.getJudgeAt(), d.getNcrId())).toList();
     }
 
     /** 新建 IPQC 时的生产订单选项 */

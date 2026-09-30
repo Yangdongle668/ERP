@@ -309,4 +309,28 @@ class QualityInspectionIntegrationTest extends QualityTestSupport {
             resetParam("qc.defect.alert-threshold");
         }
     }
+
+    /** QC-INS-R09：工序最近一次 IPQC 拒收时生产订单显示警示；之后同工序判定合格则解除 */
+    @Test
+    void ipqcRejectedOperationWarning() throws Exception {
+        long base = 960000000L + System.nanoTime() % 1000000 * 10;
+        Long prodOrderId = base;
+        String m = iqcRaw("IPQC 警示");
+        String[] results = {"REJECTED", "QUALIFIED"};
+        for (int i = 0; i < results.length; i++) {
+            domainEvents.publish(new IpqcTriggerEvent(base + i + 1, "RPT-" + (base + i + 1), prodOrderId, "MO-" + base, Long.valueOf(m), null, 20, null,
+                    new BigDecimal("10")));
+            JsonNode list = ok(doGet("/api/quality/inspections?types=IPQC&statuses=PENDING&materialId=" + m, admin)).at("/list");
+            String id = list.get(0).at("/id").asText();
+            ok(doPost("/api/quality/inspections/" + id + "/judge", admin, Map.of("result", results[i])));
+            var rejected = inspectionQueryApi.getIpqcRejected(prodOrderId);
+            if (i == 0) {
+                assertThat(rejected).hasSize(1);
+                assertThat(rejected.get(0).operationSeq()).isEqualTo(20);
+                assertThat(rejected.get(0).inspectionId()).isEqualTo(Long.valueOf(id));
+            } else {
+                assertThat(rejected).isEmpty();
+            }
+        }
+    }
 }

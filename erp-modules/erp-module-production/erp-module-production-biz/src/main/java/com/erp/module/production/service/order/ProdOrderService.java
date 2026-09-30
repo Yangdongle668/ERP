@@ -74,6 +74,8 @@ import com.erp.module.system.api.user.UserDTO;
 import com.erp.module.system.api.workflow.ApprovalCompletedEvent;
 import com.erp.module.system.api.workflow.StartResult;
 import com.erp.module.system.api.workflow.WorkflowApi;
+import com.erp.module.quality.api.inspection.InspectionQueryApi;
+import com.erp.module.quality.api.inspection.IpqcRejectDTO;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -127,13 +129,14 @@ public class ProdOrderService {
     private final ObjectProvider<SalesOrderQueryApi> salesOrderQueryApi;
     private final DomainEventPublisher eventPublisher;
     private final TransactionTemplate tx;
+    private final ObjectProvider<InspectionQueryApi> inspectionQueryApi;
 
     public ProdOrderService(MfgProdOrderMapper mapper, MfgProdOrderMaterialMapper materialMapper, MfgProdOrderOperationMapper operationMapper,
                             MfgWorkOrderMapper workOrderMapper, MfgIssueMapper issueMapper, MfgReturnMapper returnMapper, MfgFinishMapper finishMapper,
                             MfgReportMapper reportMapper, MfgDefectMapper defectMapper, MfgSupport support, MaterialPlanner planner,
                             OrderProgressService progress, RoutingApi routingApi, WorkflowApi workflowApi,
                             ObjectProvider<SalesOrderQueryApi> salesOrderQueryApi, DomainEventPublisher eventPublisher,
-                            PlatformTransactionManager transactionManager) {
+                            PlatformTransactionManager transactionManager, ObjectProvider<InspectionQueryApi> inspectionQueryApi) {
         this.mapper = mapper;
         this.materialMapper = materialMapper;
         this.operationMapper = operationMapper;
@@ -151,6 +154,7 @@ public class ProdOrderService {
         this.salesOrderQueryApi = salesOrderQueryApi;
         this.eventPublisher = eventPublisher;
         this.tx = new TransactionTemplate(transactionManager);
+        this.inspectionQueryApi = inspectionQueryApi;
     }
 
     // ==================== 查询 ====================
@@ -227,7 +231,8 @@ public class ProdOrderService {
                     m.getRemark());
         }).toList();
         Map<Long, WorkCenterDTO> wcs = support.workCenters();
-        List<OperationResp> operations = ops.stream().map(op -> operationResp(o, ops, op, wcs)).toList();
+        Map<Integer, IpqcRejectDTO> ipqc = ipqcRejected(id);
+        List<OperationResp> operations = ops.stream().map(op -> operationResp(o, ops, op, wcs, ipqc.get(op.getSeq()))).toList();
         Optional<RoutingDTO> routing = o.getRoutingId() == null ? Optional.empty() : routingApi.getRouting(o.getRoutingId());
         BigDecimal pendingDefect = pendingDefectQty(id);
         boolean fqc = support.materialApi().getQualityAttr(o.getMaterialId()).fqcRequired();
@@ -242,7 +247,17 @@ public class ProdOrderService {
                 related(o));
     }
 
-    private OperationResp operationResp(MfgProdOrderDO o, List<MfgProdOrderOperationDO> ops, MfgProdOrderOperationDO op, Map<Long, WorkCenterDTO> wcs) {
+    /** QC-INS-R09：工序最近一次 IPQC 判定为拒收时显示警示 */
+    private Map<Integer, IpqcRejectDTO> ipqcRejected(Long orderId) {
+        InspectionQueryApi api = inspectionQueryApi.getIfAvailable();
+        if (api == null) return Map.of();
+        Map<Integer, IpqcRejectDTO> map = new HashMap<>();
+        for (IpqcRejectDTO r : api.getIpqcRejected(orderId)) map.put(r.operationSeq(), r);
+        return map;
+    }
+
+    private OperationResp operationResp(MfgProdOrderDO o, List<MfgProdOrderOperationDO> ops, MfgProdOrderOperationDO op, Map<Long, WorkCenterDTO> wcs,
+                                        IpqcRejectDTO ipqc) {
         WorkCenterDTO wc = op.getWorkCenterId() == null ? null : wcs.get(op.getWorkCenterId());
         BigDecimal std = op.getGoodQty().multiply(op.getStdRunSeconds()).divide(BigDecimal.valueOf(3600), 4, RoundingMode.HALF_UP);
         BigDecimal reportable = Boolean.TRUE.equals(op.getIsReportPoint())
@@ -250,7 +265,8 @@ public class ProdOrderService {
         return new OperationResp(op.getId(), op.getSeq(), op.getOperation(), op.getWorkCenterId(), wc == null ? null : wc.name(),
                 Boolean.TRUE.equals(op.getIsReportPoint()), Boolean.TRUE.equals(op.getIsInspectionPoint()), Boolean.TRUE.equals(op.getIsOutsourced()),
                 op.getStdRunSeconds(), op.getStdSetupMinutes(), op.getGoodQty(), op.getDefectQty(), op.getScrapQty(), op.getRepairedQty(),
-                op.getDispatchedQty(), op.getActualHours(), std, op.getOpStatus(), reportable);
+                op.getDispatchedQty(), op.getActualHours(), std, op.getOpStatus(), reportable, ipqc == null ? null : ipqc.inspectionId(),
+                ipqc == null ? null : ipqc.docNo());
     }
 
     BigDecimal pendingDefectQty(Long orderId) {
