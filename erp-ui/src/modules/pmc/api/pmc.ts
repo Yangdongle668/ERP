@@ -65,7 +65,7 @@ export const PEG_TYPE: Record<string, string> = {
   SALES_ORDER: '销售订单', FORECAST: '预测', MANUAL: '手工需求', MPS: 'MPS', SAFETY_STOCK: '安全库存', PARENT: '上层计划订单', ALLOCATION: '在制分配'
 }
 export const BALANCE_TYPE: Record<string, string> = {
-  ...PEG_TYPE, OPENING: '期初可用', PURCHASE: '在途采购', QC: '待检', WIP: '在制', PLANNED: '计划订单'
+  ...PEG_TYPE, OPENING: '期初可用', PURCHASE: '在途采购', QC: '待检', WIP: '在制', SUBSTITUTE: '替代料', PLANNED: '计划订单'
 }
 
 export const optionsOf = (map: StatusMap, exclude: string[] = []): Option[] =>
@@ -174,7 +174,7 @@ export interface RunRow {
   id: string; runNo: string; runType: string; runStatus: string; progress: number; startedAt: string; finishedAt?: string; durationSeconds?: number
   materialCount: number; suggestionCount: number; exceptionCount: number; operatorName?: string; errorMsg?: string; params?: string; latest: boolean
 }
-export interface RunReq { runType: string; orderLineIds?: string[]; horizonDays?: number; includeForecast?: boolean; includeSafety?: boolean }
+export interface RunReq { runType: string; orderLineIds?: string[]; horizonDays?: number; includeForecast?: boolean; includeSafety?: boolean; useSubstitute?: boolean }
 export interface SuggestionRow {
   id: string; runId: string; type: string; materialId: string; materialCode: string; materialName: string; materialSpec?: string; baseUom: string
   qty: string; originalQty: string; netRequirement: string; requiredDate: string; releaseDate: string; late: boolean; lateDays: number

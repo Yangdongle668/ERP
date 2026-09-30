@@ -56,7 +56,7 @@ public class PurchaseQueryApiImpl implements PurchaseQueryApi {
                 BigDecimal open = l.getBaseQty().subtract(l.getReceivedQty());
                 if (o == null || open.signum() <= 0) continue;
                 details.computeIfAbsent(l.getMaterialId(), k -> new ArrayList<>()).add(new InTransitDTO.Detail("PUR_ORDER", o.getId(), o.getDocNo(),
-                        l.getId(), o.getSupplierId(), open, OrderService.dueDate(l)));
+                        l.getId(), o.getSupplierId(), open, OrderService.dueDate(l), l.getRequiredDate()));
             }
         }
         for (OutsourcingDO o : outsourcingMapper.selectList(new LambdaQueryWrapper<OutsourcingDO>().in(OutsourcingDO::getMaterialId, ids)
@@ -64,7 +64,7 @@ public class PurchaseQueryApiImpl implements PurchaseQueryApi {
             BigDecimal open = o.getQty().subtract(o.getReceivedQty());
             if (open.signum() <= 0) continue;
             details.computeIfAbsent(o.getMaterialId(), k -> new ArrayList<>()).add(new InTransitDTO.Detail("PUR_OUTSOURCING", o.getId(), o.getDocNo(),
-                    null, o.getSupplierId(), open, o.getRequiredDate()));
+                    null, o.getSupplierId(), open, o.getRequiredDate(), o.getRequiredDate()));
         }
         Map<Long, InTransitDTO> result = new HashMap<>();
         details.forEach((mid, ds) -> result.put(mid, new InTransitDTO(mid, ds.stream().map(InTransitDTO.Detail::qty).reduce(BigDecimal.ZERO, BigDecimal::add), ds)));

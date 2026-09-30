@@ -65,6 +65,7 @@ public final class MrpEngine {
     private final List<Planned> planned = new ArrayList<>();
     private final List<MrpModel.Exception> exceptions = new ArrayList<>();
     private final List<Balance> balances = new ArrayList<>();
+    private final Set<Long> done = new HashSet<>();
     private int seq;
 
     private MrpEngine(Input in) {
@@ -84,6 +85,7 @@ public final class MrpEngine {
         int count = 0;
         for (Mat m : order) {
             if (plan(m)) count++;
+            done.add(m.id());
         }
         return new Output(planned, exceptions, balances, count);
     }
@@ -157,6 +159,7 @@ public final class MrpEngine {
                 if (l.supply != null && l.supply.firstUse == null) l.supply.firstUse = day;
                 if (l.planned != null) peg(l.planned, d, take, day);
             }
+            if (need.signum() > 0 && in.useSubstitute() && !d.subs.isEmpty()) need = substitute(m, d, need, day);
             if (need.signum() > 0) {
                 Planned p = newPlanned(m, need, day, ds, i, lots);
                 peg(p, d, need, day);
@@ -217,11 +220,53 @@ public final class MrpEngine {
             for (Comp c : m.comps()) {
                 BigDecimal cq = q.multiply(c.qtyPer());
                 if (cq.signum() <= 0) continue;
-                demands.computeIfAbsent(c.componentId(), k -> new ArrayList<>())
-                        .add(new Demand(c.componentId(), p.releaseDate, cq, "PARENT", null, "计划订单 #" + p.seq, m.id(), p));
+                Demand d = new Demand(c.componentId(), p.releaseDate, cq, "PARENT", null, "计划订单 #" + p.seq, m.id(), p);
+                d.subs = c.subs();
+                demands.computeIfAbsent(c.componentId(), k -> new ArrayList<>()).add(d);
             }
         }
         return p;
+    }
+
+    /**
+     * 主料不足时按优先级用替代料的期初可用库存抵扣（替代料数量 = 主料数量 × 比例），返回仍需生成建议的主料数量。
+     * 替代料尚未计算时，先为它自身已知的需求（含安全库存）保留库存，只用剩余部分；替代料不生成建议。
+     */
+    private BigDecimal substitute(Mat m, Demand d, BigDecimal need, LocalDate day) {
+        for (MrpModel.Sub x : d.subs) {
+            if (need.signum() <= 0) break;
+            Mat sm = in.mats().get(x.materialId());
+            if (sm == null || !sm.enabled()) continue;
+            Supply opening = null;
+            for (Supply s : supplies.getOrDefault(x.materialId(), List.of())) {
+                if ("OPENING".equals(s.type)) opening = s;
+            }
+            if (opening == null || opening.remaining.signum() <= 0) continue;
+            BigDecimal avail = opening.remaining;
+            if (!done.contains(sm.id())) {
+                BigDecimal reserved = sum(demands.getOrDefault(sm.id(), List.of()));
+                if (in.includeSafety() && sm.safetyStock() != null) reserved = reserved.add(sm.safetyStock());
+                avail = avail.subtract(reserved);
+            }
+            if (avail.signum() <= 0) continue;
+            BigDecimal want = need.multiply(x.ratio());
+            BigDecimal take;
+            BigDecimal covered;
+            if (avail.compareTo(want) >= 0) {
+                take = want;
+                covered = need;
+            } else {
+                take = avail;
+                covered = avail.divide(x.ratio(), 10, RoundingMode.DOWN).stripTrailingZeros();
+                if (covered.signum() <= 0) continue;
+            }
+            opening.remaining = opening.remaining.subtract(take);
+            need = need.subtract(covered);
+            String no = d.sourceNo == null ? "" : " / " + d.sourceNo;
+            balances.add(new Balance(sm.id(), day, "SUBSTITUTE", "替代「" + m.code() + "」" + no, m.id(), take, BigDecimal.ZERO));
+            balances.add(new Balance(m.id(), day, "SUBSTITUTE", "替代料「" + sm.code() + "」" + no, d.parentMaterialId, BigDecimal.ZERO, covered));
+        }
+        return need;
     }
 
     private void exceptionOf(Mat m, Supply s) {

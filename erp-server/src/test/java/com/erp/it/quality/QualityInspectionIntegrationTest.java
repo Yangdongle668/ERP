@@ -1,11 +1,14 @@
 package com.erp.it.quality;
 
 import com.erp.common.exception.BizException;
+import com.erp.framework.event.DomainEventPublisher;
+import com.erp.module.production.api.report.IpqcTriggerEvent;
 import com.erp.module.quality.api.inspection.InspectionApi;
 import com.erp.module.quality.api.inspection.InspectionQueryApi;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -271,5 +274,39 @@ class QualityInspectionIntegrationTest extends QualityTestSupport {
             resetParam("qc.ipqc.first-article");
         }
         inspectionQueryApi.checkFirstArticle(-1L);
+    }
+
+    @Autowired
+    DomainEventPublisher domainEvents;
+    @Autowired
+    JdbcTemplate jdbc;
+
+    /** 参数 qc.defect.alert-threshold：同一不良当日累计达到阈值时发预警（每个缺陷代码每天一次） */
+    @Test
+    void sameDefectDailyAlert() throws Exception {
+        long base = 970000000L + System.nanoTime() % 1000000 * 10;
+        String code = "D-T" + base;
+        jdbc.update("INSERT INTO qc_defect_code (id, code, name, category, default_level, code_status, created_at, updated_at) VALUES (?, ?, '测试不良', "
+                + "'APPEARANCE', 'MI', 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", base, code);
+        String alertKey = "QC_DEFECT_" + code + "_" + java.time.LocalDate.now();
+        String m = iqcRaw("制程不良预警");
+        setParam("qc.defect.alert-threshold", "5");
+        try {
+            for (int i = 1; i <= 3; i++) {
+                long reportId = base + i;
+                domainEvents.publish(new IpqcTriggerEvent(reportId, "RPT-" + reportId, 1L, "MO-TEST", Long.valueOf(m), null, 10, null, new BigDecimal("100")));
+                JsonNode list = ok(doGet("/api/quality/inspections?types=IPQC&statuses=PENDING&materialId=" + m, admin)).at("/list");
+                assertThat(list.size()).as("待检 IPQC").isEqualTo(1);
+                String id = list.get(0).at("/id").asText();
+                ok(doPut("/api/quality/inspections/" + id + "/results", admin, Map.of("items", List.of(), "defects", List.of(Map.of("defectCode", code, "qty", 3)))));
+                ok(doPost("/api/quality/inspections/" + id + "/judge", admin, Map.of("result", "REJECTED")));
+                Integer n = jdbc.queryForObject("SELECT COUNT(*) FROM wb_alert WHERE alert_key = ?", Integer.class, alertKey);
+                // 第 1 单累计 3 件未达阈值；第 2 单累计 6 件触发；第 3 单不重复触发
+                assertThat(n).as("第 %d 单", i).isEqualTo(i == 1 ? 0 : 1);
+            }
+            assertThat(jdbc.queryForObject("SELECT title FROM wb_alert WHERE alert_key = ?", String.class, alertKey)).contains(code);
+        } finally {
+            resetParam("qc.defect.alert-threshold");
+        }
     }
 }

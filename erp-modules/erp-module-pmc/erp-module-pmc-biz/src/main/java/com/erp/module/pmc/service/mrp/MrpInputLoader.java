@@ -14,6 +14,7 @@ import com.erp.module.pmc.dal.dataobject.PmcMpsLineDO;
 import com.erp.module.pmc.dal.mapper.PmcMpsLineMapper;
 import com.erp.module.pmc.dal.mapper.PmcMpsMapper;
 import com.erp.module.pmc.service.PlanningData;
+import com.erp.module.pmc.config.PmcModuleConfig;
 import com.erp.module.pmc.service.PmcSupport;
 import com.erp.module.pmc.service.Weeks;
 import com.erp.module.pmc.service.demand.DemandService;
@@ -21,6 +22,7 @@ import com.erp.module.pmc.service.mrp.MrpModel.Comp;
 import com.erp.module.pmc.service.mrp.MrpModel.Demand;
 import com.erp.module.pmc.service.mrp.MrpModel.Input;
 import com.erp.module.pmc.service.mrp.MrpModel.Mat;
+import com.erp.module.pmc.service.mrp.MrpModel.Sub;
 import com.erp.module.pmc.service.mrp.MrpModel.Supply;
 import com.erp.module.production.api.order.OpenOrderDTO;
 import com.erp.module.purchase.api.order.InTransitDTO;
@@ -32,6 +34,7 @@ import java.time.LocalDate;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,7 +51,7 @@ public class MrpInputLoader {
 
     /** 运算选项 */
     public record Options(String runType, Set<Long> orderLineIds, int horizonDays, boolean includeForecast, boolean includeSafety, boolean useMps,
-                          int toleranceDays) {
+                          int toleranceDays, boolean useSubstitute) {
     }
 
     private static final int MAX_MATERIALS = 50_000;
@@ -110,8 +113,10 @@ public class MrpInputLoader {
                         : defaultBom(po.materialId(), bomCache);
                 if (bom != null) {
                     for (Comp c : comps(bom, bomCache, 0)) {
-                        demands.add(new Demand(c.componentId(), po.planStart(), po.remainingQty().multiply(c.qtyPer()), "ALLOCATION", po.id(), po.docNo(),
-                                po.materialId(), null));
+                        Demand d = new Demand(c.componentId(), po.planStart(), po.remainingQty().multiply(c.qtyPer()), "ALLOCATION", po.id(), po.docNo(),
+                                po.materialId(), null);
+                        if (o.useSubstitute()) d.subs = c.subs();
+                        demands.add(d);
                     }
                 }
             }
@@ -120,7 +125,10 @@ public class MrpInputLoader {
         Set<Long> seed = new HashSet<>();
         demands.forEach(d -> seed.add(d.materialId));
         supplies.forEach(s -> seed.add(s.materialId));
-        Map<Long, Mat> mats = materials(seed, bomCache);
+        if (o.useSubstitute()) {
+            demands.forEach(d -> d.subs.forEach(x -> seed.add(x.materialId())));
+        }
+        Map<Long, Mat> mats = materials(seed, bomCache, o.useSubstitute());
         // 4. 供应：期初可用、在途、待检
         Map<Long, StockSummary> stock = data.stock(mats.keySet());
         for (Long id : mats.keySet()) {
@@ -131,14 +139,16 @@ public class MrpInputLoader {
                 supplies.add(new Supply(id, "QC", null, null, "待检", null, today.plusDays(1), s.qcQty()));
             }
         }
+        String basis = support.params().getString(PmcModuleConfig.P_PO_DATE_BASIS);
         for (Map.Entry<Long, InTransitDTO> e : data.inTransit(mats.keySet()).entrySet()) {
             for (InTransitDTO.Detail d : e.getValue().details()) {
                 if (d.qty() == null || d.qty().signum() <= 0) continue;
+                LocalDate date = d.dateBy(basis);
                 supplies.add(new Supply(e.getKey(), "PURCHASE", d.docType(), d.docId(), d.docNo(), d.lineId(),
-                        d.expectedDate() == null ? today.plusDays(1) : d.expectedDate(), d.qty()));
+                        date == null ? today.plusDays(1) : date, d.qty()));
             }
         }
-        return new Input(today, end, o.toleranceDays(), o.includeSafety(), mats, demands, supplies);
+        return new Input(today, end, o.toleranceDays(), o.includeSafety(), o.useSubstitute(), mats, demands, supplies);
     }
 
     private Map<Long, List<PmcMpsLineDO>> publishedMps() {
@@ -166,16 +176,25 @@ public class MrpInputLoader {
             if (c != null && c.materialType() == MaterialType.PHANTOM) {
                 BomDTO sub = defaultBom(c.id(), cache);
                 if (sub != null) {
-                    for (Comp x : comps(sub, cache, depth + 1)) out.add(new Comp(x.componentId(), x.qtyPer().multiply(per)));
+                    for (Comp x : comps(sub, cache, depth + 1)) out.add(new Comp(x.componentId(), x.qtyPer().multiply(per), x.subs()));
                     continue;
                 }
             }
-            out.add(new Comp(l.componentId(), per));
+            out.add(new Comp(l.componentId(), per, subs(l)));
         }
         return out;
     }
 
-    private Map<Long, Mat> materials(Collection<Long> seed, Map<Long, BomDTO> cache) {
+    /** BOM 行的替代料，按优先级；比例无效的忽略 */
+    private static List<Sub> subs(BomDTO.Line l) {
+        if (l.substitutes() == null || l.substitutes().isEmpty()) return List.of();
+        return l.substitutes().stream()
+                .filter(x -> x.substituteId() != null && x.ratio() != null && x.ratio().signum() > 0)
+                .sorted(Comparator.comparingInt(BomDTO.Substitute::priority))
+                .map(x -> new Sub(x.substituteId(), x.ratio())).toList();
+    }
+
+    private Map<Long, Mat> materials(Collection<Long> seed, Map<Long, BomDTO> cache, boolean withSubs) {
         Map<Long, Mat> mats = new HashMap<>();
         Deque<Long> queue = new ArrayDeque<>(seed);
         Set<Long> seen = new HashSet<>(seed);
@@ -197,7 +216,10 @@ public class MrpInputLoader {
                     if (bom != null) {
                         bomId = bom.id();
                         comps = comps(bom, cache, 0);
-                        for (Comp c : comps) if (seen.add(c.componentId())) queue.add(c.componentId());
+                        for (Comp c : comps) {
+                            if (seen.add(c.componentId())) queue.add(c.componentId());
+                            if (withSubs) for (Sub x : c.subs()) if (seen.add(x.materialId())) queue.add(x.materialId());
+                        }
                     }
                 }
                 MaterialPurchaseAttr pur = "PURCHASE".equals(source) || "OUTSOURCE".equals(source) ? support.materialApi().getPurchaseAttr(id) : null;

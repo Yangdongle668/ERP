@@ -12,8 +12,15 @@ public final class MrpModel {
     private MrpModel() {
     }
 
-    /** 子件用量：每 1 个父件需要的数量（已除以基数、含损耗） */
-    public record Comp(Long componentId, BigDecimal qtyPer) {
+    /** 子件用量：每 1 个父件需要的数量（已除以基数、含损耗）；subs 为替代料（按优先级） */
+    public record Comp(Long componentId, BigDecimal qtyPer, List<Sub> subs) {
+        public Comp(Long componentId, BigDecimal qtyPer) {
+            this(componentId, qtyPer, List.of());
+        }
+    }
+
+    /** 替代料：1 个主料 = ratio 个替代料 */
+    public record Sub(Long materialId, BigDecimal ratio) {
     }
 
     /** 物料计划信息；sourceType：PURCHASE / MAKE / OUTSOURCE */
@@ -37,6 +44,8 @@ public final class MrpModel {
         final String sourceNo;
         final Long parentMaterialId;
         final Planned parent;
+        /** 替代料（仅由 BOM 展开的相关需求有） */
+        List<Sub> subs = List.of();
 
         public Demand(Long materialId, LocalDate date, BigDecimal qty, String type, Long sourceId, String sourceNo, Long parentMaterialId, Planned parent) {
             this.materialId = materialId;
@@ -109,8 +118,8 @@ public final class MrpModel {
     }
 
     /** 输入快照 */
-    public record Input(LocalDate today, LocalDate horizonEnd, int toleranceDays, boolean includeSafety, Map<Long, Mat> mats, List<Demand> demands,
-                        List<Supply> supplies) {
+    public record Input(LocalDate today, LocalDate horizonEnd, int toleranceDays, boolean includeSafety, boolean useSubstitute, Map<Long, Mat> mats,
+                        List<Demand> demands, List<Supply> supplies) {
     }
 
     /** 输出 */

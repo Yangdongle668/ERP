@@ -172,4 +172,40 @@ class PmcMrpIntegrationTest extends PmcTestSupport {
             jdbc.update("DELETE FROM pmc_mrp_run WHERE id = 990000001");
         }
     }
+
+    /** PMC-MRP 替代料（参数 pmc.mrp.use-substitute / 运算选项）：主料不足时先按比例用替代料库存抵扣 */
+    @Test
+    void substituteStockOffsetsShortage() throws Exception {
+        String screw = raw("主螺丝", Map.of("leadTimeDays", 5));
+        String alt = raw("替代螺丝", Map.of("leadTimeDays", 5));
+        String fg = fg("替代料成品", Map.of("leadTimeDays", 3));
+        Map<String, Object> line = bomLine(screw, 4);
+        line.put("substitutes", List.of(Map.of("substituteId", alt, "priority", 1, "ratio", 2)));
+        bom(fg, List.of(line));
+        stock(alt, W_RAW, "300");
+        salesOrder(customer(), List.of(soLine(fg, "100", LocalDate.now().plusDays(30))));
+
+        // 不使用替代料：主螺丝净需求 400
+        JsonNode r = runMrp(Map.of("runType", "FULL", "useSubstitute", false));
+        assertThat(r.at("/runStatus").asText()).isEqualTo("SUCCESS");
+        assertThat(suggestions(screw).get(0).at("/netRequirement").decimalValue()).isEqualByComparingTo("400");
+
+        // 使用替代料：300 个替代螺丝（1:2）抵扣 150 个主螺丝，主螺丝只建议 250，替代料不生成建议
+        r = runMrp(Map.of("runType", "FULL", "useSubstitute", true));
+        assertThat(r.at("/runStatus").asText()).isEqualTo("SUCCESS");
+        assertThat(r.at("/params").asText()).contains("\"useSubstitute\":true");
+        List<JsonNode> s = suggestions(screw);
+        assertThat(s).hasSize(1);
+        assertThat(s.get(0).at("/netRequirement").decimalValue()).isEqualByComparingTo("250");
+        assertThat(suggestions(alt)).isEmpty();
+        JsonNode bal = ok(doGet("/api/pmc/mrp/balance?materialId=" + alt, admin));
+        boolean used = false;
+        for (JsonNode row : bal.at("/rows")) {
+            if ("SUBSTITUTE".equals(row.at("/type").asText())) {
+                used = true;
+                assertThat(row.at("/demandQty").decimalValue()).isEqualByComparingTo("300");
+            }
+        }
+        assertThat(used).as(bal.toString()).isTrue();
+    }
 }

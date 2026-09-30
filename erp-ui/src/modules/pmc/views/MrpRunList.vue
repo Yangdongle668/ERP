@@ -39,8 +39,8 @@ const asRow = (r: unknown) => r as RunRow
 
 // ---------- 运算弹窗 ----------
 const dlg = ref(false)
-const form = ref<{ runType: string; orderLineIds: string; horizonDays?: number; includeForecast: boolean; includeSafety: boolean }>({
-  runType: 'FULL', orderLineIds: '', includeForecast: true, includeSafety: true
+const form = ref<{ runType: string; orderLineIds: string; horizonDays?: number; includeForecast: boolean; includeSafety: boolean; useSubstitute: string }>({
+  runType: 'FULL', orderLineIds: '', includeForecast: true, includeSafety: true, useSubstitute: ''
 })
 const starting = ref(false)
 let timer: number | undefined
@@ -51,7 +51,7 @@ async function start() {
   starting.value = true
   try {
     await mrpApi.run({ runType: f.runType, orderLineIds: ids.length ? ids : undefined, horizonDays: f.horizonDays, includeForecast: f.includeForecast,
-      includeSafety: f.includeSafety })
+      includeSafety: f.includeSafety, useSubstitute: f.useSubstitute === '' ? undefined : f.useSubstitute === 'Y' })
     ElMessage.success('已开始运算，完成后会通知你')
     dlg.value = false
     load()
@@ -109,6 +109,13 @@ onBeforeUnmount(() => window.clearTimeout(timer))
         <el-form-item label="展望期（天）"><el-input-number v-model="form.horizonDays" :min="7" :max="730" placeholder="默认取参数" controls-position="right" /></el-form-item>
         <el-form-item label="包含预测"><el-switch v-model="form.includeForecast" /></el-form-item>
         <el-form-item label="包含安全库存"><el-switch v-model="form.includeSafety" /></el-form-item>
+        <el-form-item label="使用替代料">
+          <el-radio-group v-model="form.useSubstitute">
+            <el-radio-button value="">按参数</el-radio-button>
+            <el-radio-button value="Y">使用</el-radio-button>
+            <el-radio-button value="N">不使用</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
       </el-form>
       <p class="hint">净变更当前按全量计算；运算期间业务单据可正常操作，结果以开始时读取的数据为准。</p>
       <template #footer>

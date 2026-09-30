@@ -67,7 +67,7 @@ public class MrpRunService {
     public static final String RUNNING = "RUNNING";
     public static final String SUCCESS = "SUCCESS";
     public static final String FAILED = "FAILED";
-    private static final Map<String, Integer> BALANCE_ORDER = Map.of("OPENING", 0, "QC", 1, "PURCHASE", 1, "WIP", 1, "PLANNED", 2);
+    private static final Map<String, Integer> BALANCE_ORDER = Map.of("OPENING", 0, "QC", 1, "PURCHASE", 1, "WIP", 1, "SUBSTITUTE", 1, "PLANNED", 2);
 
     private final PmcMrpRunMapper runMapper;
     private final PmcMrpResultMapper resultMapper;
@@ -137,7 +137,9 @@ public class MrpRunService {
         int horizon = req != null && req.horizonDays() != null && req.horizonDays() > 0 ? Math.min(req.horizonDays(), 730) : p.getInt(PmcModuleConfig.P_HORIZON);
         boolean forecast = req != null && req.includeForecast() != null ? req.includeForecast() : p.getBool(PmcModuleConfig.P_INCLUDE_FORECAST);
         boolean safety = req != null && req.includeSafety() != null ? req.includeSafety() : p.getBool(PmcModuleConfig.P_INCLUDE_SAFETY);
-        return new MrpInputLoader.Options(type, lines, horizon, forecast, safety, p.getBool(PmcModuleConfig.P_USE_MPS), p.getInt(PmcModuleConfig.P_TOLERANCE));
+        boolean substitute = req != null && req.useSubstitute() != null ? req.useSubstitute() : p.getBool(PmcModuleConfig.P_USE_SUBSTITUTE);
+        return new MrpInputLoader.Options(type, lines, horizon, forecast, safety, p.getBool(PmcModuleConfig.P_USE_MPS), p.getInt(PmcModuleConfig.P_TOLERANCE),
+                substitute);
     }
 
     private PmcMrpRunDO create(MrpInputLoader.Options o) {
@@ -160,6 +162,7 @@ public class MrpRunService {
         params.put("includeSafety", o.includeSafety());
         params.put("useMps", o.useMps());
         params.put("toleranceDays", o.toleranceDays());
+        params.put("useSubstitute", o.useSubstitute());
         run.setParams(json(params));
         run.setRunStatus(RUNNING);
         run.setStartedAt(LocalDateTime.now());

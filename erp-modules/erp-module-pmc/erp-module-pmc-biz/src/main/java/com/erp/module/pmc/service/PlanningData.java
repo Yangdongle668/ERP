@@ -32,6 +32,8 @@ import java.util.stream.Collectors;
 @Component("pmcPlanningData")
 public class PlanningData {
 
+    private final com.erp.module.system.api.param.ParamApi paramApi;
+
     /** 一笔在途供应（采购 / 委外 / 待检） */
     public record Supply(String docType, Long docId, String docNo, Long lineId, BigDecimal qty, LocalDate date, Long supplierId) {
     }
@@ -46,7 +48,9 @@ public class PlanningData {
     private final SupplierApi supplierApi;
 
     public PlanningData(InventoryQueryApi inventoryQueryApi, PurchaseQueryApi purchaseQueryApi, ProductionQueryApi productionQueryApi, BomApi bomApi,
-                        RoutingApi routingApi, WorkCenterApi workCenterApi, CustomerApi customerApi, SupplierApi supplierApi) {
+                        RoutingApi routingApi, WorkCenterApi workCenterApi, CustomerApi customerApi, SupplierApi supplierApi,
+                        com.erp.module.system.api.param.ParamApi paramApi) {
+        this.paramApi = paramApi;
         this.inventoryQueryApi = inventoryQueryApi;
         this.purchaseQueryApi = purchaseQueryApi;
         this.productionQueryApi = productionQueryApi;
@@ -96,11 +100,13 @@ public class PlanningData {
     public Map<Long, List<Supply>> supplies(Collection<Long> ids) {
         Map<Long, List<Supply>> map = new HashMap<>();
         LocalDate tomorrow = LocalDate.now().plusDays(1);
+        String basis = paramApi.getString(com.erp.module.pmc.config.PmcModuleConfig.P_PO_DATE_BASIS);
         inTransit(ids).forEach((id, t) -> {
             List<Supply> list = map.computeIfAbsent(id, k -> new ArrayList<>());
             for (InTransitDTO.Detail d : t.details()) {
                 if (d.qty() == null || d.qty().signum() <= 0) continue;
-                list.add(new Supply(d.docType(), d.docId(), d.docNo(), d.lineId(), d.qty(), d.expectedDate() == null ? tomorrow : d.expectedDate(),
+                LocalDate date = d.dateBy(basis);
+                list.add(new Supply(d.docType(), d.docId(), d.docNo(), d.lineId(), d.qty(), date == null ? tomorrow : date,
                         d.supplierId()));
             }
         });
