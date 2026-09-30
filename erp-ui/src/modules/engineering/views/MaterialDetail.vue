@@ -5,12 +5,15 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import type { DocAction } from '@/components'
 import { fetchBlob } from '@/api/http'
 import { tabKeyOf, useTabsStore } from '@/stores/tabs'
+import { useUserStore } from '@/stores/user'
 import { formatPrice, formatQty } from '@/utils/format'
 import {
   labelOf, materialApi, ISSUE_RULE_OPTIONS, MATERIAL_STATUS, MATERIAL_TYPE_OPTIONS, ORDER_POLICY_OPTIONS, SOURCE_TYPE_OPTIONS, TRACKING_OPTIONS,
   type BomBrief, type Material, type MaterialSettings
 } from '../api/material'
 import { BOM_STATUS } from '../api/bom'
+import MaterialStockTab from '../components/MaterialStockTab.vue'
+import MaterialSupplierTab from '../components/MaterialSupplierTab.vue'
 import { certApi, VALIDITY_STATUS, type CertRow } from '../api/cert'
 
 defineOptions({ name: 'EngMaterialDetail' })
@@ -19,6 +22,7 @@ defineOptions({ name: 'EngMaterialDetail' })
 const route = useRoute()
 const router = useRouter()
 const tabs = useTabsStore()
+const me = useUserStore()
 const id = computed(() => String(route.params.id))
 const m = ref<Material>()
 const settings = ref<MaterialSettings>({ enableApproval: false, manualCodeAllowed: true, duplicateCheck: 'WARN', canViewCost: false })
@@ -200,6 +204,13 @@ onMounted(async () => {
               <el-table-column label="有效性" width="100"><template #default="{ row }"><StatusTag :value="row.validity" :map="VALIDITY_STATUS" /></template></el-table-column>
               <template #empty><ErpEmpty compact description="没有适用本物料的认证证书" /></template>
             </el-table>
+          </el-tab-pane>
+
+          <el-tab-pane v-if="me.hasPermission('inv:stock:query')" label="库存" name="stock" lazy>
+            <MaterialStockTab :material-id="id" />
+          </el-tab-pane>
+          <el-tab-pane label="供应商" name="suppliers" lazy>
+            <MaterialSupplierTab :material-id="id" />
           </el-tab-pane>
 
           <el-tab-pane v-if="settings.enableApproval" label="审批记录" name="approval" lazy>

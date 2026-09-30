@@ -2,11 +2,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import type { DocAction } from '@/components'
+import type { DocAction, StatusMap } from '@/components'
 import { http, type PageResult } from '@/api/http'
 import { tabKeyOf, useTabsStore } from '@/stores/tabs'
 import { useUserStore } from '@/stores/user'
 import { formatAmount, formatQty } from '@/utils/format'
+import CustomerRelatedDocs, { type RelatedColumn } from '../components/CustomerRelatedDocs.vue'
 import FollowupTimeline from '../components/FollowupTimeline.vue'
 import OpportunityDialog from '../components/OpportunityDialog.vue'
 import {
@@ -83,6 +84,60 @@ const creditClass = computed(() => {
   const p = Number(d.value?.credit?.usagePct ?? 0)
   return p > 1 ? 'text-danger' : p > 0.8 ? 'text-warning' : ''
 })
+
+// ---------- 其他模块单据页签（报价、订单、出货、应收、客诉；状态名称与各模块一致） ----------
+const QUOTE_STATUS: StatusMap = {
+  DRAFT: { label: '草稿', type: 'info' }, PENDING: { label: '审批中', type: 'warning' }, APPROVED: { label: '已审核', type: 'primary' },
+  SENT: { label: '已发送', type: 'primary' }, WON: { label: '已成交', type: 'success' }, LOST: { label: '未成交', type: 'danger', plain: true },
+  EXPIRED: { label: '已过期', type: 'info', plain: true }, REVISED: { label: '已修订', type: 'info', plain: true }
+}
+const ORDER_STATUS: StatusMap = {
+  DRAFT: { label: '草稿', type: 'info' }, PENDING_APPROVAL: { label: '待审批', type: 'warning' }, APPROVED: { label: '已审核', type: 'primary' },
+  IN_PROGRESS: { label: '执行中', type: 'primary' }, COMPLETED: { label: '已完成', type: 'success' }, CLOSED: { label: '已关闭', type: 'info', plain: true },
+  VOIDED: { label: '已作废', type: 'danger' }
+}
+const SHIPMENT_STATUS: StatusMap = {
+  DRAFT: { label: '草稿', type: 'info' }, PENDING: { label: '待审批', type: 'warning' }, SUBMITTED: { label: '待出库', type: 'primary', plain: true },
+  SHIPPED: { label: '已出货', type: 'primary' }, COMPLETED: { label: '已完成', type: 'success' }, VOIDED: { label: '已作废', type: 'danger' }
+}
+const AR_STATUS: StatusMap = {
+  DRAFT: { label: '草稿', type: 'info' }, PENDING: { label: '待审批', type: 'warning' }, CONFIRMED: { label: '已确认', type: 'success' },
+  VOIDED: { label: '已作废', type: 'danger' }
+}
+const COMPLAINT_STATUS: StatusMap = {
+  OPEN: { label: '新建', type: 'warning' }, ANALYZING: { label: '分析中', type: 'primary' }, REPLIED: { label: '已回复', type: 'primary', plain: true },
+  CLOSING: { label: '结案审批中', type: 'warning', plain: true }, CLOSED: { label: '已结案', type: 'success' }, CANCELED: { label: '已取消', type: 'info', plain: true }
+}
+const quoteColumns: RelatedColumn[] = [
+  { prop: 'docNo', label: '报价单号', width: 170, type: 'link' }, { prop: 'docDate', label: '日期', width: 110 },
+  { prop: 'currency', label: '币别', width: 70 }, { prop: 'totalAmount', label: '金额', width: 130, type: 'amount' },
+  { prop: 'validUntil', label: '有效期至', width: 110 }, { prop: 'ownerName', label: '业务员', width: 100 },
+  { prop: 'quoteStatus', label: '状态', width: 100, type: 'status', statusMap: QUOTE_STATUS }
+]
+const orderColumns: RelatedColumn[] = [
+  { prop: 'docNo', label: '订单号', width: 170, type: 'link' }, { prop: 'docDate', label: '日期', width: 110 },
+  { prop: 'customerPoNo', label: '客户 PO', minWidth: 120 }, { prop: 'currency', label: '币别', width: 70 },
+  { prop: 'totalAmount', label: '金额', width: 130, type: 'amount' }, { prop: 'earliestRequiredDate', label: '最早交期', width: 110 },
+  { prop: 'status', label: '状态', width: 100, type: 'status', statusMap: ORDER_STATUS }
+]
+const shipmentColumns: RelatedColumn[] = [
+  { prop: 'docNo', label: '出货单号', width: 170, type: 'link' }, { prop: 'shipDate', label: '出货日期', width: 110 },
+  { prop: 'noticeNo', label: '出货通知', width: 160 }, { prop: 'totalQty', label: '数量', width: 110, type: 'qty' },
+  { prop: 'currency', label: '币别', width: 70 }, { prop: 'totalAmount', label: '金额', width: 130, type: 'amount' },
+  { prop: 'shipmentStatus', label: '状态', width: 100, type: 'status', statusMap: SHIPMENT_STATUS }
+]
+const arColumns: RelatedColumn[] = [
+  { prop: 'docNo', label: '应收单号', width: 170, type: 'link' }, { prop: 'bizDate', label: '业务日期', width: 110 },
+  { prop: 'sourceNo', label: '来源单号', minWidth: 140 }, { prop: 'currency', label: '币别', width: 70 },
+  { prop: 'totalAmount', label: '金额', width: 130, type: 'amount' }, { prop: 'unverifiedAmount', label: '未核销', width: 130, type: 'amount' },
+  { prop: 'dueDate', label: '到期日', width: 110 }, { prop: 'status', label: '状态', width: 90, type: 'status', statusMap: AR_STATUS }
+]
+const complaintColumns: RelatedColumn[] = [
+  { prop: 'docNo', label: '客诉单号', width: 170, type: 'link' }, { prop: 'materialName', label: '物料', minWidth: 160 },
+  { prop: 'complaintQty', label: '数量', width: 100, type: 'qty' }, { prop: 'severity', label: '严重度', width: 80 },
+  { prop: 'replyDueDate', label: '回复期限', width: 110 }, { prop: 'qeName', label: 'QE', width: 90 },
+  { prop: 'status', label: '状态', width: 110, type: 'status', statusMap: COMPLAINT_STATUS }
+]
 
 // ---------- 懒加载页签 ----------
 const opps = ref<OppRow[]>([])
@@ -218,6 +273,21 @@ onMounted(load)
               <el-table-column prop="sampleStatus" label="状态" width="100" />
               <template #empty><ErpEmpty compact description="没有样品单" /></template>
             </el-table>
+          </el-tab-pane>
+          <el-tab-pane v-if="me.hasPermission('sales:quotation:query')" label="报价" name="quotations" lazy>
+            <CustomerRelatedDocs url="/sales/quotations" :customer-id="id" :columns="quoteColumns" route-prefix="/sales/quotation/" empty-text="没有报价单" />
+          </el-tab-pane>
+          <el-tab-pane v-if="me.hasPermission('sales:order:query')" label="订单" name="orders" lazy>
+            <CustomerRelatedDocs url="/sales/orders" :customer-id="id" :columns="orderColumns" route-prefix="/sales/order/" empty-text="没有销售订单" />
+          </el-tab-pane>
+          <el-tab-pane v-if="me.hasPermission('shp:shipment:query')" label="出货" name="shipments" lazy>
+            <CustomerRelatedDocs url="/shipping/shipments" :customer-id="id" :columns="shipmentColumns" route-prefix="/shipping/shipment/" empty-text="没有出货单" />
+          </el-tab-pane>
+          <el-tab-pane v-if="me.hasPermission('fin:receivable:query')" label="应收" name="receivables" lazy>
+            <CustomerRelatedDocs url="/finance/receivables" :customer-id="id" :columns="arColumns" route-prefix="/finance/receivable/" empty-text="没有应收单" />
+          </el-tab-pane>
+          <el-tab-pane v-if="me.hasPermission('qc:complaint:query')" label="客诉" name="complaints" lazy>
+            <CustomerRelatedDocs url="/quality/complaints" :customer-id="id" :columns="complaintColumns" route-prefix="/quality/complaint/" empty-text="没有客诉" />
           </el-tab-pane>
           <el-tab-pane label="转移记录" name="transfers" lazy>
             <el-table :data="transferLogs">
