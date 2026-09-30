@@ -116,7 +116,7 @@ FIN_RECEIVABLE、FIN_RECEIPT、FIN_PAYABLE、FIN_PAYMENT_REQUEST、FIN_PAYMENT�
 - **信用与扩展点**：实现 CRM `CreditUsageProvider`（应收余额 = 未核销应收 − 未核销预收，逾期 = 到期日早于今天的未核销蓝字应收，本位币），应收余额变化时调用 `CreditApi.refresh` 并发布 `ReceivableBalanceChangedEvent`；实现仓库 `FinancePeriodChecker` 与 `FinPeriodApi`（期间状态 CLOSED 视为已结账，未初始化的期间视为开启）；`ReceivableQueryApi.getOrderReceived` = 订单预收 + 普通收款核销到含该订单应收的金额。
 - **报表**：账龄按到期日分段（无到期日按业务日期），本位币按截止日汇率折算，可下钻单据；往来对账单期末 = 期初 + 本期应收（应付）− 本期收款（付款，含预收），截止日不早于今天时与单据余额比对，不一致标红；客户对账单可按打印模板 `FIN_CUSTOMER_STATEMENT` 打印。
 - **其他模块契约新增**：`SupplierApi.getFinanceInfo`、`PurchaseQueryApi.getOrderHeader / getOpenOrders`（见 07-资材 README）。
-- **限制**：银行流水导入按付款方名称与客户名称 / 简称 / 英文名完全一致匹配；收付款列表的数据范围按经办人及部门。
+- **限制**：银行流水导入按付款方名称匹配客户：名称 / 简称 / 英文名一致 → 该付款方名称曾登记过的收款单的客户 → 去公司后缀、标点、大小写后相等或包含（较短者 ≥ 4 字符）；模糊匹配只在唯一候选时采用，多个相似客户时列入未匹配由人工处理；不支持账号匹配。收付款列表的数据范围按经办人及部门。
 
 ## 12. 实现说明（第 2 批）
 

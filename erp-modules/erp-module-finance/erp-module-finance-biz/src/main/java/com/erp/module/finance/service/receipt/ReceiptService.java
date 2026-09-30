@@ -66,7 +66,7 @@ public class ReceiptService {
             ExcelColumn.input("date", "日期", true, "到账日期 yyyy-MM-dd"),
             ExcelColumn.input("amount", "金额", true, "到账金额"),
             ExcelColumn.input("currency", "币别", false, "为空取收款账户币别"),
-            ExcelColumn.input("payerName", "付款方名称", true, "按客户名称 / 简称 / 英文名匹配"),
+            ExcelColumn.input("payerName", "付款方名称", true, "按客户名称 / 简称 / 英文名匹配，支持去公司后缀的模糊匹配"),
             ExcelColumn.input("bankRefNo", "流水号", false, null));
 
     private final FinReceiptMapper mapper;
@@ -222,14 +222,14 @@ public class ReceiptService {
 
     // ==================== 银行流水导入 ====================
 
-    /** 按付款方名称匹配客户（名称 / 简称 / 英文名完全一致）生成草稿收款单；无法匹配的行返回由用户手工处理 */
+    /** 按付款方名称匹配客户（精确、历史登记、规范化模糊匹配）生成草稿收款单；无法匹配的行返回由用户手工处理 */
     @Transactional(rollbackFor = Exception.class)
     public BankImportResult importBank(MultipartFile file, Long bankAccountId, String settlementMethod) {
         FinBankAccountDO bank = settingService.bank(bankAccountId);
         List<ImportRow> rows = ExcelSupport.read(file, IMPORT_COLUMNS);
         List<Long> ids = new ArrayList<>();
         List<UnmatchedRow> unmatched = new ArrayList<>();
-        Map<String, CustomerDTO> cache = new LinkedHashMap<>();
+        Map<String, Object> cache = new LinkedHashMap<>();
         for (ImportRow row : rows) {
             LocalDate date;
             BigDecimal amount;
@@ -246,7 +246,12 @@ public class ReceiptService {
                 unmatched.add(new UnmatchedRow(row.rowNo(), date, amount, payer, row.get("bankRefNo"), "币别与收款账户不一致"));
                 continue;
             }
-            CustomerDTO c = payer == null ? null : cache.computeIfAbsent(payer, this::matchCustomer);
+            Object hit = payer == null ? null : cache.computeIfAbsent(payer, this::matchCustomer);
+            if (hit instanceof Ambiguous a) {
+                unmatched.add(new UnmatchedRow(row.rowNo(), date, amount, payer, row.get("bankRefNo"), "匹配到多个相似客户：" + String.join("、", a.names()) + "，请手工登记"));
+                continue;
+            }
+            CustomerDTO c = (CustomerDTO) hit;
             if (c == null) {
                 unmatched.add(new UnmatchedRow(row.rowNo(), date, amount, payer, row.get("bankRefNo"), "未匹配到客户"));
                 continue;
@@ -264,11 +269,44 @@ public class ReceiptService {
         return new BankImportResult(ids.size(), ids, unmatched);
     }
 
-    private CustomerDTO matchCustomer(String payer) {
+    /**
+     * 付款方匹配客户，依次：名称 / 简称 / 英文名完全一致 → 该付款方名称曾登记过的收款单的客户（未作废）→
+     * 规范化（去公司后缀、标点、大小写）后相等或包含。模糊匹配只在唯一候选时采用，多个候选返回 {@link Ambiguous} 由用户手工处理。
+     */
+    private Object matchCustomer(String payer) {
         String key = payer.trim();
-        return support.customerApi().search(key, List.of(CustomerStatus.values()), 20).stream()
-                .filter(c -> key.equalsIgnoreCase(c.name()) || key.equalsIgnoreCase(c.shortName()) || key.equalsIgnoreCase(c.nameEn()))
+        List<CustomerDTO> found = support.customerApi().search(key, List.of(CustomerStatus.values()), 20);
+        CustomerDTO exact = found.stream().filter(c -> key.equalsIgnoreCase(c.name()) || key.equalsIgnoreCase(c.shortName()) || key.equalsIgnoreCase(c.nameEn()))
                 .findFirst().orElse(null);
+        if (exact != null) return exact;
+        FinReceiptDO history = mapper.selectList(new LambdaQueryWrapper<FinReceiptDO>().eq(FinReceiptDO::getPayerName, key)
+                .ne(FinReceiptDO::getReceiptStatus, CashStatus.VOIDED.name()).orderByDesc(FinReceiptDO::getId).last("LIMIT 1")).stream().findFirst().orElse(null);
+        if (history != null) {
+            CustomerDTO c = support.customers(List.of(history.getCustomerId())).get(history.getCustomerId());
+            if (c != null) return c;
+        }
+        String norm = PayerNames.normalize(key);
+        if (norm.length() < 2) return null;
+        // 候选池：客户搜索是子串匹配，所以用规范化名称、最长单词、前 4 个字符各搜一遍再合并
+        List<CustomerDTO> pool = new ArrayList<>(found);
+        Set<String> probes = new java.util.LinkedHashSet<>();
+        probes.add(norm);
+        Arrays.stream(key.split("[\\s,，.]+")).filter(w -> w.length() >= 4).max(java.util.Comparator.comparingInt(String::length)).ifPresent(probes::add);
+        if (norm.length() > 4) probes.add(norm.substring(0, 4));
+        for (String probe : probes) {
+            for (CustomerDTO c : support.customerApi().search(probe, List.of(CustomerStatus.values()), 20)) {
+                if (pool.stream().noneMatch(x -> x.id().equals(c.id()))) pool.add(c);
+            }
+        }
+        List<CustomerDTO> similar = pool.stream().filter(c -> PayerNames.similar(key, c.name()) || PayerNames.similar(key, c.shortName())
+                || PayerNames.similar(key, c.nameEn())).toList();
+        if (similar.size() == 1) return similar.get(0);
+        if (similar.size() > 1) return new Ambiguous(similar.stream().map(CustomerDTO::name).toList());
+        return null;
+    }
+
+    /** 多个客户都相似，不自动选择 */
+    private record Ambiguous(List<String> names) {
     }
 
     // ==================== 查询 ====================
