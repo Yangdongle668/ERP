@@ -16,7 +16,11 @@ public enum FinAction implements StateMachine.Labeled {
     PAY_ALL("付清"),
     UNPAY("付款冲回"),
     UNPAY_ALL("付款全部冲回"),
-    CLOSE("关闭");
+    CLOSE("关闭"),
+    AUDIT("审核"),
+    UNAUDIT("反审核"),
+    POST("过账"),
+    UNPOST("反过账");
 
     private final String label;
 

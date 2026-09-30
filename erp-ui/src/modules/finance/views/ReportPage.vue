@@ -3,16 +3,25 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { formatAmount } from '@/utils/format'
+import AnalysisReport from '../components/AnalysisReport.vue'
 import { reportApi, type AgingDoc, type AgingReport, type AgingRow, type Statement } from '../api/finance'
 
 defineOptions({ name: 'FinReportPage' })
 
 /**
  * 财务报表（需求 12-08，T7）：应收 / 应付账龄（按到期日分段，本位币按截止日汇率折算，可下钻单据）、客户 / 供应商往来对账单。
- * 毛利、损益等报表在成本核算与凭证上线后提供。
+ * 第 2 批：收付款日报、订单 / 产品 / 客户毛利、月度损益简表、科目余额表、明细账（AnalysisReport）。
  */
 const router = useRouter()
-const tab = ref<'ar' | 'ap' | 'cs' | 'ss'>('ar')
+type Tab = 'ar' | 'ap' | 'cs' | 'ss' | 'cash' | 'order' | 'product' | 'customer' | 'pl' | 'balance' | 'ledger'
+const tab = ref<Tab>('ar')
+const ANALYSIS = ['cash', 'order', 'product', 'customer', 'pl', 'balance', 'ledger']
+const isAnalysis = computed(() => ANALYSIS.includes(tab.value))
+const ledgerAccount = ref<string>()
+function toLedger(code: string) {
+  ledgerAccount.value = code
+  tab.value = 'ledger'
+}
 const today = new Date().toISOString().slice(0, 10)
 const monthStart = today.slice(0, 8) + '01'
 
@@ -92,10 +101,19 @@ const DOC_ROUTES: Record<string, string> = { RECEIPT: '/finance/receipt/', RECEI
         <el-tab-pane label="应付账龄" name="ap" />
         <el-tab-pane label="客户对账单" name="cs" />
         <el-tab-pane label="供应商对账单" name="ss" />
+        <el-tab-pane label="收付款日报" name="cash" />
+        <el-tab-pane label="订单毛利" name="order" />
+        <el-tab-pane label="产品毛利" name="product" />
+        <el-tab-pane label="客户毛利" name="customer" />
+        <el-tab-pane label="月度损益" name="pl" />
+        <el-tab-pane label="科目余额表" name="balance" />
+        <el-tab-pane label="明细账" name="ledger" />
       </el-tabs>
     </ErpPanel>
 
-    <template v-if="tab === 'ar' || tab === 'ap'">
+    <AnalysisReport v-if="isAnalysis" :key="tab" :kind="tab as never" :account="tab === 'ledger' ? ledgerAccount : undefined" @ledger="toLedger" />
+
+    <template v-else-if="tab === 'ar' || tab === 'ap'">
       <ErpPanel>
         <div class="bar">
           <span class="label">截止日</span>

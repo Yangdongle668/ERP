@@ -72,12 +72,17 @@ public interface FinanceErrorCodes {
     ErrorCode VCH_NO_MAPPING = new ErrorCode(1_012_006_003, "业务类型「{}」没有可用的科目映射");
     ErrorCode VCH_AUX_REQUIRED = new ErrorCode(1_012_006_004, "第 {} 行科目「{}」需要辅助核算：{}");
     ErrorCode VCH_EMPTY = new ErrorCode(1_012_006_005, "没有可生成凭证的单据");
+    ErrorCode VCH_LINE_INVALID = new ErrorCode(1_012_006_006, "第 {} 行借方、贷方金额必须且只能填写一个");
+    ErrorCode VCH_NO_LINES = new ErrorCode(1_012_006_007, "凭证至少需要两行分录");
 
     // ========== 成本 007 ==========
     ErrorCode CST_INV_NOT_CLOSED = new ErrorCode(1_012_007_000, "库存期间 {} 尚未月结");
     ErrorCode CST_RUNNING = new ErrorCode(1_012_007_001, "成本计算正在进行中");
     ErrorCode CST_LOCKED = new ErrorCode(1_012_007_002, "期间 {} 成本已锁定");
     ErrorCode CST_NOT_CALCULATED = new ErrorCode(1_012_007_003, "期间 {} 尚未成功计算成本");
+    ErrorCode CST_UNLOCK_CLOSED = new ErrorCode(1_012_007_004, "期间 {} 已结账，请先反结账再解锁成本");
+    ErrorCode CST_FAILED = new ErrorCode(1_012_007_005, "成本计算失败：{}");
+    ErrorCode CST_VOUCHER_EXISTS = new ErrorCode(1_012_007_006, "期间 {} 的成本凭证已生成，请先删除凭证再重新计算");
 
     // ========== 月结 008 ==========
     ErrorCode CLS_ORDER = new ErrorCode(1_012_008_000, "请先结账 {}");
@@ -85,4 +90,5 @@ public interface FinanceErrorCodes {
     ErrorCode CLS_BLOCKED = new ErrorCode(1_012_008_002, "结账检查未通过：{}");
     ErrorCode CLS_REOPEN_LATEST = new ErrorCode(1_012_008_003, "只能反结账最近一个已结账期间 {}");
     ErrorCode CLS_INV_CLOSED = new ErrorCode(1_012_008_004, "财务期间 {} 已结账，请先由财务反结账");
+    ErrorCode CLS_NOT_CLOSED = new ErrorCode(1_012_008_005, "期间 {} 未结账");
 }

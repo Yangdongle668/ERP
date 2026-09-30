@@ -28,6 +28,7 @@ import com.erp.module.finance.service.CashStatus;
 import com.erp.module.finance.service.FinAction;
 import com.erp.module.finance.service.FinStateMachines;
 import com.erp.module.finance.service.FinSupport;
+import com.erp.module.finance.service.voucher.VoucherService;
 import com.erp.module.finance.service.setting.SettingService;
 import com.erp.module.finance.service.verify.VerificationService;
 import com.erp.module.sales.api.order.OpenLineFilter;
@@ -74,15 +75,17 @@ public class ReceiptService {
     private final SalesOrderQueryApi orderQueryApi;
     private final SalesOrderWritebackApi writebackApi;
     private final FinSupport support;
+    private final VoucherService voucherService;
 
     public ReceiptService(FinReceiptMapper mapper, SettingService settingService, VerificationService verificationService,
-                          SalesOrderQueryApi orderQueryApi, SalesOrderWritebackApi writebackApi, FinSupport support) {
+                          SalesOrderQueryApi orderQueryApi, SalesOrderWritebackApi writebackApi, FinSupport support, VoucherService voucherService) {
         this.mapper = mapper;
         this.settingService = settingService;
         this.verificationService = verificationService;
         this.orderQueryApi = orderQueryApi;
         this.writebackApi = writebackApi;
         this.support = support;
+        this.voucherService = voucherService;
     }
 
     // ==================== 保存 ====================
@@ -180,6 +183,7 @@ public class ReceiptService {
         r.setConfirmedAt(LocalDateTime.now());
         fire(r, FinAction.CONFIRM, null);
         if (ADVANCE.equals(r.getReceiptType())) advance(r, 1);
+        voucherService.autoGenerate(VoucherService.RECEIPT, id);
     }
 
     /** FIN-RV-R06：有核销记录时不能反确认 */
@@ -190,7 +194,8 @@ public class ReceiptService {
         if (!verificationService.active(VerificationService.DOC_RECEIPT, id).isEmpty() || FinSupport.nz(r.getAllocatedAmount()).signum() != 0) {
             throw new BizException(FinanceErrorCodes.RV_VERIFIED);
         }
-        if (r.getVoucherId() != null) throw new BizException(FinanceErrorCodes.VCH_AUDITED);
+        voucherService.releaseForDoc(r.getVoucherId());
+        r.setVoucherId(null);
         support.requireOpen(r.getReceiptDate());
         r.setConfirmedAt(null);
         fire(r, FinAction.UNCONFIRM, why);

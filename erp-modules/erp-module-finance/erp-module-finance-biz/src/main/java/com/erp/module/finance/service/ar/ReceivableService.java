@@ -31,6 +31,7 @@ import com.erp.module.finance.service.ArStatus;
 import com.erp.module.finance.service.FinAction;
 import com.erp.module.finance.service.FinStateMachines;
 import com.erp.module.finance.service.FinSupport;
+import com.erp.module.finance.service.voucher.VoucherService;
 import com.erp.module.finance.service.verify.VerificationService;
 import com.erp.module.inventory.api.doc.StockDocEvent;
 import com.erp.module.quality.api.complaint.ComplaintClaimAgreedEvent;
@@ -91,10 +92,11 @@ public class ReceivableService {
     private final WorkflowApi workflowApi;
     private final VerificationService verificationService;
     private final FinSupport support;
+    private final VoucherService voucherService;
 
     public ReceivableService(FinReceivableMapper mapper, FinReceivableLineMapper lineMapper, FinSalesInvoiceMapper invoiceMapper,
                              FinSalesInvoiceLineMapper invoiceLineMapper, SalesOrderQueryApi orderQueryApi, PaymentTermApi paymentTermApi,
-                             WorkflowApi workflowApi, VerificationService verificationService, FinSupport support) {
+                             WorkflowApi workflowApi, VerificationService verificationService, FinSupport support, VoucherService voucherService) {
         this.mapper = mapper;
         this.lineMapper = lineMapper;
         this.invoiceMapper = invoiceMapper;
@@ -104,6 +106,7 @@ public class ReceivableService {
         this.workflowApi = workflowApi;
         this.verificationService = verificationService;
         this.support = support;
+        this.voucherService = voucherService;
     }
 
     // ==================== 业务事件 ====================
@@ -379,6 +382,7 @@ public class ReceivableService {
         r.setConfirmedAt(LocalDateTime.now());
         fire(r, FinAction.CONFIRM, reason);
         support.balanceChanged(List.of(r.getCustomerId()));
+        voucherService.autoGenerate(VoucherService.SALES_AR, r.getId());
     }
 
     /** 生成时汇率未维护（为 0）：确认时按业务日期取汇率并重算本位币 */
@@ -394,7 +398,8 @@ public class ReceivableService {
         String why = FinSupport.requireText(reason, "反确认原因");
         FinReceivableDO r = get(id);
         if (processed(r)) throw BizException.of(FinanceErrorCodes.AR_PROCESSED, "反确认");
-        if (r.getVoucherId() != null) throw new BizException(FinanceErrorCodes.VCH_AUDITED);
+        voucherService.releaseForDoc(r.getVoucherId());
+        r.setVoucherId(null);
         support.requireOpen(r.getBizDate());
         r.setConfirmedAt(null);
         fire(r, FinAction.UNCONFIRM, why);
@@ -537,6 +542,7 @@ public class ReceivableService {
         r.setConfirmedAt(LocalDateTime.now());
         fire(r, FinAction.APPROVE, null);
         support.balanceChanged(List.of(r.getCustomerId()));
+        voucherService.autoGenerate(VoucherService.SALES_AR, r.getId());
     }
 
     // ==================== 核销、开票回写（供核销 / 开票服务调用） ====================

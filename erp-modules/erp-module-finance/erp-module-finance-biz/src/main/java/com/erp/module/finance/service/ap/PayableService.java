@@ -35,6 +35,7 @@ import com.erp.module.finance.service.ArStatus;
 import com.erp.module.finance.service.FinAction;
 import com.erp.module.finance.service.FinStateMachines;
 import com.erp.module.finance.service.FinSupport;
+import com.erp.module.finance.service.voucher.VoucherService;
 import com.erp.module.finance.service.verify.VerificationService;
 import com.erp.module.purchase.api.statement.PurchaseStatementConfirmedEvent;
 import com.erp.module.purchase.api.statement.PurchaseStatementUnconfirmingEvent;
@@ -86,11 +87,12 @@ public class PayableService {
     private final WorkflowApi workflowApi;
     private final VerificationService verificationService;
     private final FinSupport support;
+    private final VoucherService voucherService;
 
     public PayableService(FinPayableMapper mapper, FinPayableLineMapper lineMapper, FinPurchaseInvoiceMapper invoiceMapper,
                           FinPurchaseInvoiceLineMapper invoiceLineMapper, FinPaymentRequestMapper requestMapper,
                           FinPaymentRequestLineMapper requestLineMapper, PaymentTermApi paymentTermApi, WorkflowApi workflowApi,
-                          VerificationService verificationService, FinSupport support) {
+                          VerificationService verificationService, FinSupport support, VoucherService voucherService) {
         this.mapper = mapper;
         this.lineMapper = lineMapper;
         this.invoiceMapper = invoiceMapper;
@@ -101,6 +103,7 @@ public class PayableService {
         this.workflowApi = workflowApi;
         this.verificationService = verificationService;
         this.support = support;
+        this.voucherService = voucherService;
     }
 
     // ==================== 对账单事件 ====================
@@ -253,6 +256,7 @@ public class PayableService {
         rerate(p);
         p.setConfirmedAt(LocalDateTime.now());
         fire(p, FinAction.CONFIRM, reason);
+        voucherService.autoGenerate(VoucherService.PURCHASE_AP, p.getId());
     }
 
     /** 生成时汇率未维护（为 0）：确认时取汇率并重算本位币 */
@@ -268,7 +272,8 @@ public class PayableService {
         String why = FinSupport.requireText(reason, "反确认原因");
         FinPayableDO p = get(id);
         if (processed(p)) throw BizException.of(FinanceErrorCodes.AP_PROCESSED, "反确认");
-        if (p.getVoucherId() != null) throw new BizException(FinanceErrorCodes.VCH_AUDITED);
+        voucherService.releaseForDoc(p.getVoucherId());
+        p.setVoucherId(null);
         support.requireOpen(p.getBizDate());
         p.setConfirmedAt(null);
         fire(p, FinAction.UNCONFIRM, why);
@@ -408,6 +413,7 @@ public class PayableService {
         rerate(p);
         p.setConfirmedAt(LocalDateTime.now());
         fire(p, FinAction.APPROVE, null);
+        voucherService.autoGenerate(VoucherService.PURCHASE_AP, p.getId());
     }
 
     // ==================== 查询 ====================

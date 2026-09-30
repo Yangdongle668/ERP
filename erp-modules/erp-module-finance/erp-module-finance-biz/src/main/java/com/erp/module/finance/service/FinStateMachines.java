@@ -48,4 +48,12 @@ public final class FinStateMachines {
             .transition(RequestStatus.PARTIAL, CLOSE, RequestStatus.CLOSED)
             .transition(RequestStatus.DRAFT, VOID, RequestStatus.VOIDED)
             .build();
+
+    /** 凭证：草稿 → 已审核 → 已过账 */
+    public static final StateMachine<VoucherStatus, FinAction> VOUCHER = StateMachine.builder(VoucherStatus.class, FinAction.class)
+            .transition(VoucherStatus.DRAFT, AUDIT, VoucherStatus.AUDITED)
+            .transition(VoucherStatus.AUDITED, UNAUDIT, VoucherStatus.DRAFT)
+            .transition(VoucherStatus.AUDITED, POST, VoucherStatus.POSTED)
+            .transition(VoucherStatus.POSTED, UNPOST, VoucherStatus.AUDITED)
+            .build();
 }

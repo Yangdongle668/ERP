@@ -128,6 +128,15 @@ public class FinSupport {
         d.setOrgId(dept == null ? fallback : orgApi.getCompanyOf(dept).map(OrgDTO::id).orElse(fallback));
     }
 
+    /** 部门 / 车间名称 */
+    public Map<Long, String> orgNames(Collection<Long> ids) {
+        Set<Long> set = ids.stream().filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> map = new HashMap<>();
+        if (set.isEmpty()) return map;
+        orgApi.list(set).forEach((id, o) -> map.put(id, o.name()));
+        return map;
+    }
+
     // ==================== 客户、供应商、物料 ====================
 
     public CustomerApi customerApi() {

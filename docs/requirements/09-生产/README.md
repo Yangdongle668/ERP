@@ -98,6 +98,7 @@ MFG_PROD_ORDER（生产订单/工单流程卡，带条码）、MFG_ISSUE（领�
 |---|---|---|
 | `ProductionOrderApi` | `createFromMrp(List<MrpSuggestion>)`、`createSampleOrder(sampleId, materialId, qty, requiredDate)`、`updateMaterialsByEcn(ecnId, changes)` | PMC、研发工程 |
 | `ProductionQueryApi` | `getWipQty(materialIds)`（在制：已下达未完工的剩余数量，含预计完工日期）、`getOpenOrdersByComponent(componentId)`、`getProgress(prodOrderIds)`、`isBomUsed(bomId)`、`getAllocatedQty(materialId)`（已下达未领的用料需求） | PMC、研发工程、销售、财务 |
+| `ProductionCostApi` | `getOrderIdsBySource(sourceType, ids)`（领料 / 退料 / 完工来源 → 生产订单）、`getOrders(ids)`（产品、状态、计划数量、车间）、`getWorkHours(from, to)`（已审核报工的车间、工时、合格数量） | 财务成本核算（12-07） |
 | `TraceApi` | `forward(materialId, batchNo)`（原材料批次 → 用在哪些生产订单/成品批次）、`backward(materialId, batchNo)`（成品批次 → 用了哪些原材料批次） | 品质、BI |
 
 **发布事件**：`ProductionOrderReleasedEvent`、`ProductionOrderCompletedEvent`、`ProductionOrderClosedEvent`、`WorkReportApprovedEvent`（含工装、工时、合格/不良数量）、`WorkReportReversedEvent`、`IpqcTriggerEvent`、`DefectRegisteredEvent`、`ProductionProgressEvent`。

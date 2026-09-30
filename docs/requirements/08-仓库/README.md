@@ -119,6 +119,7 @@ INV_STOCK_IN、INV_STOCK_OUT、INV_TRANSFER、INV_COUNT、INV_BATCH（见 01-系
 | `ReservationApi` | `reserve(bizType, bizId, lines)`、`release(bizType, bizId)` | 库存预留（P1） |
 | `InventoryApi` | `post`、`reverse`（已定义，模块内部使用；其他模块不直接调用） | 过账引擎 |
 | `WarehouseApi` | `get`、`getDefaultWarehouse(categoryId, warehouseType)`、`listByType(type)` | 仓库查询 |
+| `InventoryCostApi` | `isPeriodClosed(period)`（早于启用期间视为已结账）、`getPeriodTxns(period)`（不含调拨）、`getOpeningBalances(period)`（上期结存金额，没有时按流水推算）、`applyCosts(period, unitCostByTxn)`（只回填本期流水 unit_cost / amount）、`saveClosingCosts(period, unitCostByMaterial)`（期末结存金额写入 inv_period_balance） | 财务成本核算（12-07） |
 
 **发布事件**：`StockInConfirmedEvent`、`StockOutConfirmedEvent`、`TransferConfirmedEvent`（均带来源单据类型/ID/行及数量）、`StockDocEvent`（`IN_REVERSING`/`OUT_REVERSING` 反确认前，来源模块可抛出 BizException 阻止；`IN_REVERSED`/`OUT_REVERSED` 反确认后；`REJECTED` 仓管员退回；`RECHECK_REQUESTED` 复检送检确认后）、`StockChangedEvent`、`PeriodClosedEvent`。库存预警通过系统管理 `NotifyApi.alert` 发到工作台（不单独定义 `StockAlertEvent`）。
 

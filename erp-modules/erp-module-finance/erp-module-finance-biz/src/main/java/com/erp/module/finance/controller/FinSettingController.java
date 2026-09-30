@@ -9,11 +9,13 @@ import com.erp.module.finance.controller.vo.SettingVOs.BankAccountVO;
 import com.erp.module.finance.controller.vo.SettingVOs.BankOption;
 import com.erp.module.finance.controller.vo.SettingVOs.InitYearReq;
 import com.erp.module.finance.controller.vo.SettingVOs.MappingSave;
+import com.erp.module.finance.controller.vo.VoucherVOs.Preview;
 import com.erp.module.finance.controller.vo.SettingVOs.MappingVO;
 import com.erp.module.finance.controller.vo.SettingVOs.PeriodVO;
 import com.erp.module.finance.service.payment.PaymentService;
 import com.erp.module.finance.service.receipt.ReceiptService;
 import com.erp.module.finance.service.setting.SettingService;
+import com.erp.module.finance.service.voucher.VoucherService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,11 +39,13 @@ public class FinSettingController {
     private final SettingService service;
     private final ReceiptService receiptService;
     private final PaymentService paymentService;
+    private final VoucherService voucherService;
 
-    public FinSettingController(SettingService service, ReceiptService receiptService, PaymentService paymentService) {
+    public FinSettingController(SettingService service, ReceiptService receiptService, PaymentService paymentService, VoucherService voucherService) {
         this.service = service;
         this.receiptService = receiptService;
         this.paymentService = paymentService;
+        this.voucherService = voucherService;
     }
 
     // ==================== 会计科目 ====================
@@ -144,6 +148,13 @@ public class FinSettingController {
     @PreAuthorize("@ss.has('fin:setting:query')")
     public CommonResult<List<MappingVO>> mappings(@RequestParam(required = false) String bizType) {
         return CommonResult.success(service.mappings(bizType));
+    }
+
+    /** 映射测试（FIN-SET-T02）：选择一张业务单据（SALES_AR / RECEIPT / PURCHASE_AP / PAYMENT / FX_GAIN_LOSS）预览凭证 */
+    @GetMapping("/account-mappings/preview")
+    @PreAuthorize("@ss.has('fin:setting:query')")
+    public CommonResult<Preview> previewMapping(@RequestParam String bizType, @RequestParam Long docId) {
+        return CommonResult.success(voucherService.preview(bizType, docId));
     }
 
     @PostMapping("/account-mappings")

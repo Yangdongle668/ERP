@@ -417,3 +417,162 @@ export const reportApi = {
   supplierStatement: (params: { supplierId: string; currency?: string; dateFrom?: string; dateTo?: string }) =>
     http.get<Statement>('/finance/reports/supplier-statement', params)
 }
+
+// ==================== 凭证（12-06） ====================
+
+export const VOUCHER_STATUS: StatusMap = {
+  DRAFT: { label: '草稿', type: 'info' },
+  AUDITED: { label: '已审核', type: 'primary' },
+  POSTED: { label: '已过账', type: 'success' }
+}
+export const VOUCHER_SOURCES: Option[] = [{ value: 'AUTO', label: '自动' }, { value: 'MANUAL', label: '手工' }]
+export const VOUCHER_BIZ_TYPES: Option[] = [
+  { value: 'SALES_AR', label: '出货应收' }, { value: 'RECEIPT', label: '收款' }, { value: 'PURCHASE_AP', label: '采购应付' }, { value: 'PAYMENT', label: '付款' },
+  { value: 'FX_GAIN_LOSS', label: '汇兑损益' }, { value: 'STOCK_OUT_SALES_COST', label: '销售成本结转' }, { value: 'PRODUCTION_ISSUE', label: '生产领料' },
+  { value: 'PRODUCTION_IN', label: '完工入库' }, { value: 'FX_REVALUATION', label: '外币重估' }
+]
+export interface VoucherRow {
+  id: string; voucherNo: string; period: string; voucherDate: string; summary?: string; totalDebit: string; totalCredit: string; attachmentCount: number
+  source: string; bizType?: string; status: string; creatorName?: string; auditorName?: string; posterName?: string; createdAt: string
+}
+export interface VoucherLine {
+  id?: string; lineNo?: number; summary?: string; accountCode: string; accountName?: string; debit?: string; credit?: string; currency?: string
+  fcAmount?: string; exchangeRate?: string; auxCustomerId?: string; auxCustomerName?: string; auxSupplierId?: string; auxSupplierName?: string
+  auxDeptId?: string; auxDeptName?: string; auxMaterialId?: string; auxMaterialName?: string; auxProjectId?: string
+}
+export interface VoucherDetail { header: VoucherRow; remark?: string; createdBy: string; auditedAt?: string; postedAt?: string; lines: VoucherLine[] }
+export interface VoucherSave { voucherDate: string; attachmentCount?: number; remark?: string; lines: VoucherLine[] }
+export interface GenerateResult { voucherCount: number; docCount: number; voucherIds: string[]; messages: string[] }
+export interface VoucherPending { bizType: string; label: string; count: number }
+export interface VoucherPreview { bizType: string; lines: VoucherLine[]; totalDebit: string; totalCredit: string; balanced: boolean }
+
+export const voucherApi = {
+  page: (params: PageParam & Record<string, unknown>) => http.get<PageResult<VoucherRow>>('/finance/vouchers', params),
+  get: (id: string) => http.get<VoucherDetail>(`/finance/vouchers/${id}`),
+  create: (data: VoucherSave) => http.post<string>('/finance/vouchers', data),
+  update: (id: string, data: VoucherSave) => http.put<void>(`/finance/vouchers/${id}`, data),
+  remove: (id: string) => http.delete<void>(`/finance/vouchers/${id}`),
+  action: (id: string, action: 'audit' | 'unaudit' | 'post' | 'unpost') => http.post<void>(`/finance/vouchers/${id}/${action}`),
+  batch: (ids: string[], action: 'batch-audit' | 'batch-post') => http.post<BatchResult>(`/finance/vouchers/${action}`, { ids }),
+  renumber: (period: string) => http.post<{ changed: number }>(`/finance/vouchers/renumber?period=${period}`),
+  pending: (period: string) => http.get<VoucherPending[]>('/finance/vouchers/pending', { period }),
+  generate: (period: string, bizTypes: string[], mode: string) => http.post<GenerateResult>('/finance/vouchers/generate', { period, bizTypes, mode }),
+  preview: (bizType: string, docId: string) => http.get<VoucherPreview>('/finance/account-mappings/preview', { bizType, docId })
+}
+
+// ==================== 成本核算（12-07） ====================
+
+export const COST_RUN_STATUS: StatusMap = {
+  RUNNING: { label: '计算中', type: 'warning' },
+  SUCCESS: { label: '成功', type: 'success' },
+  FAILED: { label: '失败', type: 'danger' }
+}
+export const COST_EXCEPTION_TYPES: Record<string, string> = {
+  NEGATIVE_BALANCE: '负数结存', PRICE_SWING: '单价异常波动', ZERO_COST_OUT: '无单价出库', NO_PRICE_IN: '无单价入库', NO_HOURS: '无工时却有费用', CYCLE: '循环引用'
+}
+export interface CostRun {
+  id: string; period: string; status: string; startedAt: string; finishedAt?: string; operatorName?: string; errorMessage?: string; materialCount: number
+  orderCount: number; totalCost: string; exceptionCount: number
+}
+export interface CostCheck {
+  period: string; inventoryClosed: boolean; financeClosed: boolean; locked: boolean; running: boolean; expenseEntered: boolean; orderCount: number
+  laborTotal: string; overheadTotal: string; lastRun?: CostRun; canCalculate: boolean; messages: string[]
+}
+export interface CostExpense { deptId: string; deptName?: string; workHours: string; laborAmount?: string; overheadAmount?: string; remark?: string }
+export interface CostException {
+  type: string; materialId?: string; materialCode?: string; materialName?: string; prodOrderId?: string; prodOrderNo?: string; deptName?: string; message: string
+}
+export interface MaterialCost {
+  materialId: string; materialCode: string; materialName: string; spec?: string; uom?: string; openingQty: string; openingAmount: string; inQty: string
+  inAmount: string; unitCost: string; prevUnitCost?: string; outQty: string; outAmount: string; closingQty: string; closingAmount: string
+}
+export interface ProductCost {
+  materialId: string; materialCode: string; materialName: string; finishedQty: string; unitCost: string; materialCost: string; laborCost: string
+  overheadCost: string; totalCost: string; standardCost?: string; diff?: string; diffRate?: string; orderCount: number
+}
+export interface OrderCostMaterial { materialId: string; materialCode: string; materialName: string; issueQty: string; returnQty: string; unitCost: string; amount: string }
+export interface OrderCost {
+  period: string; prodOrderId: string; prodOrderNo: string; materialId: string; materialCode: string; materialName: string; deptName?: string
+  workHours: string; openingWip: string; materialCost: string; laborCost: string; overheadCost: string; totalCost: string; finishedQty: string
+  finishedCost: string; endingWip: string; unitCost: string; materials: OrderCostMaterial[]
+}
+
+export const costApi = {
+  check: (period: string) => http.get<CostCheck>('/finance/cost/check', { period }),
+  expenses: (period: string) => http.get<CostExpense[]>('/finance/cost/expenses', { period }),
+  saveExpenses: (period: string, lines: CostExpense[]) => http.put<void>('/finance/cost/expenses', { period, lines }),
+  calculate: (period: string) => http.post<CostRun>(`/finance/cost/runs?period=${period}`),
+  runs: (period: string) => http.get<CostRun[]>('/finance/cost/runs', { period }),
+  exceptions: (period: string) => http.get<CostException[]>('/finance/cost/exceptions', { period }),
+  lock: (period: string) => http.post<void>(`/finance/cost/lock?period=${period}`),
+  unlock: (period: string) => http.post<void>(`/finance/cost/unlock?period=${period}`),
+  products: (period: string, materialId?: string) => http.get<ProductCost[]>('/finance/cost/products', { period, materialId }),
+  materials: (period: string, keyword?: string) => http.get<MaterialCost[]>('/finance/cost/materials', { period, keyword }),
+  orders: (period: string, materialId?: string) => http.get<OrderCost[]>('/finance/cost/orders', { period, materialId }),
+  order: (prodOrderId: string, period?: string) => http.get<OrderCost>(`/finance/cost/orders/${prodOrderId}`, { period })
+}
+
+// ==================== 月结（12-09） ====================
+
+export interface ClosePeriod {
+  period: string; startDate: string; endDate: string; status: string; costLocked: boolean; fxDone: boolean; closedByName?: string; closedAt?: string
+  canClose: boolean; canReopen: boolean
+}
+export interface CloseCheckItem { key: string; label: string; passed: boolean; blocking: boolean; message?: string; count: number; route?: string }
+export interface CloseCheck { period: string; status: string; passed: boolean; items: CloseCheckItem[] }
+export interface FxRow {
+  docType: string; docId: string; docNo: string; partnerName?: string; currency: string; fcBalance: string; bookBase: string; periodEndRate?: string
+  revaluedBase?: string; diff?: string
+}
+export interface FxResult { period: string; done: boolean; rows: FxRow[]; totalDiff: string; missingRates: string[]; voucherId?: string; voucherNo?: string }
+
+export const closeApi = {
+  periods: (year?: number) => http.get<ClosePeriod[]>('/finance/close/periods', { year }),
+  check: (period: string) => http.get<CloseCheck>(`/finance/close/${period}/check`),
+  fxPreview: (period: string) => http.get<FxResult>(`/finance/close/${period}/fx-revaluation`),
+  revalue: (period: string) => http.post<FxResult>(`/finance/close/${period}/fx-revaluation`),
+  close: (period: string) => http.post<void>(`/finance/close/${period}/close`),
+  reopen: (period: string, reason: string) => http.post<void>(`/finance/close/${period}/reopen`, { reason })
+}
+
+// ==================== 分析报表（12-08 P1） ====================
+
+export interface CashDailyRow {
+  date: string; bankAccountId: string; bankCode: string; bankName: string; currency: string; opening: string; income: string; expense: string; closing: string
+  receiptCount: number; paymentCount: number
+}
+export interface MarginRow {
+  key: string; orderId?: string; orderNo?: string; customerId?: string; customerName?: string; salesmanId?: string; salesmanName?: string; materialId?: string
+  materialCode?: string; materialName?: string; qty?: string; revenue: string; cost?: string; margin?: string; marginRate?: string; rank: number
+}
+export interface MarginReport {
+  dateFrom: string; dateTo: string; group: string; rows: MarginRow[]; totalRevenue: string; totalCost?: string; totalMargin?: string; marginRate?: string
+  uncalculatedPeriods: string[]
+}
+export interface PlItem { key: string; label: string; month?: string; ytd?: string; lastYear?: string; bold: boolean }
+export interface ProfitLoss { period: string; items: PlItem[]; uncalculatedPeriods: string[] }
+export interface AccountBalanceRow {
+  accountCode: string; accountName: string; level: number; leaf: boolean; direction: string; opening: string; debit: string; credit: string; closing: string
+}
+export interface AccountBalance { periodFrom: string; periodTo: string; includeUnposted: boolean; rows: AccountBalanceRow[]; totalDebit: string; totalCredit: string }
+export interface LedgerLine {
+  date: string; period: string; voucherId: string; voucherNo: string; summary?: string; accountCode: string; debit: string; credit: string; direction: string
+  balance: string
+}
+export interface Ledger {
+  accountCode: string; accountName?: string; direction: string; periodFrom: string; periodTo: string; opening: string; debit: string; credit: string
+  closing: string; lines: LedgerLine[]
+}
+
+export const analysisApi = {
+  cashDaily: (params: { dateFrom?: string; dateTo?: string; bankAccountId?: string }) =>
+    http.get<{ dateFrom: string; dateTo: string; rows: CashDailyRow[] }>('/finance/reports/cash-daily', params),
+  margin: (kind: 'order' | 'product' | 'customer', params: Record<string, unknown>) => http.get<MarginReport>(`/finance/reports/${kind}-margin`, params),
+  profitLoss: (period?: string) => http.get<ProfitLoss>('/finance/reports/profit-loss', { period }),
+  accountBalance: (params: { periodFrom?: string; periodTo?: string; includeUnposted?: boolean; maxLevel?: number }) =>
+    http.get<AccountBalance>('/finance/reports/account-balance', params),
+  ledger: (params: { accountCode: string; periodFrom?: string; periodTo?: string; includeUnposted?: boolean }) => http.get<Ledger>('/finance/reports/ledger', params)
+}
+
+/** 当前期间 yyyyMM */
+export const currentPeriod = () => new Date().toISOString().slice(0, 7).replace('-', '')

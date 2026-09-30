@@ -16,15 +16,15 @@ class FinanceSettingReportIntegrationTest extends FinanceTestSupport {
     /** FIN-SET-T01、FIN-SET-R01 ~ R03 */
     @Test
     void accountsAndMappings() throws Exception {
-        String code = "1002" + (10 + (int) (System.nanoTime() % 89));
-        assertError(doPost("/api/finance/accounts", admin, Map.of("code", "2202" + code.substring(4), "name", "X", "parentCode", "1002")),
-                "下级科目编码必须以上级编码「1002」开头");
-        String id = ok(doPost("/api/finance/accounts", admin, Map.of("code", code, "name", "中行美元户", "parentCode", "1002",
+        String code = "1221" + (10 + (int) (System.nanoTime() % 89));
+        assertError(doPost("/api/finance/accounts", admin, Map.of("code", "2202" + code.substring(4), "name", "X", "parentCode", "1221")),
+                "下级科目编码必须以上级编码「1221」开头");
+        String id = ok(doPost("/api/finance/accounts", admin, Map.of("code", code, "name", "美元备用金", "parentCode", "1221",
                 "currencyAccounting", true))).asText();
-        assertError(doPost("/api/finance/accounts", admin, Map.of("code", code, "name", "重复", "parentCode", "1002")), "编码「" + code + "」已存在");
+        assertError(doPost("/api/finance/accounts", admin, Map.of("code", code, "name", "重复", "parentCode", "1221")), "编码「" + code + "」已存在");
         JsonNode tree = ok(doGet("/api/finance/accounts", admin));
         JsonNode bankAcc = null;
-        for (JsonNode n : tree) if ("1002".equals(n.at("/code").asText())) bankAcc = n;
+        for (JsonNode n : tree) if ("1221".equals(n.at("/code").asText())) bankAcc = n;
         assertThat(bankAcc).isNotNull();
         assertThat(bankAcc.at("/leaf").asBoolean()).isFalse();
         JsonNode child = null;

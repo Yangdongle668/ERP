@@ -2,7 +2,7 @@ import { defineModule } from '../types'
 
 /**
  * 财务模块前端入口（需求 12-财务）：应收 → 收款核销、应付 → 进项发票 → 付款申请 → 付款，账龄与往来对账单，财务基础设置。
- * 凭证、成本核算、月结在第 2 批实现（暂显示“开发中”占位页）。编辑、详情页 hidden。
+ * 第 2 批：凭证（生成、审核、过账）、成本核算（月加权平均、订单成本、产品成本表）、分析报表、月结向导。编辑、详情页 hidden。
  */
 export default defineModule({
   code: 'finance',
@@ -38,10 +38,12 @@ export default defineModule({
     { path: 'payment/:id/edit', title: '编辑付款', permission: 'fin:payment:create', hidden: true, doc: '05-付款.md', component: () => import('./views/PaymentEdit.vue') },
     { path: 'payment/verify', title: '付款核销', permission: 'fin:payment:verify', doc: '05-付款.md', component: () => import('./views/VerifyPage.vue') },
     { path: 'payment/:id', title: '付款单详情', permission: 'fin:payment:query', hidden: true, doc: '05-付款.md', component: () => import('./views/PaymentDetail.vue') },
-    { path: 'voucher', title: '凭证', permission: 'fin:voucher:query', doc: '06-凭证.md' },
-    { path: 'cost', title: '成本核算', permission: 'fin:cost:query', doc: '07-成本核算.md' },
+    { path: 'voucher', title: '凭证', permission: 'fin:voucher:query', doc: '06-凭证.md', component: () => import('./views/VoucherList.vue') },
+    { path: 'voucher/new', title: '新建凭证', permission: 'fin:voucher:create', hidden: true, doc: '06-凭证.md', component: () => import('./views/VoucherEdit.vue') },
+    { path: 'voucher/:id', title: '凭证', permission: 'fin:voucher:query', hidden: true, doc: '06-凭证.md', component: () => import('./views/VoucherEdit.vue') },
+    { path: 'cost', title: '成本核算', permission: 'fin:cost:query', doc: '07-成本核算.md', component: () => import('./views/CostPage.vue') },
     { path: 'report', title: '财务报表', permission: 'fin:report:query', doc: '08-利润与报表.md', component: () => import('./views/ReportPage.vue') },
-    { path: 'close', title: '月结', permission: 'fin:close:query', doc: '09-月结.md' },
+    { path: 'close', title: '月结', permission: 'fin:close:query', doc: '09-月结.md', component: () => import('./views/ClosePage.vue') },
     { path: 'setting', title: '财务设置', permission: 'fin:setting:query', doc: '01-财务基础设置.md', component: () => import('./views/SettingPage.vue') }
   ]
 })

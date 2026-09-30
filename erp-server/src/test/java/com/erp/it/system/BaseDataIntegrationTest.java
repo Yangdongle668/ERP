@@ -79,8 +79,8 @@ class BaseDataIntegrationTest extends SystemTestSupport {
         assertThat(ok(doPost("/api/system/exchange-rates/batch", admin, batch)).asInt()).isEqualTo(3);
         // 月末汇率自动调整为当月最后一天
         ok(doPost("/api/system/exchange-rates", admin, Map.of("currency", "USD", "rateType", "MONTH_END", "effectiveDate", "2026-08-15", "rate", "7.12")));
-        JsonNode page = ok(doGet("/api/system/exchange-rates?currency=USD&rateType=MONTH_END&pageNo=1&pageSize=10", admin));
-        assertThat(page.at("/list/0/effectiveDate").asText()).isEqualTo("2026-08-31");
+        JsonNode page = ok(doGet("/api/system/exchange-rates?currency=USD&rateType=MONTH_END&pageNo=1&pageSize=50", admin));
+        assertThat(page.at("/list").findValuesAsText("effectiveDate")).contains("2026-08-31").doesNotContain("2026-08-15");
     }
 
     @Test

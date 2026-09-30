@@ -24,6 +24,7 @@ import com.erp.module.finance.service.CashStatus;
 import com.erp.module.finance.service.FinAction;
 import com.erp.module.finance.service.FinStateMachines;
 import com.erp.module.finance.service.FinSupport;
+import com.erp.module.finance.service.voucher.VoucherService;
 import com.erp.module.finance.service.RequestStatus;
 import com.erp.module.finance.service.setting.SettingService;
 import com.erp.module.finance.service.verify.VerificationService;
@@ -53,15 +54,17 @@ public class PaymentService {
     private final SettingService settingService;
     private final VerificationService verificationService;
     private final FinSupport support;
+    private final VoucherService voucherService;
 
     public PaymentService(FinPaymentMapper mapper, FinPayableMapper payableMapper, PaymentRequestService requestService, SettingService settingService,
-                          VerificationService verificationService, FinSupport support) {
+                          VerificationService verificationService, FinSupport support, VoucherService voucherService) {
         this.mapper = mapper;
         this.payableMapper = payableMapper;
         this.requestService = requestService;
         this.settingService = settingService;
         this.verificationService = verificationService;
         this.support = support;
+        this.voucherService = voucherService;
     }
 
     // ==================== 保存 ====================
@@ -180,6 +183,7 @@ public class PaymentService {
             verificationService.verifyPaymentToPayables(id, alloc);
         }
         requestService.onPaid(requestService.get(r.getId()), p.getAmount(), p.getDocNo());
+        voucherService.autoGenerate(VoucherService.PAYMENT, id);
     }
 
     /** FIN-PAY-R05：期间未结账；反核销后回到草稿（预付已用于冲销应付时需先反核销） */
@@ -190,7 +194,8 @@ public class PaymentService {
         if (!CashStatus.CONFIRMED.name().equals(p.getPaymentStatus())) {
             throw BizException.of(FinanceErrorCodes.STATUS_NOT_ALLOWED, CashStatus.valueOf(p.getPaymentStatus()).label(), "反确认");
         }
-        if (p.getVoucherId() != null) throw new BizException(FinanceErrorCodes.VCH_AUDITED);
+        voucherService.releaseForDoc(p.getVoucherId());
+        p.setVoucherId(null);
         support.requireOpen(p.getPayDate());
         List<FinVerificationDO> vs = verificationService.active(VerificationService.DOC_PAYMENT, id);
         if (vs.stream().anyMatch(v -> !"PAYMENT_AP".equals(v.getVerifyType()))) throw new BizException(FinanceErrorCodes.PAY_VERIFIED);

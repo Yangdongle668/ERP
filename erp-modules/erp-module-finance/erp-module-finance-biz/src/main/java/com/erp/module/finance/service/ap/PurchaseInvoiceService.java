@@ -55,7 +55,7 @@ public class PurchaseInvoiceService {
     public static final String UNMATCHED = "UNMATCHED";
     public static final String MATCHED = "MATCHED";
     public static final String DIFF = "DIFF";
-    static final String REGISTERED = "REGISTERED";
+    public static final String REGISTERED = "REGISTERED";
     static final String VOIDED = "VOIDED";
 
     private final FinPurchaseInvoiceMapper mapper;
