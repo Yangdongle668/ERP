@@ -142,6 +142,47 @@ public class PriceListService {
                 p.getStatus().name(), p.getCloseReason(), p.getRemark(), cost, support.userName(p.getOwnerId()), p.getCreatedAt(), p.getVersion(), resps);
     }
 
+    /**
+     * 打印数据（给客户的价格表）：不含成本、毛利；含税 / 不含税以价格表为准。lang 以 en 开头时用英文名称。
+     * 只有已审核（生效）或已关闭的价格表可以打印。
+     */
+    public Map<String, Object> printData(Long id, String lang) {
+        SalPriceListDO p = getOrThrow(id);
+        if (p.getStatus() == DocStatus.DRAFT || p.getStatus() == DocStatus.PENDING_APPROVAL || p.getStatus() == DocStatus.VOIDED) {
+            throw BizException.of(SalesErrorCodes.PRICE_LIST_PRINT_STATUS);
+        }
+        boolean en = lang != null && lang.toLowerCase().startsWith("en");
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("docNo", p.getDocNo());
+        data.put("name", p.getName());
+        data.put("currency", p.getCurrency());
+        data.put("taxIncludedText", Boolean.TRUE.equals(p.getTaxIncluded()) ? (en ? "Tax included" : "含税") : (en ? "Tax excluded" : "不含税"));
+        data.put("effectiveFrom", p.getEffectiveFrom());
+        data.put("effectiveTo", p.getEffectiveTo() == null ? (en ? "Long-term" : "长期") : p.getEffectiveTo());
+        data.put("remark", java.util.Objects.toString(p.getRemark(), ""));
+        data.put("ownerName", java.util.Objects.toString(support.userName(p.getOwnerId()), ""));
+        CustomerDTO c = p.getCustomerId() == null ? null : support.customerApi().getCustomer(p.getCustomerId()).orElse(null);
+        data.put("customerName", c == null ? "" : en && StringUtils.hasText(c.nameEn()) ? c.nameEn() : c.name());
+        data.put("scopeText", "CUSTOMER".equals(p.getScope()) ? "" : "LEVEL".equals(p.getScope()) ? (en ? "Level " : "客户等级 ") + p.getCustomerLevel() : (en ? "All customers" : "全部客户"));
+        Map<Long, MaterialDTO> ms = support.materials(itemMapper.selectByParent(id).stream().map(SalPriceListItemDO::getMaterialId).toList());
+        List<Map<String, Object>> lines = new ArrayList<>();
+        for (SalPriceListItemDO i : itemMapper.selectByParent(id)) {
+            MaterialDTO m = ms.get(i.getMaterialId());
+            Map<String, Object> l = new java.util.LinkedHashMap<>();
+            l.put("lineNo", i.getLineNo());
+            l.put("materialCode", m == null ? "" : m.code());
+            l.put("description", m == null ? "" : en && StringUtils.hasText(m.nameEn()) ? m.nameEn() : m.name());
+            l.put("spec", m == null ? "" : java.util.Objects.toString(m.spec(), ""));
+            l.put("uom", i.getUom());
+            l.put("minQty", i.getMinQty());
+            l.put("price", i.getPrice());
+            l.put("remark", java.util.Objects.toString(i.getRemark(), ""));
+            lines.add(l);
+        }
+        data.put("lines", lines);
+        return data;
+    }
+
     private BigDecimal safeRate(String currency) {
         try {
             return support.currencyApi().getRate(currency, LocalDate.now());

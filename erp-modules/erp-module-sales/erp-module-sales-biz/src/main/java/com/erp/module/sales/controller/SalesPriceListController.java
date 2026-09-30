@@ -132,6 +132,12 @@ public class SalesPriceListController {
         return CommonResult.success(service.copy(id));
     }
 
+    @GetMapping("/price-lists/{id}/print-data")
+    @PreAuthorize("@ss.has('sales:price-list:print')")
+    public CommonResult<java.util.Map<String, Object>> printData(@PathVariable Long id, @RequestParam(required = false) String lang) {
+        return CommonResult.success(service.printData(id, lang));
+    }
+
     @GetMapping("/price-lists/export")
     @PreAuthorize("@ss.has('sales:price-list:export')")
     public void export(@Valid PriceListQuery q, HttpServletResponse response) throws IOException {

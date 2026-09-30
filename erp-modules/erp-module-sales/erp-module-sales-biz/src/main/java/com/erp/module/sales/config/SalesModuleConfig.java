@@ -166,7 +166,8 @@ public class SalesModuleConfig {
                 .button("sales:price-list:delete", "删除")
                 .button("sales:price-list:submit", "提交")
                 .button("sales:price-list:import", "导入")
-                .button("sales:price-list:export", "导出");
+                .button("sales:price-list:export", "导出")
+                .button("sales:price-list:print", "打印");
     }
 
     @Bean
@@ -296,6 +297,20 @@ public class SalesModuleConfig {
                 .variable("lines.minQty", "起始数量", "qty").variable("lines.price", "单价", "price").variable("lines.moq", "MOQ", "qty")
                 .variable("lines.leadTimeDays", "交期(天)", "number").variable("lines.toolingFee", "模具费", "amount").variable("lines.remark", "备注", "string")
                 .sampleData("{\"docNo\":\"QT-202609-0001\",\"revisionText\":\"R0\",\"customerName\":\"ABC Trading\",\"currency\":\"USD\","
+                        + "\"lines\":[{\"lineNo\":1,\"materialCode\":\"FG0001\",\"description\":\"FPC Assembly\",\"uom\":\"PCS\",\"minQty\":1000,\"price\":1.25}]}");
+    }
+
+    @Bean
+    public PrintBizDefinition salPriceListPrint() {
+        return PrintBizDefinition.of(PRICE_LIST, "销售价格表", MODULE, "/sales/price-lists/{id}/print-data")
+                .variable("docNo", "单号", "string").variable("name", "名称", "string").variable("customerName", "客户", "string")
+                .variable("scopeText", "适用范围", "string").variable("currency", "币别", "string").variable("taxIncludedText", "含税说明", "string")
+                .variable("effectiveFrom", "生效日期", "date").variable("effectiveTo", "失效日期", "string").variable("remark", "备注", "string")
+                .variable("ownerName", "创建人", "string")
+                .variable("lines", "明细", "array").variable("lines.lineNo", "行号", "number").variable("lines.materialCode", "物料编码", "string")
+                .variable("lines.description", "名称", "string").variable("lines.spec", "规格", "string").variable("lines.uom", "单位", "string")
+                .variable("lines.minQty", "起订量", "qty").variable("lines.price", "单价", "price").variable("lines.remark", "备注", "string")
+                .sampleData("{\"docNo\":\"PL-2026-001\",\"name\":\"2026 通用价格表\",\"currency\":\"USD\",\"taxIncludedText\":\"Tax excluded\","
                         + "\"lines\":[{\"lineNo\":1,\"materialCode\":\"FG0001\",\"description\":\"FPC Assembly\",\"uom\":\"PCS\",\"minQty\":1000,\"price\":1.25}]}");
     }
 

@@ -27,6 +27,7 @@ public interface SalesErrorCodes {
     ErrorCode PRICE_LIST_DATE_RANGE = new ErrorCode(1_004_001_003, "失效日期不能早于生效日期");
     ErrorCode PRICE_LIST_SCOPE = new ErrorCode(1_004_001_004, "适用范围为{}时请选择{}");
     ErrorCode PRICE_TIER_DUPLICATE = new ErrorCode(1_004_001_005, "物料「{}」单位 {} 的起始数量 {} 重复");
+    ErrorCode PRICE_LIST_PRINT_STATUS = new ErrorCode(1_004_001_006, "价格表审核通过后才能打印");
 
     // ==================== RFQ 002 ====================
     ErrorCode RFQ_NOT_EXISTS = new ErrorCode(1_004_002_000, "RFQ 不存在");

@@ -46,6 +46,25 @@ class SalesDocsIntegrationTest extends SalesTestSupport {
         return ok(doGet("/api/sales/prices/lookup?customerId=" + customerId + "&materialId=" + materialId + "&qty=" + qty + "&uom=PCS&currency=CNY", admin));
     }
 
+    /** 价格表打印：审核后才能打印，只含单价与阶梯，不含成本、毛利 */
+    @Test
+    void priceListPrint() throws Exception {
+        String fg1 = fg("FGP");
+        String abc = customer("ABC", false, TERM_NET30, "A");
+        String pl = priceList("CUSTOMER", abc, null, false, List.of(List.of(fg1, "0", "10"), List.of(fg1, "1000", "9.5")));
+        assertError(doGet("/api/sales/price-lists/" + pl + "/print-data", admin), "价格表审核通过后才能打印");
+        ok(doPost("/api/sales/price-lists/" + pl + "/submit", admin, null));
+        JsonNode d = ok(doGet("/api/sales/price-lists/" + pl + "/print-data", admin));
+        assertThat(d.at("/taxIncludedText").asText()).isEqualTo("不含税");
+        assertThat(d.at("/effectiveTo").asText()).isEqualTo("长期");
+        assertThat(d.at("/customerName").asText()).startsWith("ABC");
+        assertThat(d.at("/lines").size()).isEqualTo(2);
+        assertThat(d.at("/lines/1/minQty").decimalValue()).isEqualByComparingTo("1000");
+        assertThat(d.at("/lines/1/price").decimalValue()).isEqualByComparingTo("9.5");
+        assertThat(d.toString()).doesNotContain("cost").doesNotContain("margin");
+        assertThat(ok(doGet("/api/sales/price-lists/" + pl + "/print-data?lang=en", admin)).at("/taxIncludedText").asText()).isEqualTo("Tax excluded");
+    }
+
     /** PL-T01 客户价格表阶梯；T02 等级价格表；T03 最近成交价；T04 毛利率低于参数；R01 缺 0 档 */
     @Test
     void priceLists() throws Exception {

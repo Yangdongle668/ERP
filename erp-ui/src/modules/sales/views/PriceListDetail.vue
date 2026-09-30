@@ -81,7 +81,8 @@ onMounted(load)
   <ErpPage noBreadcrumb>
     <template #header>
       <DocPageHeader :title="d?.docNo ?? '价格表'" :status="d?.status" :status-map="PRICE_LIST_STATUS" :actions="actions" @back="router.push('/sales/price-list')">
-        <template #actions-prefix><ApprovalActions v-if="d" biz-type="SAL_PRICE_LIST" :biz-id="id" @changed="load" /></template>
+        <template #actions-prefix><ApprovalActions v-if="d" biz-type="SAL_PRICE_LIST" :biz-id="id" @changed="load" />
+          <PrintButton v-if="d && ['APPROVED', 'CLOSED'].includes(d.status)" biz-type="SAL_PRICE_LIST" :ids="[id]" permission="sales:price-list:print" /></template>
       </DocPageHeader>
     </template>
 
