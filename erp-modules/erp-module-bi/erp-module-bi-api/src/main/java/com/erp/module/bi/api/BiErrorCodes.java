@@ -24,4 +24,8 @@ public interface BiErrorCodes {
 
     ErrorCode TARGET_METRIC = new ErrorCode(1_013_005_000, "指标「{}」不支持设置目标（只支持期间累计的金额类指标）");
     ErrorCode TARGET_NEGATIVE = new ErrorCode(1_013_005_001, "目标值不能为负数");
+
+    ErrorCode SUB_NOT_EXISTS = new ErrorCode(1_013_006_000, "订阅不存在");
+    ErrorCode SUB_INVALID = new ErrorCode(1_013_006_001, "订阅设置不正确：{}");
+    ErrorCode SUB_LIMIT = new ErrorCode(1_013_006_002, "每人最多 20 个订阅");
 }

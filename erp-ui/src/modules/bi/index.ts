@@ -17,6 +17,7 @@ export default defineModule({
     { path: 'finance', title: '财务分析', permission: 'bi:finance:view', doc: '03-专题分析.md', component: () => import('./views/FinanceAnalysis.vue') },
     { path: 'forecast', title: '销售预测建议', permission: 'bi:forecast:use', doc: '04-AI分析.md', component: () => import('./views/ForecastPage.vue') },
     { path: 'target', title: 'KPI 目标', permission: 'bi:target:manage', doc: '02-经营驾驶舱.md', component: () => import('./views/TargetPage.vue') },
+    { path: 'subscription', title: '报表订阅', permission: 'bi:subscription:manage', doc: '03-专题分析.md', component: () => import('./views/SubscriptionPage.vue') },
     { path: 'ai', title: 'AI 分析', permission: 'ai:query:use', doc: '04-AI分析.md', component: () => import('./views/AiPage.vue') },
     { path: 'metric', title: '指标库', permission: 'bi:metric:manage', doc: '01-指标库与数据层.md', component: () => import('./views/MetricPage.vue') },
     { path: 'etl', title: '数据任务', permission: 'bi:metric:manage', doc: '01-指标库与数据层.md', component: () => import('./views/EtlPage.vue') }

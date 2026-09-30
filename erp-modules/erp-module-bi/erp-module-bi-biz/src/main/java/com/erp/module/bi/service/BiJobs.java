@@ -6,6 +6,7 @@ import com.erp.module.bi.service.ai.AiWeeklyReportService;
 import com.erp.module.bi.service.etl.BiEtlService;
 import com.erp.module.bi.service.etl.BiEtlService.Job;
 import com.erp.module.bi.service.etl.BiEtlService.Stat;
+import com.erp.module.bi.service.subscription.BiSubscriptionService;
 import com.erp.module.system.api.job.ErpJob;
 import org.springframework.stereotype.Component;
 
@@ -24,12 +25,15 @@ public class BiJobs {
     private final AiAnomalyService anomalyService;
     private final AiWeeklyReportService weeklyReportService;
     private final AiChatService chatService;
+    private final BiSubscriptionService subscriptionService;
 
-    public BiJobs(BiEtlService etlService, AiAnomalyService anomalyService, AiWeeklyReportService weeklyReportService, AiChatService chatService) {
+    public BiJobs(BiEtlService etlService, AiAnomalyService anomalyService, AiWeeklyReportService weeklyReportService, AiChatService chatService,
+                  BiSubscriptionService subscriptionService) {
         this.etlService = etlService;
         this.anomalyService = anomalyService;
         this.weeklyReportService = weeklyReportService;
         this.chatService = chatService;
+        this.subscriptionService = subscriptionService;
     }
 
     /** 增量处理：每 10 分钟重算最近区间（数据延迟 ≤ 15 分钟） */
@@ -71,5 +75,10 @@ public class BiJobs {
     @ErpJob(code = "AI_LOG_CLEANUP", name = "清理 AI 问答日志（180 天）", cron = "0 40 2 * * ?")
     public String cleanupLogs() {
         return "删除 " + chatService.cleanupLogs() + " 条";
+    }
+
+    @ErpJob(code = "BI_SUBSCRIPTION", name = "BI 报表订阅发送", cron = "0 40 7 * * ?")
+    public String subscriptions() {
+        return subscriptionService.runDue(LocalDate.now());
     }
 }

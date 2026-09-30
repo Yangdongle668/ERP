@@ -4,6 +4,8 @@ import com.erp.it.shipping.ShippingTestSupport;
 import com.erp.module.bi.service.ai.AiAnomalyService;
 import com.erp.module.bi.service.ai.LlmAdapter.LlmResult;
 import com.erp.module.bi.service.ai.LlmAdapter.ToolOutcome;
+import com.erp.module.bi.dal.dataobject.BiSubscriptionDO;
+import com.erp.module.bi.service.subscription.BiSubscriptionService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +36,8 @@ class BiIntegrationTest extends ShippingTestSupport {
     ItBiConfig.ScriptedLlm llm;
     @Autowired
     AiAnomalyService anomalyService;
+    @Autowired
+    BiSubscriptionService subscriptionService;
 
     @BeforeEach
     void resetLlm() {
@@ -475,6 +479,71 @@ class BiIntegrationTest extends ShippingTestSupport {
             ok(doPut("/api/bi/kpi-targets", admin, Map.of("year", year, "items", List.of(Map.of("metricCode", "sales_ship_amount", "month", month)))));
         }
         assertThat(noTarget(ok(doGet("/api/bi/dashboard?period=THIS_MONTH", admin)), "sales_ship_amount")).isTrue();
+    }
+
+    /** 报表订阅：只能维护自己的；按订阅人的数据范围生成并推送工作台消息；到期规则；没有指标权限时记录失败 */
+    @Test
+    void subscriptionSendAndSchedule() throws Exception {
+        User u = user("SELF", List.of("bi:subscription:manage", "bi:sales:view"));
+        User other = user("SELF", List.of("bi:subscription:manage", "bi:sales:view"));
+        LocalDate day = YearMonth.now().minusMonths(1).atDay(1);
+        salesAgg(day, 7_700_001L, null, u.id(), "12345", "0", "0");
+        salesAgg(day, 7_700_002L, null, other.id(), "99999", "0", "0");
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", "月度出货");
+        body.put("metrics", List.of("sales_ship_amount"));
+        body.put("periodType", "LAST_MONTH");
+        body.put("topN", 5);
+        body.put("frequency", "MONTHLY");
+        body.put("monthday", 1);
+        body.put("sendEmail", false);
+        assertError(doPost("/api/bi/subscriptions", u.token(), Map.of("name", "", "metrics", List.of("sales_ship_amount"), "periodType", "LAST_MONTH", "frequency", "DAILY")),
+                "订阅设置不正确：请填写订阅名称（64 字以内）");
+        String id = ok(doPost("/api/bi/subscriptions", u.token(), body)).at("/id").asText();
+        assertThat(ok(doGet("/api/bi/subscriptions", u.token())).size()).isEqualTo(1);
+        // 别人看不到、改不了、发不了
+        assertThat(ok(doGet("/api/bi/subscriptions", other.token())).size()).isEqualTo(0);
+        assertError(doPost("/api/bi/subscriptions/" + id + "/send", other.token(), Map.of()), "订阅不存在");
+
+        // 立即发送：只含自己数据范围内的金额，并进入工作台消息
+        JsonNode rep = ok(doPost("/api/bi/subscriptions/" + id + "/send", u.token(), Map.of()));
+        assertThat(rep.at("/content").asText()).contains("12,345.00").doesNotContain("99,999").doesNotContain("112,344");
+        JsonNode msgs = ok(doGet("/api/workbench/messages?type=REMIND&pageSize=50", u.token())).at("/list");
+        boolean found = false;
+        for (JsonNode m : msgs) if (m.at("/title").asText().contains("月度出货")) found = true;
+        assertThat(found).isTrue();
+        assertThat(ok(doGet("/api/bi/subscriptions", u.token())).at("/0/lastStatus").asText()).isEqualTo("SUCCESS");
+
+        // 到期规则：每天 / 每周 / 每月，当天已发过不再发，停用不发
+        LocalDate today = LocalDate.of(2026, 3, 2);
+        BiSubscriptionDO d = new BiSubscriptionDO();
+        d.setEnabled(true);
+        d.setFrequency("DAILY");
+        assertThat(BiSubscriptionService.due(d, today)).isTrue();
+        d.setLastSentOn(today);
+        assertThat(BiSubscriptionService.due(d, today)).isFalse();
+        d.setLastSentOn(null);
+        d.setFrequency("WEEKLY");
+        d.setWeekday(1);
+        assertThat(BiSubscriptionService.due(d, today)).isTrue();
+        assertThat(BiSubscriptionService.due(d, today.plusDays(1))).isFalse();
+        d.setFrequency("MONTHLY");
+        d.setMonthday(2);
+        assertThat(BiSubscriptionService.due(d, today)).isTrue();
+        d.setEnabled(false);
+        assertThat(BiSubscriptionService.due(d, today)).isFalse();
+
+        // 期间
+        assertThat(BiSubscriptionService.period("LAST_WEEK", LocalDate.of(2026, 3, 4))).containsExactly(LocalDate.of(2026, 2, 23), LocalDate.of(2026, 3, 1));
+        assertThat(BiSubscriptionService.period("LAST_MONTH", LocalDate.of(2026, 1, 15))).containsExactly(LocalDate.of(2025, 12, 1), LocalDate.of(2025, 12, 31));
+
+        // 定时发送：今天到期的才发送；失去指标权限后记录失败，不影响其他订阅
+        jdbc.update("UPDATE bi_subscription SET frequency = 'DAILY', last_sent_on = NULL WHERE id = ?", Long.valueOf(id));
+        assertThat(subscriptionService.runDue(LocalDate.now())).contains("发送 1 个").contains("失败 0 个");
+        assertThat(subscriptionService.runDue(LocalDate.now())).contains("发送 0 个");
+        ok(doDelete("/api/bi/subscriptions/" + id, u.token()));
+        assertThat(ok(doGet("/api/bi/subscriptions", u.token())).size()).isEqualTo(0);
     }
 
     private static boolean noTarget(JsonNode dash, String code) {

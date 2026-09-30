@@ -167,3 +167,23 @@ export const targetApi = {
   year: (year: number) => http.get<{ year: number; rows: KpiTargetRow[] }>('/bi/kpi-targets', { year }),
   save: (year: number, items: { metricCode: string; month: number; value: string | null }[]) => http.put<void>('/bi/kpi-targets', { year, items })
 }
+
+// ==================== 报表订阅 ====================
+
+export interface Subscription {
+  id: string; name: string; metrics: string[]; metricNames: string[]; dimension?: string; filters?: Record<string, string[]>
+  periodType: string; topN: number; frequency: string; weekday?: number; monthday?: number; sendEmail: boolean; enabled: boolean
+  lastSentOn?: string; lastStatus?: string; lastMessage?: string
+}
+export type SubscriptionSave = Omit<Subscription, 'id' | 'metricNames' | 'lastSentOn' | 'lastStatus' | 'lastMessage'>
+export const SUB_PERIOD: Record<string, string> = { YESTERDAY: '昨天', LAST_WEEK: '上周', LAST_MONTH: '上月', MONTH_TO_DATE: '本月累计' }
+export const SUB_FREQUENCY: Record<string, string> = { DAILY: '每天', WEEKLY: '每周', MONTHLY: '每月' }
+export const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+export const subscriptionApi = {
+  list: () => http.get<Subscription[]>('/bi/subscriptions'),
+  dimensions: () => http.get<{ code: string; label: string }[]>('/bi/subscriptions/dimensions'),
+  create: (b: SubscriptionSave) => http.post<{ id: string }>('/bi/subscriptions', b),
+  update: (id: string, b: SubscriptionSave) => http.put<void>(`/bi/subscriptions/${id}`, b),
+  remove: (id: string) => http.delete<void>(`/bi/subscriptions/${id}`),
+  send: (id: string) => http.post<{ title: string; content: string }>(`/bi/subscriptions/${id}/send`, undefined, { timeout: 120000 })
+}
