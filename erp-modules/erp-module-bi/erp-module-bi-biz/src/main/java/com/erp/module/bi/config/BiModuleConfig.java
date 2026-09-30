@@ -26,6 +26,7 @@ public class BiModuleConfig {
     public static final String PERM_SUBSCRIPTION = "bi:subscription:manage";
     public static final String PERM_EXPORT = "bi:export";
     public static final String PERM_FORECAST = "bi:forecast:use";
+    public static final String PERM_TARGET = "bi:target:manage";
     public static final String PERM_AI_USE = "ai:query:use";
     public static final String PERM_AI_LOG = "ai:log:view";
     public static final String PERM_AI_SETTING = "ai:setting:manage";
@@ -63,6 +64,7 @@ public class BiModuleConfig {
                 .menu(PERM_FINANCE, "财务分析（含毛利、应收）")
                 .menu(PERM_METRIC, "指标库与数据任务")
                 .menu(PERM_FORECAST, "销售预测建议")
+                .menu(PERM_TARGET, "KPI 目标")
                 .button(PERM_SUBSCRIPTION, "报表订阅")
                 .button(PERM_EXPORT, "导出");
     }

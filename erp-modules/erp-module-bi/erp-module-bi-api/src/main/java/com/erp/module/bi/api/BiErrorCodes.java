@@ -21,4 +21,7 @@ public interface BiErrorCodes {
     ErrorCode FORECAST_NO_SELECTION = new ErrorCode(1_013_004_001, "请选择要生成预测的物料");
     ErrorCode FORECAST_NOT_AVAILABLE = new ErrorCode(1_013_004_002, "所选物料没有可用的预测建议（历史出货不足 12 个月）");
     ErrorCode FORECAST_NO_CREATE_PERMISSION = new ErrorCode(1_013_004_003, "没有新建销售预测的权限");
+
+    ErrorCode TARGET_METRIC = new ErrorCode(1_013_005_000, "指标「{}」不支持设置目标（只支持期间累计的金额类指标）");
+    ErrorCode TARGET_NEGATIVE = new ErrorCode(1_013_005_001, "目标值不能为负数");
 }

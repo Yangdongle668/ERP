@@ -47,7 +47,14 @@ public class BiDashboardService {
 
     /** KPI：value 本期、compareValue 对比期；changePct 变化率（%）；比率类指标用 changePt（百分点）；extra 附属值（毛利率、逾期应收） */
     public record Kpi(String code, String name, String unit, BigDecimal value, BigDecimal compareValue, BigDecimal changePct, BigDecimal changePt,
-                      String extraName, String extraUnit, BigDecimal extra, String route) {
+                      String extraName, String extraUnit, BigDecimal extra, String route, BigDecimal target, BigDecimal attainmentPct) {
+
+        /** 附加目标与达成率（%，保留 1 位） */
+        Kpi withTarget(BigDecimal target) {
+            if (target == null || target.signum() <= 0) return this;
+            BigDecimal pct = value == null ? BigDecimal.ZERO : value.multiply(BigDecimal.valueOf(100)).divide(target, 1, RoundingMode.HALF_UP);
+            return new Kpi(code, name, unit, value, compareValue, changePct, changePt, extraName, extraUnit, extra, route, target, pct);
+        }
     }
 
     public record TrendPoint(String month, BigDecimal order, BigDecimal ship, BigDecimal receipt) {
@@ -79,9 +86,11 @@ public class BiDashboardService {
     private final SalesOrderQueryApi salesOrderQueryApi;
     private final OrgApi orgApi;
     private final ParamApi paramApi;
+    private final BiTargetService targetService;
 
     public BiDashboardService(BiQueryService queryService, BiMetricService metricService, SalesOrderQueryApi salesOrderQueryApi, OrgApi orgApi,
-                              ParamApi paramApi) {
+                              ParamApi paramApi, BiTargetService targetService) {
+        this.targetService = targetService;
         this.queryService = queryService;
         this.metricService = metricService;
         this.salesOrderQueryApi = salesOrderQueryApi;
@@ -162,6 +171,7 @@ public class BiDashboardService {
             kpis.add(kpi("ar_balance", names, cur, prev, "ar_overdue", cur.get("ar_overdue"), "/bi/finance"));
         }
         kpis.add(kpi("inventory_amount", names, cur, prev, null, null, "/bi/inventory"));
+        kpis.replaceAll(k -> k.withTarget(targetService.targetFor(k.code(), r.from(), r.to())));
 
         // 近 12 个月趋势
         YearMonth endMonth = YearMonth.from(r.to());
@@ -229,7 +239,7 @@ public class BiDashboardService {
         BigDecimal pt = percent && v != null && p != null ? v.subtract(p).setScale(2, RoundingMode.HALF_UP) : null;
         var extraDef = extraCode == null ? null : MetricRegistry.get(extraCode);
         return new Kpi(code, names.getOrDefault(code, def.name()), def.unit().name(), v, p, pct, pt,
-                extraDef == null ? null : names.getOrDefault(extraCode, extraDef.name()), extraDef == null ? null : extraDef.unit().name(), extra, route);
+                extraDef == null ? null : names.getOrDefault(extraCode, extraDef.name()), extraDef == null ? null : extraDef.unit().name(), extra, route, null, null);
     }
 
     /** 变化率（%）：对比期为 0 或为空时无意义 */

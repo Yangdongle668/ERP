@@ -42,6 +42,7 @@ export const COMPARES: { value: CompareCode; label: string }[] = [{ value: 'MOM'
 export interface Kpi {
   code: string; name: string; unit: MetricUnit; value?: number; compareValue?: number; changePct?: number; changePt?: number
   extraName?: string; extraUnit?: MetricUnit; extra?: number; route?: string
+  target?: number; attainmentPct?: number
 }
 export interface Share { id?: string; label: string; value: number; share?: number }
 export interface Dashboard {
@@ -158,4 +159,11 @@ export interface ForecastResult { startPeriod: string; endPeriod: string; months
 export const forecastApi = {
   suggestions: (months: number) => http.get<ForecastResult>('/bi/forecast/suggestions', { months }, { timeout: 120000 }),
   generate: (materialIds: string[], months: number) => http.post<{ forecastId: string; materialCount: number }>('/bi/forecast/generate', { materialIds, months }, { timeout: 120000 })
+}
+
+// ---------- KPI 目标 ----------
+export interface KpiTargetRow { metricCode: string; metricName: string; values: (string | null)[] }
+export const targetApi = {
+  year: (year: number) => http.get<{ year: number; rows: KpiTargetRow[] }>('/bi/kpi-targets', { year }),
+  save: (year: number, items: { metricCode: string; month: number; value: string | null }[]) => http.put<void>('/bi/kpi-targets', { year, items })
 }

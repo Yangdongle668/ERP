@@ -442,4 +442,48 @@ class BiIntegrationTest extends ShippingTestSupport {
                 AGG_ID.incrementAndGet(), date, date.toString().substring(0, 7).replace("-", ""), materialId, new BigDecimal(qty), new BigDecimal(qty),
                 LocalDateTime.now(), LocalDateTime.now());
     }
+
+    /** KPI 目标达成：整月期间显示目标与达成率；缺月、非整月、数据范围非“全部”不显示；只支持累计金额类指标 */
+    @Test
+    void kpiTargetAttainment() throws Exception {
+        int year = LocalDate.now().getYear();
+        int month = LocalDate.now().getMonthValue();
+        assertError(doPut("/api/bi/kpi-targets", admin, Map.of("year", year, "items", List.of(Map.of("metricCode", "inventory_amount", "month", 1, "value", 1)))),
+                "指标「inventory_amount」不支持设置目标（只支持期间累计的金额类指标）");
+        assertError(doPut("/api/bi/kpi-targets", admin, Map.of("year", year, "items", List.of(Map.of("metricCode", "sales_ship_amount", "month", month, "value", -1)))),
+                "目标值不能为负数");
+        try {
+            ok(doPut("/api/bi/kpi-targets", admin, Map.of("year", year, "items", List.of(Map.of("metricCode", "sales_ship_amount", "month", month, "value", "1000000")))));
+            JsonNode saved = ok(doGet("/api/bi/kpi-targets?year=" + year, admin));
+            JsonNode row = null;
+            for (JsonNode r : saved.at("/rows")) if ("sales_ship_amount".equals(r.at("/metricCode").asText())) row = r;
+            assertThat(row.at("/values/" + (month - 1)).decimalValue()).isEqualByComparingTo("1000000");
+            assertThat(row.at("/values").size()).isEqualTo(12);
+
+            JsonNode kpi = kpiNode(ok(doGet("/api/bi/dashboard?period=THIS_MONTH", admin)), "sales_ship_amount");
+            assertThat(kpi.at("/target").decimalValue()).isEqualByComparingTo("1000000");
+            BigDecimal value = kpi.at("/value").isNull() ? BigDecimal.ZERO : kpi.at("/value").decimalValue();
+            assertThat(kpi.at("/attainmentPct").decimalValue()).isEqualByComparingTo(value.multiply(new BigDecimal(100)).divide(new BigDecimal(1000000), 1, java.math.RoundingMode.HALF_UP));
+            // 没有设置目标的指标、期间（上月）、整季（缺月）都没有目标
+            assertThat(noTarget(ok(doGet("/api/bi/dashboard?period=THIS_MONTH", admin)), "sales_order_amount")).isTrue();
+            if (month != 1) assertThat(noTarget(ok(doGet("/api/bi/dashboard?period=LAST_MONTH", admin)), "sales_ship_amount")).isTrue();
+            assertThat(noTarget(ok(doGet("/api/bi/dashboard?period=THIS_QUARTER", admin)), "sales_ship_amount")).isTrue();
+            // 数据范围不是“全部”的用户不显示目标
+            User self = user("SELF", List.of("bi:dashboard:view"));
+            assertThat(noTarget(ok(doGet("/api/bi/dashboard?period=THIS_MONTH", self.token())), "sales_ship_amount")).isTrue();
+        } finally {
+            ok(doPut("/api/bi/kpi-targets", admin, Map.of("year", year, "items", List.of(Map.of("metricCode", "sales_ship_amount", "month", month)))));
+        }
+        assertThat(noTarget(ok(doGet("/api/bi/dashboard?period=THIS_MONTH", admin)), "sales_ship_amount")).isTrue();
+    }
+
+    private static boolean noTarget(JsonNode dash, String code) {
+        JsonNode t = kpiNode(dash, code).path("target");
+        return t.isMissingNode() || t.isNull();
+    }
+
+    private static JsonNode kpiNode(JsonNode dash, String code) {
+        for (JsonNode k : dash.at("/kpis")) if (code.equals(k.at("/code").asText())) return k;
+        throw new AssertionError("没有 KPI " + code);
+    }
 }

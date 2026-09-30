@@ -16,6 +16,9 @@ const props = withDefaults(defineProps<{
   extraName?: string
   extraUnit?: MetricUnit
   extra?: number | null
+  /** 目标（整月期间且设置了目标时）与达成率（%） */
+  target?: number | null
+  attainmentPct?: number | null
   scale?: AmountScale
   clickable?: boolean
 }>(), { compareLabel: '环比', scale: 1, clickable: false })
@@ -32,6 +35,7 @@ const deltaText = computed(() => {
   const d = Number(delta.value)
   return `${d > 0 ? '+' : ''}${d.toFixed(1)}${props.unit === 'PERCENT' ? ' 个百分点' : '%'}`
 })
+const attainWidth = computed(() => `${Math.min(100, Math.max(0, Number(props.attainmentPct ?? 0)))}%`)
 </script>
 
 <template>
@@ -43,6 +47,10 @@ const deltaText = computed(() => {
         <el-icon v-if="tone !== 'flat'"><component :is="Number(delta) > 0 ? 'Up' : 'Down'" /></el-icon>{{ compareLabel }} {{ deltaText }}
       </span>
       <span v-if="extraName" class="bi-kpi__extra">{{ extraName }} {{ fmtMetric(extra, extraUnit, scale) }}</span>
+    </div>
+    <div v-if="target" class="bi-kpi__target" :title="`目标 ${fmtMetric(target, unit, scale)}`">
+      <div class="bi-kpi__bar"><i :style="{ width: attainWidth }" :class="{ 'is-done': Number(attainmentPct) >= 100 }" /></div>
+      <span>目标 {{ fmtMetric(target, unit, scale) }} · 达成 {{ Number(attainmentPct).toFixed(1) }}%</span>
     </div>
   </div>
 </template>
@@ -59,4 +67,8 @@ const deltaText = computed(() => {
 .bi-kpi__delta.is-good { color: var(--erp-chart-up); }
 .bi-kpi__delta.is-bad { color: var(--erp-chart-down); }
 .bi-kpi__extra { color: var(--erp-color-text-secondary); }
+.bi-kpi__target { margin-top: var(--erp-space-2); font-size: var(--erp-font-size-caption); color: var(--erp-color-text-secondary); }
+.bi-kpi__bar { height: 4px; border-radius: 2px; background: var(--erp-color-border); overflow: hidden; margin-bottom: var(--erp-space-1); }
+.bi-kpi__bar i { display: block; height: 100%; background: var(--erp-color-primary); }
+.bi-kpi__bar i.is-done { background: var(--erp-chart-up); }
 </style>
