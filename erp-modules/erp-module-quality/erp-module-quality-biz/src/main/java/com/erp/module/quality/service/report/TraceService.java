@@ -2,6 +2,7 @@ package com.erp.module.quality.service.report;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.erp.common.exception.BizException;
+import com.erp.module.crm.api.customer.CustomerDTO;
 import com.erp.module.engineering.api.material.MaterialDTO;
 import com.erp.module.inventory.api.batch.BatchApi;
 import com.erp.module.inventory.api.batch.BatchDTO;
@@ -27,6 +28,8 @@ import com.erp.module.quality.dal.mapper.QcInspectionMapper;
 import com.erp.module.quality.dal.mapper.QcNcrMapper;
 import com.erp.module.quality.service.InspStatus;
 import com.erp.module.quality.service.QcSupport;
+import com.erp.module.shipping.api.query.ShipmentQueryApi;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -52,9 +55,11 @@ public class TraceService {
     private final QcInspectionMapper inspectionMapper;
     private final QcNcrMapper ncrMapper;
     private final QcSupport support;
+    private final ObjectProvider<ShipmentQueryApi> shipmentQueryApi;
 
     public TraceService(TraceApi traceApi, BatchApi batchApi, WarehouseApi warehouseApi, QcInspectionMapper inspectionMapper, QcNcrMapper ncrMapper,
-                        QcSupport support) {
+                        QcSupport support, ObjectProvider<ShipmentQueryApi> shipmentQueryApi) {
+        this.shipmentQueryApi = shipmentQueryApi;
         this.traceApi = traceApi;
         this.batchApi = batchApi;
         this.warehouseApi = warehouseApi;
@@ -132,6 +137,10 @@ public class TraceService {
     /** 批次在各仓库的结存（流水汇总）与销售出库记录 */
     private BatchStock stock(Long materialId, String batchNo, Map<Long, MaterialDTO> ms, Map<Long, String> whNames, Map<String, Optional<BatchDTO>> batchCache) {
         List<BatchTxn> txns = batchApi.trace(materialId, batchNo);
+        Map<String, Long> customerByShipment = new HashMap<>();
+        ShipmentQueryApi shipments = shipmentQueryApi.getIfAvailable();
+        if (shipments != null) shipments.getShipmentsByBatch(materialId, batchNo).forEach(l -> customerByShipment.put(l.shipmentNo(), l.customerId()));
+        Map<Long, CustomerDTO> customers = support.customers(customerByShipment.values().stream().filter(Objects::nonNull).distinct().toList());
         Map<Long, BigDecimal> byWh = new LinkedHashMap<>();
         List<ShipRow> ships = new ArrayList<>();
         BigDecimal shipped = BigDecimal.ZERO;
@@ -140,7 +149,9 @@ public class TraceService {
             boolean in = "IN".equals(t.direction());
             byWh.merge(t.warehouseId(), in ? q : q.negate(), BigDecimal::add);
             if (!in && "SALES_OUT".equals(t.bizType())) {
-                ships.add(new ShipRow(t.bizDate(), t.docNo(), t.sourceNo(), q));
+                Long cid = customerByShipment.get(t.sourceNo());
+                CustomerDTO c = cid == null ? null : customers.get(cid);
+                ships.add(new ShipRow(t.bizDate(), t.docNo(), t.sourceNo(), q, cid, c == null ? null : c.name()));
                 shipped = shipped.add(q);
             }
         }

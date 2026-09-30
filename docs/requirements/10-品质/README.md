@@ -131,8 +131,8 @@ QC_IQC、QC_IPQC、QC_FQC、QC_OQC、QC_RETURN（`RI-yyyyMMdd-3`）、QC_RECHECK
 - **首件检验**：生产报工保存时调用 `InspectionQueryApi.checkFirstArticle`（参数 `qc.ipqc.first-article` 打开且该订单没有合格的首件检验时阻止）。
 - **其他模块契约新增**：`StockInConfirmedEvent` 增加 `supplierId` / `customerId`；`PurchaseReceiptApi.revertInspection`（重判撤销）；生产报工依赖 quality-api。
 - **限制**：
-  - 采购退货暂无生成草稿的接口：“通知采购退货”向采购员发待办，退货单号在处置明细中手工登记。
+  - 退供应商：“通知采购退货”调用资材 `PurchaseReturnApi.createDraft` 生成草稿退货单（IQC 来源对应到货行，其余按供应商 + 物料 + 批次找最近可退的到货；出库仓取批次所在的不良品仓），处置明细登记退货单号，并给采购员发待办确认提交；找不到可退的到货记录时只发待办，由采购员手工创建。
   - 同一不良当日预警（参数 `qc.defect.alert-threshold`）：IPQC 判定后，按缺陷代码汇总当天已判定 IPQC 的缺陷数，达到阈值时向品质主管发工作台预警（每个缺陷代码每天一次）。IPQC 不合格警示：`InspectionQueryApi.getIpqcRejected(prodOrderId)` 返回各工序最近一次判定为拒收的 IPQC，生产订单详情的工序页签显示“IPQC 不合格”标记（点击打开检验单），之后同工序判定合格即解除。
-  - 质量追溯的出货记录取批次的销售出库流水，出货客户待出货模块上线后补充。
+  - 质量追溯的出货记录取批次的销售出库流水，客户取出货模块 `ShipmentQueryApi.getShipmentsByBatch`。
   - SCAR 加严抽样（QC-SCAR-R04，P2）、检验报告与 8D 报告的英文模板暂未提供（SCAR 已有英文模板）。
   - 质量报表的图表以条形图表示，制程良率、直通率沿用生产报表。

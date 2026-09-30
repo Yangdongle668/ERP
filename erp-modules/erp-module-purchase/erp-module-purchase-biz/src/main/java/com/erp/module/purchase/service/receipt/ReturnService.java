@@ -23,6 +23,7 @@ import com.erp.module.inventory.api.warehouse.WarehouseApi;
 import com.erp.module.inventory.api.warehouse.WarehouseDTO;
 import com.erp.module.inventory.api.warehouse.WarehouseType;
 import com.erp.module.purchase.api.PurchaseErrorCodes;
+import com.erp.module.purchase.api.receipt.PurchaseReturnApi;
 import com.erp.module.purchase.api.receipt.PurchaseReturnCompletedEvent;
 import com.erp.module.purchase.config.PurchaseModuleConfig;
 import com.erp.module.purchase.controller.vo.CommonVOs.DocResult;
@@ -535,6 +536,51 @@ public class ReturnService {
             ids.add(create(new ReturnSave(Long.valueOf(k[0]), "IQC_REJECT", REPLACE, Long.valueOf(k[1]), null, null, e.getValue(), null, null)).id());
         }
         return ids;
+    }
+
+    // ==================== 品质 NCR 生成草稿 ====================
+
+    /** NCR 处置“退供应商”：定位到货行（或按供应商 + 物料 + 批次找最近可退的），出库仓取批次所在的不良品仓，生成草稿 */
+    @Transactional(rollbackFor = Exception.class)
+    public PurchaseReturnApi.DraftResult createDraft(PurchaseReturnApi.DraftRequest req) {
+        ReceiptLineDO line = null;
+        BigDecimal returnable = BigDecimal.ZERO;
+        if (req.receiptLineId() != null) {
+            line = receiptService.linesByIds(List.of(req.receiptLineId())).get(req.receiptLineId());
+            if (line != null) returnable = receiptService.returnable(List.of(line.getId())).getOrDefault(line.getId(), BigDecimal.ZERO);
+        } else {
+            List<ReceiptLineDO> lines = receiptLineMapper.selectList(new LambdaQueryWrapper<ReceiptLineDO>().eq(ReceiptLineDO::getMaterialId, req.materialId())
+                    .eq(StringUtils.hasText(req.batchNo()), ReceiptLineDO::getBatchNo, req.batchNo()).orderByDesc(ReceiptLineDO::getId).last("LIMIT 50"));
+            Map<Long, ReceiptDO> receipts = receiptService.byIds(lines.stream().map(ReceiptLineDO::getReceiptId).toList());
+            Map<Long, BigDecimal> can = receiptService.returnable(lines.stream().map(ReceiptLineDO::getId).toList());
+            for (ReceiptLineDO l : lines) {
+                ReceiptDO rc = receipts.get(l.getReceiptId());
+                BigDecimal c = can.getOrDefault(l.getId(), BigDecimal.ZERO);
+                if (rc == null || !rc.getSupplierId().equals(req.supplierId()) || c.signum() <= 0) continue;
+                line = l;
+                returnable = c;
+                break;
+            }
+        }
+        if (line == null || returnable.signum() <= 0) throw new BizException(PurchaseErrorCodes.RETURN_DRAFT_NO_RECEIPT);
+        ReceiptDO rc = receiptService.byIds(List.of(line.getReceiptId())).get(line.getReceiptId());
+        List<WarehouseDTO> ngs = warehouseApi.listByType(WarehouseType.NG);
+        if (ngs.isEmpty()) throw new BizException(PurchaseErrorCodes.RETURN_DRAFT_NO_NG_WAREHOUSE);
+        Long warehouseId = ngs.get(0).id();
+        for (WarehouseDTO w : ngs) {
+            String batch = line.getBatchNo();
+            boolean has = inventoryQueryApi.suggestBatches(line.getMaterialId(), w.id(), new BigDecimal("999999999")).stream()
+                    .anyMatch(b -> Objects.equals(b.batchNo(), batch) && b.qty().signum() > 0);
+            if (has) {
+                warehouseId = w.id();
+                break;
+            }
+        }
+        BigDecimal qty = req.qty() == null || req.qty().compareTo(returnable) > 0 ? returnable : req.qty();
+        String reason = StringUtils.hasText(req.reason()) ? req.reason() : "IQC_REJECT";
+        SaveResult r = create(new ReturnSave(rc.getSupplierId(), reason, REPLACE, warehouseId, req.ncrNo(), req.remark(),
+                List.of(new ReturnLineSave(line.getId(), line.getBatchNo(), qty, null)), null, null));
+        return new PurchaseReturnApi.DraftResult(r.id(), getOrThrow(r.id()).getDocNo(), qty);
     }
 
     // ==================== 打印 ====================

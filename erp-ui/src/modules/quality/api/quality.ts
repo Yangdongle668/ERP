@@ -202,7 +202,7 @@ export const ncrApi = {
   suggestCapa: (d: object) => http.post<boolean>('/quality/ncrs/suggest-capa', d),
   submit: (id: string) => http.post<void>(`/quality/ncrs/${id}/submit`),
   done: (id: string, dispId: string, followDocNo?: string) => http.post<void>(`/quality/ncrs/${id}/dispositions/${dispId}/done`, { followDocNo }),
-  purchaseReturn: (id: string) => http.post<void>(`/quality/ncrs/${id}/create-purchase-return`),
+  purchaseReturn: (id: string) => http.post<string>(`/quality/ncrs/${id}/create-purchase-return`),
   reworkOrder: (id: string) => http.post<string>(`/quality/ncrs/${id}/create-rework-order`),
   scrapOut: (id: string) => http.post<string>(`/quality/ncrs/${id}/create-scrap-out`),
   createCapa: (id: string) => http.post<string>(`/quality/ncrs/${id}/create-capa`),
@@ -295,7 +295,7 @@ export interface TraceRow {
 }
 export interface BatchStock {
   materialId: string; materialCode?: string; materialName?: string; batchNo: string; frozen: boolean; warehouses: { warehouseId: string; warehouseName: string; qty: string }[]
-  onHandQty: string; shippedQty: string; shipments: { bizDate: string; docNo: string; sourceNo?: string; qty: string }[]
+  onHandQty: string; shippedQty: string; shipments: { bizDate: string; docNo: string; sourceNo?: string; qty: string; customerId?: string; customerName?: string }[]
 }
 export interface TraceResult {
   materialId: string; materialCode?: string; materialName?: string; batchNo: string; frozen: boolean; inspections: BatchInspection[]; nodes: TraceRow[]; affected: BatchStock[]

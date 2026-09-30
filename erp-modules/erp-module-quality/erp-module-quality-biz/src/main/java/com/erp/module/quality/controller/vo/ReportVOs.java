@@ -32,7 +32,8 @@ public final class ReportVOs {
     public record WarehouseQty(Long warehouseId, String warehouseName, BigDecimal qty) {
     }
 
-    public record ShipRow(LocalDate bizDate, String docNo, String sourceNo, BigDecimal qty) {
+    /** @param sourceNo 出货单号；customerName 取出货模块的出货记录 */
+    public record ShipRow(LocalDate bizDate, String docNo, String sourceNo, BigDecimal qty, Long customerId, String customerName) {
     }
 
     public record TraceResult(Long materialId, String materialCode, String materialName, String batchNo, boolean frozen, List<BatchInspection> inspections,

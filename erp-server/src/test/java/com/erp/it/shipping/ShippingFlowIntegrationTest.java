@@ -138,6 +138,14 @@ class ShippingFlowIntegrationTest extends ShippingTestSupport {
         submitAndConfirm(s1);
         assertThat(orderLineDto(ol).shippedQty()).isEqualByComparingTo("200");
         assertThat(reserved(m)).as("出库后预留减少").isEqualByComparingTo("380");
+        // 追溯显示出货客户：生产追溯的出货记录、品质追溯的出货行
+        String customerName = ok(doGet("/api/crm/customers/" + c, admin)).at("/name").asText();
+        JsonNode mt = ok(doGet("/api/production/trace/backward?materialId=" + m + "&batchNo=" + b1, admin));
+        assertThat(mt.at("/shipments").size()).isEqualTo(1);
+        assertThat(mt.at("/shipments/0/shipmentId").asText()).isEqualTo(s1);
+        assertThat(mt.at("/shipments/0/customerName").asText()).isEqualTo(customerName);
+        JsonNode qt = ok(doGet("/api/quality/trace/forward?materialId=" + m + "&batchNo=" + b1, admin));
+        assertThat(qt.at("/affected/0/shipments/0/customerName").asText()).isEqualTo(customerName);
         d = noticeDetail(n);
         assertThat(d.at("/lines/0/shippedQty").decimalValue()).isEqualByComparingTo("200");
         assertThat(d.at("/noticeStatus").asText()).isEqualTo("PACKED");

@@ -2,6 +2,8 @@ package com.erp.module.production.service.trace;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.erp.common.exception.BizException;
+import com.erp.module.crm.api.customer.CustomerApi;
+import com.erp.module.crm.api.customer.CustomerDTO;
 import com.erp.module.engineering.api.material.MaterialDTO;
 import com.erp.module.engineering.api.material.Tracking;
 import com.erp.module.inventory.api.batch.BatchApi;
@@ -9,6 +11,7 @@ import com.erp.module.inventory.api.batch.BatchDTO;
 import com.erp.module.production.api.ProductionErrorCodes;
 import com.erp.module.production.api.trace.TraceApi;
 import com.erp.module.production.api.trace.TraceNode;
+import com.erp.module.production.controller.vo.TraceVOs.ShipmentRecord;
 import com.erp.module.production.controller.vo.TraceVOs.TraceResult;
 import com.erp.module.production.controller.vo.TraceVOs.TraceRow;
 import com.erp.module.production.controller.vo.TraceVOs.TraceTreeNode;
@@ -17,10 +20,15 @@ import com.erp.module.production.dal.dataobject.MfgTraceDO;
 import com.erp.module.production.dal.mapper.MfgProdOrderMapper;
 import com.erp.module.production.dal.mapper.MfgTraceMapper;
 import com.erp.module.production.service.MfgSupport;
+import com.erp.module.shipping.api.query.ShipmentQueryApi;
+import com.erp.module.shipping.api.query.ShippedLineDTO;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,8 +49,13 @@ public class TraceService implements TraceApi {
     private final MfgProdOrderMapper orderMapper;
     private final MfgSupport support;
     private final BatchApi batchApi;
+    private final ObjectProvider<ShipmentQueryApi> shipmentQueryApi;
+    private final ObjectProvider<CustomerApi> customerApi;
 
-    public TraceService(MfgTraceMapper mapper, MfgProdOrderMapper orderMapper, MfgSupport support, BatchApi batchApi) {
+    public TraceService(MfgTraceMapper mapper, MfgProdOrderMapper orderMapper, MfgSupport support, BatchApi batchApi,
+                        ObjectProvider<ShipmentQueryApi> shipmentQueryApi, ObjectProvider<CustomerApi> customerApi) {
+        this.shipmentQueryApi = shipmentQueryApi;
+        this.customerApi = customerApi;
         this.mapper = mapper;
         this.orderMapper = orderMapper;
         this.support = support;
@@ -132,7 +145,8 @@ public class TraceService implements TraceApi {
         List<String> notes = new ArrayList<>();
         if (nodes.isEmpty()) notes.add("没有找到该批次的投入记录");
         if (nodes.stream().anyMatch(n -> n.componentBatchNo() == null)) notes.add("部分物料未启用批次管理，只显示数量");
-        return new TraceResult("BACKWARD", tree, orders.size(), batches.size(), notes);
+        return new TraceResult("BACKWARD", tree, orders.size(), batches.size(), notes,
+                shipments(List.of(new BatchKey(materialId, batchNo)), ms));
     }
 
     private TraceTreeNode buildBackward(MaterialDTO m, String batchNo, MfgProdOrderDO order, List<TraceNode> nodes, Map<Long, MaterialDTO> ms, int level,
@@ -187,8 +201,40 @@ public class TraceService implements TraceApi {
         }
         List<String> notes = new ArrayList<>();
         if (nodes.isEmpty()) notes.add("该批次还没有被生产领用");
-        notes.add("出货客户需出货模块上线后显示");
-        return new TraceResult("FORWARD", tree, orders.size(), batches.size(), notes);
+        List<BatchKey> products = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (TraceNode n : nodes) {
+            if (n.productBatchNo() != null && seen.add(n.productMaterialId() + "|" + n.productBatchNo())) {
+                products.add(new BatchKey(n.productMaterialId(), n.productBatchNo()));
+            }
+        }
+        return new TraceResult("FORWARD", tree, orders.size(), batches.size(), notes, shipments(products, ms));
+    }
+
+    private record BatchKey(Long materialId, String batchNo) {
+    }
+
+    /** 批次的出货记录（出货模块已出货 / 已完成的出货单），带客户名称；出货行的批次可能是多个批次合并，按查询批次显示 */
+    private List<ShipmentRecord> shipments(List<BatchKey> batches, Map<Long, MaterialDTO> ms) {
+        ShipmentQueryApi api = shipmentQueryApi.getIfAvailable();
+        if (api == null || batches.isEmpty()) return List.of();
+        List<ShippedLineDTO> lines = new ArrayList<>();
+        for (BatchKey b : batches) lines.addAll(api.getShipmentsByBatch(b.materialId(), b.batchNo()).stream()
+                .map(l -> new ShippedLineDTO(l.shipmentId(), l.shipmentNo(), l.shipmentLineId(), l.shipDate(), l.shipmentStatus(), l.customerId(), l.orderId(),
+                        l.orderNo(), l.orderLineId(), l.materialId(), b.batchNo(), l.baseQty(), l.currency(), l.priceInclTax(), l.amount(), l.blNo(),
+                        l.transportMode())).toList());
+        CustomerApi customers = customerApi.getIfAvailable();
+        Map<Long, String> names = new HashMap<>();
+        List<ShipmentRecord> out = new ArrayList<>();
+        for (ShippedLineDTO l : lines) {
+            MaterialDTO m = ms.get(l.materialId());
+            String name = l.customerId() == null || customers == null ? null
+                    : names.computeIfAbsent(l.customerId(), id -> customers.getCustomer(id).map(CustomerDTO::name).orElse(null));
+            out.add(new ShipmentRecord(l.materialId(), m == null ? null : m.code(), m == null ? null : m.name(), l.batchNo(), l.shipmentId(), l.shipmentNo(),
+                    l.shipDate(), l.customerId(), name, l.baseQty()));
+        }
+        out.sort(Comparator.comparing(ShipmentRecord::shipDate, Comparator.nullsLast(Comparator.reverseOrder())).thenComparing(ShipmentRecord::shipmentNo));
+        return out;
     }
 
     private TraceTreeNode buildForward(MaterialDTO m, String batchNo, BigDecimal qty, List<TraceNode> nodes, Map<Long, MaterialDTO> ms, int level,

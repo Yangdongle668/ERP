@@ -138,6 +138,6 @@ MFG_PROD_ORDER（生产订单/工单流程卡，带条码）、MFG_ISSUE（领�
 - **限制**：
   - 拆卸订单（DISASSEMBLY）暂不支持。
   - 编辑页 BOM 版本下拉只列出默认版本和当前选择的版本（BomApi 暂无按产品列出版本的接口）。
-  - 正向追溯暂不显示出货客户，待出货模块上线。
+  - 追溯页显示产品批次的出货记录（出货单、日期、客户，取出货模块 `ShipmentQueryApi.getShipmentsByBatch`）：正向为所有产品批次（召回范围），反向为根批次。
   - 品质模块接入后：不良“生成 NCR”可用（品质实现 `DefectNcrCreator`）；报工保存时调用 `InspectionQueryApi.checkFirstArticle` 做首件检验卡控（参数 `qc.ipqc.first-article`）。
   - 派工的工作中心不限制所属车间。

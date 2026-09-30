@@ -201,6 +201,24 @@ class QualityInspectionIntegrationTest extends QualityTestSupport {
         assertThat(onHand(m, W_NG)).isEqualByComparingTo("1000");
         assertThat(inspection(id).at("/status").asText()).isEqualTo("HANDLED");
 
+        // 退供应商：生成资材草稿退货单（对应 IQC 到货行、不良品仓、1000），处置登记退货单号
+        String msg = ok(doPost("/api/quality/ncrs/" + ncrId + "/create-purchase-return", admin, null)).asText();
+        assertThat(msg).startsWith("已生成退货单 ");
+        String returnNo = msg.substring("已生成退货单 ".length(), msg.indexOf("（"));
+        JsonNode rets = ok(doGet("/api/purchase/returns?docNo=" + returnNo, admin)).at("/list");
+        JsonNode ret = null;
+        for (JsonNode r : rets) if (returnNo.equals(r.at("/docNo").asText())) ret = r;
+        assertThat(ret).as("退货单 %s", returnNo).isNotNull();
+        JsonNode rd = ok(doGet("/api/purchase/returns/" + ret.at("/id").asText(), admin));
+        assertThat(rd.at("/status").asText()).isEqualTo("DRAFT");
+        assertThat(rd.at("/warehouseId").asText()).isEqualTo(W_NG);
+        assertThat(rd.at("/lines/0/qty").decimalValue()).isEqualByComparingTo("1000");
+        boolean logged = false;
+        for (JsonNode x : ok(doGet("/api/quality/ncrs/" + ncrId, admin)).at("/dispositions")) {
+            if ("RETURN".equals(x.at("/disposition").asText())) logged = returnNo.equals(x.at("/followDocNo").asText());
+        }
+        assertThat(logged).isTrue();
+
         // 关闭：退货处置未完成 → 标记完成 → 需要 SCAR → 生成 SCAR → 关闭
         assertError(doPost("/api/quality/ncrs/" + ncrId + "/close", admin, Map.of()), "还有处置未完成");
         for (JsonNode x : ok(doGet("/api/quality/ncrs/" + ncrId, admin)).at("/dispositions")) {

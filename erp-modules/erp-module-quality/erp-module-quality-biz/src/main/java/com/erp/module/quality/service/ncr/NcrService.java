@@ -8,16 +8,17 @@ import com.erp.common.util.Decimals;
 import com.erp.framework.event.DomainEventPublisher;
 import com.erp.module.crm.api.customer.CustomerDTO;
 import com.erp.module.engineering.api.material.MaterialDTO;
+import com.erp.module.inventory.api.batch.BatchApi;
 import com.erp.module.inventory.api.doc.InventoryDocApi;
 import com.erp.module.inventory.api.doc.SourceRef;
 import com.erp.module.inventory.api.doc.StockOutRequest;
 import com.erp.module.inventory.api.doc.StockOutType;
-import com.erp.module.inventory.api.batch.BatchApi;
 import com.erp.module.inventory.api.warehouse.WarehouseApi;
 import com.erp.module.inventory.api.warehouse.WarehouseDTO;
 import com.erp.module.inventory.api.warehouse.WarehouseType;
 import com.erp.module.production.api.order.MrpSuggestion;
 import com.erp.module.production.api.order.ProductionOrderApi;
+import com.erp.module.purchase.api.receipt.PurchaseReturnApi;
 import com.erp.module.purchase.api.supplier.SupplierDTO;
 import com.erp.module.quality.api.QualityErrorCodes;
 import com.erp.module.quality.api.inspection.InspectType;
@@ -55,9 +56,13 @@ import com.erp.module.system.api.user.UserDTO;
 import com.erp.module.system.api.workflow.ApprovalCompletedEvent;
 import com.erp.module.system.api.workflow.StartResult;
 import com.erp.module.system.api.workflow.WorkflowApi;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -100,12 +105,18 @@ public class NcrService {
     private final QcSupport support;
     private final CapaService capaService;
     private final ScarService scarService;
+    private final ObjectProvider<PurchaseReturnApi> purchaseReturnApi;
+    private final TransactionTemplate newTx;
 
     public NcrService(QcNcrMapper mapper, QcNcrDispositionMapper dispMapper, QcInspectionMapper inspectionMapper, QcInspectionDefectMapper inspectionDefectMapper,
                       QcCapaMapper capaMapper, QcScarMapper scarMapper, QcComplaintMapper complaintMapper, InspectionService inspectionService,
                       WorkflowApi workflowApi, BatchApi batchApi, InventoryDocApi inventoryDocApi, WarehouseApi warehouseApi,
                       ProductionOrderApi productionOrderApi, DomainEventPublisher eventPublisher, QcSupport support,
-                      CapaService capaService, ScarService scarService) {
+                      CapaService capaService, ScarService scarService, ObjectProvider<PurchaseReturnApi> purchaseReturnApi,
+                      PlatformTransactionManager transactionManager) {
+        this.purchaseReturnApi = purchaseReturnApi;
+        this.newTx = new TransactionTemplate(transactionManager);
+        this.newTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         this.mapper = mapper;
         this.dispMapper = dispMapper;
         this.inspectionMapper = inspectionMapper;
@@ -564,11 +575,34 @@ public class NcrService {
         return follow;
     }
 
-    /** 退供应商：提醒采购员创建采购退货（资材模块暂无生成退货草稿的接口） */
+    /**
+     * 退供应商：通过资材 {@link PurchaseReturnApi} 生成草稿退货单（IQC 来源的 NCR 直接对应到货行，其余按供应商 + 物料 + 批次查找），
+     * 处置记录登记退货单号，并给采购员发待办确认提交；找不到可退的到货记录时只发待办，由采购员手工创建。返回提示文字。
+     */
     @Transactional(rollbackFor = Exception.class)
-    public void notifyPurchaseReturn(Long id) {
+    public String notifyPurchaseReturn(Long id) {
         QcNcrDO n = get(id);
         QcNcrDispositionDO d = firstOpen(n, "RETURN");
+        PurchaseReturnApi api = purchaseReturnApi.getIfAvailable();
+        PurchaseReturnApi.DraftResult draft = null;
+        String failure = null;
+        if (api != null && n.getSupplierId() != null) {
+            Long receiptLineId = null;
+            QcInspectionDO ins = n.getInspectionId() == null ? null : inspectionMapper.selectById(n.getInspectionId());
+            if (ins != null && "PUR_RECEIPT".equals(ins.getUpstreamType())) receiptLineId = ins.getUpstreamLineId();
+            PurchaseReturnApi.DraftRequest req = new PurchaseReturnApi.DraftRequest(n.getSupplierId(), receiptLineId, n.getMaterialId(), n.getBatchNo(),
+                    d.getQty(), ins != null && InspectType.IQC.name().equals(ins.getInspectType()) ? "IQC_REJECT" : "STOCK_DEFECT", n.getDocNo(),
+                    "NCR " + n.getDocNo() + " 处置退供应商");
+            try {
+                draft = newTx.execute(s -> api.createDraft(req));
+            } catch (BizException e) {
+                failure = e.getMessage();
+            }
+        }
+        if (draft != null) {
+            d.setFollowDocNo(QcSupport.limit(draft.docNo(), 64));
+            dispMapper.updateByIdOrFail(d);
+        }
         List<Long> to = new ArrayList<>();
         if (n.getSupplierId() != null) {
             SupplierDTO s = support.suppliers(List.of(n.getSupplierId())).get(n.getSupplierId());
@@ -576,10 +610,18 @@ public class NcrService {
         }
         if (to.isEmpty()) to.addAll(support.usersWithPermission("pur:return:create"));
         MaterialDTO m = support.material(n.getMaterialId());
-        support.todo("QC_NCR_RETURN_" + d.getId(), to, BIZ_TYPE, n.getId(), n.getDocNo(),
-                "采购退货：" + m.code() + " " + QcSupport.plain(d.getQty()) + (n.getBatchNo() == null ? "" : " 批次 " + n.getBatchNo()) + "（NCR " + n.getDocNo() + "）",
-                "/quality/ncr/" + n.getId());
-        support.log(BIZ_TYPE, id, n.getDocNo(), "PURCHASE_RETURN", "通知采购退货", n.getStatus().name(), n.getStatus().name(), null);
+        String what = m.code() + " " + QcSupport.plain(draft != null ? draft.qty() : d.getQty()) + (n.getBatchNo() == null ? "" : " 批次 " + n.getBatchNo());
+        if (draft != null) {
+            support.todo("QC_NCR_RETURN_" + d.getId(), to, BIZ_TYPE, n.getId(), n.getDocNo(),
+                    "确认提交采购退货 " + draft.docNo() + "：" + what + "（NCR " + n.getDocNo() + "）", "/purchase/return/" + draft.returnId());
+        } else {
+            support.todo("QC_NCR_RETURN_" + d.getId(), to, BIZ_TYPE, n.getId(), n.getDocNo(),
+                    "采购退货：" + what + "（NCR " + n.getDocNo() + "）", "/quality/ncr/" + n.getId());
+        }
+        support.log(BIZ_TYPE, id, n.getDocNo(), "PURCHASE_RETURN", "通知采购退货", n.getStatus().name(), n.getStatus().name(),
+                draft != null ? "退货单 " + draft.docNo() : failure);
+        return draft != null ? "已生成退货单 " + draft.docNo() + "（草稿），并通知采购员确认提交"
+                : "已通知采购员创建采购退货" + (failure == null ? "" : "（" + failure + "）");
     }
 
     /** 生成 CAPA（带出物料、描述到 D2） */

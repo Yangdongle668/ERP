@@ -83,9 +83,8 @@ public class QcNcrController {
 
     @PostMapping("/{id}/create-purchase-return")
     @PreAuthorize("@ss.has('qc:ncr:update')")
-    public CommonResult<Void> purchaseReturn(@PathVariable Long id) {
-        service.notifyPurchaseReturn(id);
-        return CommonResult.success();
+    public CommonResult<String> purchaseReturn(@PathVariable Long id) {
+        return CommonResult.success(service.notifyPurchaseReturn(id));
     }
 
     @PostMapping("/{id}/create-rework-order")

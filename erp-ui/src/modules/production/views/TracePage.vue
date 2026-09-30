@@ -72,6 +72,19 @@ const asNode = (n: unknown) => n as TraceTreeNode
         </template>
       </el-tree>
     </ErpPanel>
+    <ErpPanel v-if="result" :title="`出货记录（${result.shipments.length}）`" flush>
+      <el-table :data="result.shipments">
+        <el-table-column label="产品" min-width="200"><template #default="{ row }">{{ row.materialCode }} {{ row.materialName }}</template></el-table-column>
+        <el-table-column prop="batchNo" label="批次" width="150" />
+        <el-table-column label="出货单" width="170">
+          <template #default="{ row }"><el-link type="primary" underline="never" @click="router.push(`/shipping/shipment/${row.shipmentId}`)">{{ row.shipmentNo }}</el-link></template>
+        </el-table-column>
+        <el-table-column prop="shipDate" label="出货日期" width="110" />
+        <el-table-column prop="customerName" label="客户" min-width="160" />
+        <el-table-column label="数量" width="110" align="right"><template #default="{ row }"><span class="num">{{ formatQty(row.qty) }}</span></template></el-table-column>
+        <template #empty><ErpEmpty compact description="这些批次还没有出货" /></template>
+      </el-table>
+    </ErpPanel>
     <ErpPanel v-else><ErpEmpty description="选择物料、输入批次号后追溯" /></ErpPanel>
   </ErpPage>
 </template>

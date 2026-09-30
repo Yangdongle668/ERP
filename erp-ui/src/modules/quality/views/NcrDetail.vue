@@ -36,7 +36,7 @@ const actions = computed<DocAction[]>(() => [
   { key: 'scar', label: '生成 SCAR', permission: 'qc:scar:create', visible: () => s.value !== 'VOIDED' && !d.value?.scarId && !!d.value?.supplierId,
     handler: async () => { const c = await ncrApi.createScar(id.value); ElMessage.success('已生成 SCAR'); router.push(`/quality/scar/${c}`) } },
   { key: 'return', label: '通知采购退货', permission: 'qc:ncr:update', visible: () => s.value === 'APPROVED' && hasDisp('RETURN'),
-    handler: async () => { await ncrApi.purchaseReturn(id.value); ElMessage.success('已通知采购员创建采购退货') } },
+    handler: async () => { ElMessage.success(await ncrApi.purchaseReturn(id.value)); load() } },
   { key: 'rework', label: '生成返工订单', permission: 'qc:ncr:update', visible: () => s.value === 'APPROVED' && hasDisp('REWORK'),
     handler: async () => { ElMessage.success(await ncrApi.reworkOrder(id.value)); load() } },
   { key: 'scrap', label: '生成报废出库', permission: 'qc:ncr:update', visible: () => s.value === 'APPROVED' && hasDisp('SCRAP'),

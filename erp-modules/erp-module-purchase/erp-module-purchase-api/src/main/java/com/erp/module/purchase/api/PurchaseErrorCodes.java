@@ -111,6 +111,8 @@ public interface PurchaseErrorCodes {
     ErrorCode RETURN_SUPPLIER_MISMATCH = new ErrorCode(1_007_008_004, "第 {} 行不是该供应商的到货");
     ErrorCode RETURN_CURRENCY = new ErrorCode(1_007_008_005, "第 {} 行来源订单币别与其他行不一致");
     ErrorCode RETURN_REVERSE_BLOCKED = new ErrorCode(1_007_008_006, "退货单「{}」已对账，不能反确认出库");
+    ErrorCode RETURN_DRAFT_NO_RECEIPT = new ErrorCode(1_007_008_007, "没有找到该供应商、物料、批次可退货的到货记录，请在资材手工创建退货单");
+    ErrorCode RETURN_DRAFT_NO_NG_WAREHOUSE = new ErrorCode(1_007_008_008, "没有启用的不良品仓，不能生成退货单");
 
     // ========== 对账 1_007_009_xxx ==========
     ErrorCode STATEMENT_NOT_EXISTS = new ErrorCode(1_007_009_000, "对账单不存在");

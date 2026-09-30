@@ -125,7 +125,7 @@ const exportUrl = computed(() => `/quality/trace/forward/export`)
           </el-table-column>
           <el-table-column label="已出货" width="110" align="right"><template #default="{ row }">{{ formatQty(row.shippedQty) }}</template></el-table-column>
           <el-table-column label="出货记录" min-width="220">
-            <template #default="{ row }"><div v-for="s in row.shipments" :key="s.docNo">{{ s.bizDate }} {{ s.docNo }} {{ s.sourceNo ?? '' }} × {{ formatQty(s.qty) }}</div></template>
+            <template #default="{ row }"><div v-for="s in row.shipments" :key="s.docNo">{{ s.bizDate }} {{ s.sourceNo ?? s.docNo }}<template v-if="s.customerName">（{{ s.customerName }}）</template> × {{ formatQty(s.qty) }}</div></template>
           </el-table-column>
         </el-table>
       </ErpPanel>

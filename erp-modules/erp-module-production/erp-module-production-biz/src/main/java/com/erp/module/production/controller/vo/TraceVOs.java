@@ -1,6 +1,7 @@
 package com.erp.module.production.controller.vo;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 /** 生产追溯（需求 09-07） */
@@ -21,7 +22,12 @@ public final class TraceVOs {
     }
 
     /** 顶部汇总：涉及生产订单数、产品批次数、原材料批次数 */
-    public record TraceResult(String direction, TraceTreeNode root, int orderCount, int batchCount, List<String> notes) {
+    public record TraceResult(String direction, TraceTreeNode root, int orderCount, int batchCount, List<String> notes, List<ShipmentRecord> shipments) {
+    }
+
+    /** 产品批次的出货记录（正向追溯的召回范围；反向追溯为根批次的出货） */
+    public record ShipmentRecord(Long materialId, String materialCode, String materialName, String batchNo, Long shipmentId, String shipmentNo,
+                                 LocalDate shipDate, Long customerId, String customerName, BigDecimal qty) {
     }
 
     /** 导出（召回清单）的扁平行 */

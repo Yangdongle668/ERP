@@ -354,7 +354,11 @@ export interface TraceTreeNode {
   prodOrderId?: string; prodOrderNo?: string; completedQty?: string; supplierId?: string; supplierBatchNo?: string; batchSourceNo?: string
   concession: boolean; children: TraceTreeNode[]
 }
-export interface TraceResult { direction: string; root: TraceTreeNode; orderCount: number; batchCount: number; notes: string[] }
+export interface ShipmentRecord {
+  materialId: string; materialCode?: string; materialName?: string; batchNo: string; shipmentId: string; shipmentNo: string; shipDate?: string
+  customerId?: string; customerName?: string; qty: string
+}
+export interface TraceResult { direction: string; root: TraceTreeNode; orderCount: number; batchCount: number; notes: string[]; shipments: ShipmentRecord[] }
 
 export const finishApi = {
   page: (q: PageParam & Record<string, unknown>) => http.get<PageResult<FinishRow>>('/production/finishes', q),
