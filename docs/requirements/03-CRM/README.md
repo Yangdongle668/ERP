@@ -75,7 +75,7 @@ CRM_CUSTOMER（C + 5 位，允许手工）、CRM_OPPORTUNITY。
 | `OpportunityApi` | `onQuotationCreated(opportunityId)`、`onOrderApproved(opportunityId, orderNo)`（已实现） | 销售 |
 
 **发布事件**：`CustomerStatusChangedEvent`、`CustomerOwnerChangedEvent`。
-**与销售、财务的接入方式**：销售、财务模块尚未定义事件，CRM 改为提供回调接口和扩展点（见第 11 节），不监听 `ReceivableBalanceChangedEvent` 等事件。
+**与销售、财务的接入方式**：CRM 通过回调接口和扩展点接入（见第 11 节），不监听 `ReceivableBalanceChangedEvent` 等事件。
 
 ## 10. 权限点汇总
 

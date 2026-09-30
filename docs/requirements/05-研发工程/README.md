@@ -130,7 +130,7 @@ ENG_BOM（BOM 清单，中文）、ENG_ECN（ECN 通知单，中文）、ENG_SAM
 
 - **扩展点（engineering-api，由其他模块实现，未实现前视为“无影响/未使用”）**：
   - `EcnImpactProvider`：ECN 影响分析中的在途采购（资材）、在制生产订单（生产）、未完成销售订单（销售）；库存由研发工程直接调用仓库 `InventoryQueryApi.getStockSummary`。可以有多个实现。
-  - `SampleOrderCreator`：生产模块实现“生成样品生产订单”；未实现时样品详情提示“生产模块尚未启用”，只能走“从库存领取”。完工入库后生产模块调用 `SampleApi.onProductionCompleted`。
+  - `SampleOrderCreator`：生产模块实现“生成样品生产订单”（没有实现方时样品详情提示“生产模块尚未启用”，只能走“从库存领取”）。完工入库后生产模块调用 `SampleApi.onProductionCompleted`。
   - `RoutingReferenceChecker`：生产模块实现，被生产订单使用的工艺路线不能反审核、工作中心不能删除。
 - **工装使用次数**：生产模块报工时直接调用 `ToolingApi`：先 `validateUsable`（R03，达到寿命且未允许超寿命时抛错），再 `usageOf(toolingId, 合格 + 不良)` 按模穴向上取整得到次数，最后 `addUsage`（报工反审核传负数扣回）。不再通过监听 `WorkReportApprovedEvent` 实现。
 - **ECN 生效**：审批通过为每个 BOM 复制新版本并直接审核（版本说明为 ECN 单号，`eng_bom.ecn_id` 记录来源）；IMMEDIATE 立即生效，DATE 由定时任务 `ENG_ECN_EFFECT`（每天 00:10）处理生效日期已到的 ECN，USE_UP 由“立即生效”按钮手工切换。`EcnEffectiveEvent.updateWipDocNos` 为处理方式“更新用料”的在制生产订单，生产模块据此更新未领料部分。

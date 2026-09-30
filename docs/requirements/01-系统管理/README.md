@@ -113,3 +113,15 @@
 业务模块声明 `PrintBizDefinition`（单据类型、打印数据接口 `/<module>/<resource>/{id}/print-data`、变量说明、示例数据），并把内置模板放在 `print-templates/<bizType>-<language>.html`，启动时自动导入；页面上用公共组件 `PrintButton`（`<PrintButton biz-type="SAL_ORDER" :ids="[id]" permission="sal:order:print" />`）打印，模板渲染、分页、页脚、草稿水印、打印记录由组件完成。
 
 业务模块声明 `ApprovalBizDefinition` 后，管理员在“审批流”页面配置流程；未配置或未启用时 `WorkflowApi.start()` 返回 NOT_REQUIRED（直接审核通过），因此不会阻塞业务模块开发。单据详情页使用公共组件 `ApprovalActions`（通过/驳回/转交/撤回）与 `ApprovalTimeline`（审批记录）。
+
+## 8. 实现说明（已实现）
+
+第 1 步、第 2 步的全部功能已实现（后端 + 页面），要点：
+
+- **声明式注册**：见第 5 节；启动时同步权限点、字典、参数、编码规则、审批业务类型、打印业务类型与定时任务，重复编码启动失败。
+- **安全**：JWT 登录（`erp.security.jwt.*`），首次登录 / 管理员重置后强制改密；`admin` 仍为初始密码时启动自动置为“必须改密”；`mysql` profile 下禁止使用默认 JWT 密钥；敏感参数（`SECRET` 类型）AES-GCM 加密存储、页面脱敏。
+- **数据权限**：角色数据范围（本人 / 本部门 / 本部门及下级 / 本公司 / 全部 / 自定义部门），Mapper 上 `@DataScope` 自动拼条件；跨模块引用检查、定时任务等内部查询用 `DataScopes.ignore` 跳过。
+- **引用检查**：删除组织（`OrgReferenceChecker`）、修改本位币（`CurrencyReferenceChecker`）、删除字典项、付款条件等由各业务模块实现扩展点，系统管理只汇总结果。
+- **审批流**：`WorkflowApi` 未配置流程时返回 NOT_REQUIRED（直接审核），结果以 `ApprovalCompletedEvent` 在审批动作同一事务内通知业务模块。
+- **定时任务与任务中心**：`@ErpJob` 声明，数据库锁防止多实例重复执行；异步导出等通过 `AsyncTaskApi` 提交，任务中心可见进度与结果文件。
+- **附件 / 打印**：`FileApi`（本地存储，`FileAccessChecker` 控制访问）、打印模板（HTML 模板 + 打印数据接口，内置模板启动时导入）。

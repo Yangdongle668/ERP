@@ -140,3 +140,19 @@ PUR_ORDER（采购订单，中文 + 英文，发给供应商）、PUR_RECEIPT（
 | 对账 | `pur:statement:query`（菜单）、`create`、`update`、`delete`、`submit`、`confirm`（供应商确认）、`unconfirm`、`print` |
 | 评估 | `pur:score:query`（菜单）、`calculate`、`update`（手工评分） |
 | 报表 | `pur:report:query`（菜单）、`export` |
+
+## 13. 实现说明（已实现）
+
+供应商（准入、资质、可供物料、暂停 / 淘汰）、采购价格与调价单、采购申请、询比价、采购订单（变更、交期回复、关闭）、到货、委外（发料、收货）、采购退货、供应商对账、供应商评估、采购报表的后端与页面均已实现。与其他模块的接入方式如下：
+
+- **仓库（inventory-api `InventoryDocApi`）**：
+  - 到货审核后生成采购入库 / 委外入库单（需检物料入待检仓），监听 `StockInConfirmedEvent` 回写实收数量与订单行已到货；入库单反确认前（`StockDocEvent` IN_REVERSING）检查是否已对账，反确认后扣回。
+  - 委外发料生成 `OUTSOURCE_ISSUE` 出库单，采购退货审核后生成退货出库单；监听 `StockOutConfirmedEvent` 回写已发料 / 已退货，出库单被仓库退回时单据回到草稿。
+- **品质**：IQC 判定通过 `PurchaseReceiptApi.applyInspection` 回写到货行合格 / 特采 / 不合格数量（同步委外单合格数量），重判时 `revertInspection` 恢复待检；NCR 处置“退供应商”调用 `PurchaseReturnApi.createDraft` 生成草稿退货单（到货行由 IQC 检验单确定，或按供应商 + 物料 + 批次找最近可退的到货；出库仓取批次所在的不良品仓）。
+- **PMC**：`PurchaseRequisitionApi.createFromMrp`（按计划员合并生成采购申请）、`OutsourcingApi.createFromMrp`；`PurchaseQueryApi.getInTransitQty` 提供在途明细（`InTransitDTO.Detail` 同时带确认交期与要求日期，由 PMC 按参数选择）。
+- **仓库 / 销售 / 研发工程**：`PurchaseQueryApi.getInTransitQty` 供仓库安全库存预警计入在途；`PurchasePriceApi.getLatestPrice` 供销售报价核算（财务成本取不到时）；物料详情“供应商”页签调用 `/purchase/supplier-materials`、`/purchase/prices`。
+- **财务**：对账单供应商确认后发布 `PurchaseStatementConfirmedEvent`（财务生成应付），反确认前发布 `PurchaseStatementUnconfirmingEvent` 供财务检查；`SupplierApi.getFinanceInfo`、`PurchaseQueryApi.getOrderHeader / getOpenOrders` 供付款申请与预付款使用。
+- **为其他模块实现的扩展点**：`EcnImpactProvider`（在途采购）、`MaterialReferenceChecker`（未完成采购订单、到货）、`CurrencyReferenceChecker`（采购订单金额）、`OrgReferenceChecker`（单据头与供应商的部门）、`PaymentTermReferenceChecker`、`DictReferenceChecker`、`FileAccessChecker`；BI 事实提供者 `PurchaseBiFactProvider`、工作台卡片 `PurchaseDashboardCards`。
+- **发布事件**：`PurchaseOrderApprovedEvent`、`PurchaseOrderChangedEvent`、`PurchaseDeliveryDateChangedEvent`、`PurchaseReceiptApprovedEvent`、`PurchaseReturnCompletedEvent`、`PurchaseRequisitionClosedEvent`、`PurchaseStatementConfirmedEvent` / `PurchaseStatementUnconfirmingEvent`、`SupplierStatusChangedEvent`。
+- **定时任务**：`PUR_PRICE_DAILY`（00:05 调价生效与价格过期）、`PUR_CERT_EXPIRY`（07:30 供应商资质到期提醒）、`PUR_DELIVERY_REMIND`（08:00 交期前提醒与逾期提醒，天数取 `pur.overdue.remind-days`）、`PUR_SCORE_MONTHLY`（每月 3 日 02:00 计算上月供应商评估，权重取 `pur.score.weights`）。
+- **限制 / 后续**：供应商配额比例只记录不参与分配；工序委外在生产模块中未实现（委外按整单）；没有供应商门户，对账确认由采购在系统内代为操作。

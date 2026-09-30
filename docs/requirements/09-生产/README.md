@@ -121,7 +121,7 @@ MFG_PROD_ORDER（生产订单/工单流程卡，带条码）、MFG_ISSUE（领�
 
 ## 13. 实现说明（已实现）
 
-生产订单、工单派工、领料/超领/倒冲、退料、报工、不良处置与良率、完工入库、生产追溯、生产报表的后端与页面均已实现。品质、PMC、出货、财务模块尚未实现，生产按下列契约提供接入点：
+生产订单、工单派工、领料/超领/倒冲、退料、报工、不良处置与良率、完工入库、生产追溯、生产报表的后端与页面均已实现。与其他模块的接入方式如下：
 
 - **库存对接（inventory-api `InventoryDocApi`）**：
   - 领料单、超领单审核后生成 `MFG_ISSUE` 出库单，退料单生成 `MFG_RETURN` 入库单（良品回物料默认仓，不良回不良品仓），完工入库生成 `MFG_FINISH` 入库单（免检入成品仓，需 FQC 入待检仓）。一张领/退料单只对应一个仓库，新建时按发料仓拆分。
@@ -130,14 +130,14 @@ MFG_PROD_ORDER（生产订单/工单流程卡，带条码）、MFG_ISSUE（领�
 - **需要确认的操作**：下达齐套检查（参数 `mfg.issue.kit-check` 为 WARN）、关闭时余料/在制/待处理不良（`mfg.close.require-return` 为 WARN）返回 `needConfirm`，前端确认后以 `confirmShortage=true` / `confirmScrap=true` 重试；参数为 BLOCK 时直接拒绝。可用库存已扣除先下达的其他订单未领数量。
 - **不良处置**：报工登记的不良为“待处理”，返修合格、报废以补充报工单（`report_kind` = REPAIR / SCRAP）记录，计入工序合格 / 订单报废。
 - **扩展点（production-api）**：
-  - `DefectNcrCreator`：品质模块实现后“不良记录”可生成 NCR；未实现时 `/defects/ncr-available` 返回 false，按钮不显示。
+  - `DefectNcrCreator`：品质实现，“不良记录”可生成 NCR（没有实现方时 `/defects/ncr-available` 返回 false，按钮不显示）。
   - `ProductionFinishApi.onFqcJudged(finishId, qualified, rejected)`：品质 FQC 判定后回写合格入库；免检产品仓库确认即计为合格。
   - 事件：`ProductionOrderReleased/Unreleased/Completed/ClosedEvent`、`ProductionProgressEvent`、`WorkReportApprovedEvent`、`WorkReportReversedEvent`、`IpqcTriggerEvent`（检验点工序报工审核）、`DefectRegisteredEvent`、`DefectMaterialReturnedEvent`（不良退料入库，通知品质）。
 - **对外接口**：`ProductionOrderApi.createFromMrp`（PMC 转单，直接“已计划”）、`release`（PMC“转单并下达”，缺料照常下达）、`updatePlanDates`（PMC 排产回写计划日期，记操作日志）、`createSampleOrder`（研发工程样品，完工后回调 `SampleApi`）；`ProductionQueryApi.getOpenOrders`（未完工订单含用料与工序，供 MRP、缺料、排产、交期预警）、`getWipQty / getAllocatedQty / getProgress / getProgressBySalesOrderLines / getOpenOrdersByComponent / isBomUsed`；`TraceApi` 正向 / 反向追溯。
-- **为其他模块实现**：`SampleOrderCreator`、`BomReferenceChecker`、`RoutingReferenceChecker`、`EcnImpactProvider`（ECN 生效时提示受影响的未完工订单）、`MaterialReferenceChecker`、`DictReferenceChecker`、`FileAccessChecker`。
+- **品质**：报工保存时调用 `InspectionQueryApi.checkFirstArticle` 做首件检验卡控（参数 `qc.ipqc.first-article`）；生产订单工序页签按 `InspectionQueryApi.getIpqcRejected` 显示“IPQC 不合格”警示。
+- **追溯**：追溯页显示产品批次的出货记录（出货单、日期、客户，取出货模块 `ShipmentQueryApi.getShipmentsByBatch`）：正向为所有产品批次（召回范围），反向为根批次。
+- **为其他模块实现**：`SampleOrderCreator`、`BomReferenceChecker`、`RoutingReferenceChecker`、`EcnImpactProvider`（ECN 生效时提示受影响的未完工订单）、`SalesOrderReferenceChecker`（由订单生成的生产订单阻止订单反审核）、`OrgReferenceChecker`、`MaterialReferenceChecker`、`DictReferenceChecker`、`FileAccessChecker`。
 - **限制**：
   - 拆卸订单（DISASSEMBLY）暂不支持。
   - 编辑页 BOM 版本下拉只列出默认版本和当前选择的版本（BomApi 暂无按产品列出版本的接口）。
-  - 追溯页显示产品批次的出货记录（出货单、日期、客户，取出货模块 `ShipmentQueryApi.getShipmentsByBatch`）：正向为所有产品批次（召回范围），反向为根批次。
-  - 品质模块接入后：不良“生成 NCR”可用（品质实现 `DefectNcrCreator`）；报工保存时调用 `InspectionQueryApi.checkFirstArticle` 做首件检验卡控（参数 `qc.ipqc.first-article`）。
   - 派工的工作中心不限制所属车间。
