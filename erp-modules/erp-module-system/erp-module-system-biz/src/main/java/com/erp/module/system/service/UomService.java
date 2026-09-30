@@ -58,7 +58,7 @@ public class UomService implements UomApi {
                 .and(StringUtils.hasText(keyword), x -> x.like(UomDO::getCode, keyword.trim()).or().like(UomDO::getName, keyword.trim()));
         return uomMapper.selectList(w).stream()
                 .sorted(Comparator.comparing((UomDO u) -> u.getCategory().ordinal()).thenComparingInt(UomDO::getSort))
-                .map(u -> new UomResp(u.getId(), u.getCode(), u.getName(), u.getNameEn(), u.getCategory().name(), u.getPrecision(),
+                .map(u -> new UomResp(u.getId(), u.getCode(), u.getName(), u.getNameEn(), u.getCategory().name(), u.getQtyPrecision(),
                         u.getSort(), Boolean.TRUE.equals(u.getBuiltin()), u.getStatus().name(), u.getVersion()))
                 .toList();
     }
@@ -66,7 +66,7 @@ public class UomService implements UomApi {
     public List<UomSimple> simple() {
         return all().values().stream().filter(u -> u.getStatus() == EnableStatus.ENABLED)
                 .sorted(Comparator.comparing((UomDO u) -> u.getCategory().ordinal()).thenComparingInt(UomDO::getSort))
-                .map(u -> new UomSimple(u.getCode(), u.getName(), u.getNameEn(), u.getCategory().name(), u.getPrecision())).toList();
+                .map(u -> new UomSimple(u.getCode(), u.getName(), u.getNameEn(), u.getCategory().name(), u.getQtyPrecision())).toList();
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -79,7 +79,7 @@ public class UomService implements UomApi {
         u.setName(req.name().trim());
         u.setNameEn(StringUtils.hasText(req.nameEn()) ? req.nameEn().trim() : null);
         u.setCategory(UomCategory.valueOf(req.category()));
-        u.setPrecision(req.precision());
+        u.setQtyPrecision(req.precision());
         u.setSort(req.sort());
         u.setBuiltin(false);
         u.setStatus(EnableStatus.ENABLED);
@@ -97,11 +97,11 @@ public class UomService implements UomApi {
         if (category != u.getCategory() && (Boolean.TRUE.equals(u.getBuiltin()) || isReferenced(u.getCode()))) {
             throw new BizException(SystemErrorCodes.UOM_CATEGORY_LOCKED);
         }
-        if (req.precision() < u.getPrecision()) throw new BizException(SystemErrorCodes.UOM_PRECISION_DECREASE);
+        if (req.precision() < u.getQtyPrecision()) throw new BizException(SystemErrorCodes.UOM_PRECISION_DECREASE);
         u.setName(req.name().trim());
         u.setNameEn(StringUtils.hasText(req.nameEn()) ? req.nameEn().trim() : null);
         u.setCategory(category);
-        u.setPrecision(req.precision());
+        u.setQtyPrecision(req.precision());
         u.setSort(req.sort());
         u.setVersion(req.version());
         uomMapper.updateByIdOrFail(u);
@@ -218,7 +218,7 @@ public class UomService implements UomApi {
     public Optional<UomDTO> get(String code) {
         UomDO u = code == null ? null : all().get(code);
         return Optional.ofNullable(u).map(x -> new UomDTO(x.getCode(), x.getName(), x.getNameEn(), x.getCategory().name(),
-                x.getPrecision(), x.getStatus() == EnableStatus.ENABLED));
+                x.getQtyPrecision(), x.getStatus() == EnableStatus.ENABLED));
     }
 
     @Override
@@ -266,6 +266,6 @@ public class UomService implements UomApi {
     @Override
     public int precision(String uom) {
         UomDO u = uom == null ? null : all().get(uom);
-        return u == null ? 4 : u.getPrecision();
+        return u == null ? 4 : u.getQtyPrecision();
     }
 }

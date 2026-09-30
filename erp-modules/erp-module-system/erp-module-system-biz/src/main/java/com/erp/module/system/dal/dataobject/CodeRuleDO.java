@@ -1,6 +1,5 @@
 package com.erp.module.system.dal.dataobject;
 
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.erp.framework.mybatis.BaseDO;
 import com.erp.module.system.api.coderule.CodeRuleDefinition.ResetCycle;
@@ -17,8 +16,8 @@ public class CodeRuleDO extends BaseDO {
     private String moduleCode;
     private String prefix;
     private String datePattern;
-    @TableField("seq_separator")
-    private String separator;
+    /** 日期与流水号之间的分隔符（列名避开 MySQL 保留字 separator） */
+    private String seqSeparator;
     private Integer seqLength;
     private ResetCycle resetCycle;
     private Boolean allowManual;

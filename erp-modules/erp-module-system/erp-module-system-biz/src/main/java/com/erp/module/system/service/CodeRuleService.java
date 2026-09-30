@@ -88,7 +88,7 @@ public class CodeRuleService implements CodeRuleApi {
         if (String.valueOf(seq).length() > rule.getSeqLength()) {
             log.warn("[编码规则] {} 流水号 {} 已超过 {} 位，请调整编码规则", bizCode, seq, rule.getSeqLength());
         }
-        String code = format(prefix, rule.getDatePattern(), rule.getSeparator(), rule.getSeqLength(), today, seq);
+        String code = format(prefix, rule.getDatePattern(), rule.getSeqSeparator(), rule.getSeqLength(), today, seq);
         if (code.length() > MAX_CODE_LENGTH) throw BizException.of(SystemErrorCodes.CODE_RULE_TOO_LONG, rule.getName());
         return code;
     }
@@ -155,7 +155,7 @@ public class CodeRuleService implements CodeRuleApi {
         r.setModuleCode(def.moduleCode());
         r.setPrefix(def.prefix());
         r.setDatePattern(def.datePattern());
-        r.setSeparator(def.separator());
+        r.setSeqSeparator(def.separator());
         r.setSeqLength(def.seqLength());
         r.setResetCycle(def.resetCycle());
         r.setAllowManual(def.allowManual());
@@ -210,7 +210,7 @@ public class CodeRuleService implements CodeRuleApi {
         r.setName(req.name().trim());
         r.setPrefix(prefix);
         r.setDatePattern(datePattern);
-        r.setSeparator("-".equals(req.separator()) ? "-" : "");
+        r.setSeqSeparator("-".equals(req.separator()) ? "-" : "");
         r.setSeqLength(req.seqLength());
         r.setResetCycle(cycle);
         r.setAllowManual(req.allowManual());
@@ -304,9 +304,9 @@ public class CodeRuleService implements CodeRuleApi {
 
     private RuleResp toResp(CodeRuleDO r) {
         return new RuleResp(r.getId(), r.getModuleCode(), moduleNames.getOrDefault(r.getModuleCode(), r.getModuleCode()),
-                r.getBizCode(), r.getName(), r.getPrefix(), r.getDatePattern(), r.getSeparator(), r.getSeqLength(),
+                r.getBizCode(), r.getName(), r.getPrefix(), r.getDatePattern(), r.getSeqSeparator(), r.getSeqLength(),
                 r.getResetCycle().name(), Boolean.TRUE.equals(r.getAllowManual()), allowedVars(r),
-                example(r.getBizCode(), r.getPrefix(), r.getDatePattern(), r.getSeparator(), r.getSeqLength(), r.getResetCycle()),
+                example(r.getBizCode(), r.getPrefix(), r.getDatePattern(), r.getSeqSeparator(), r.getSeqLength(), r.getResetCycle()),
                 r.getVersion());
     }
 }

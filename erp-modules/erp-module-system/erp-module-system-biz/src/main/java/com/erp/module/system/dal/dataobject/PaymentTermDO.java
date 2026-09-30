@@ -19,8 +19,8 @@ public class PaymentTermDO extends BaseDO {
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String nameEn;
     private String settlementMethod;
-    @TableField("term_usage")
-    private TermUsage usage;
+    /** 适用范围（列名避开 MySQL 保留字 usage） */
+    private TermUsage termUsage;
     private EnableStatus status;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String remark;

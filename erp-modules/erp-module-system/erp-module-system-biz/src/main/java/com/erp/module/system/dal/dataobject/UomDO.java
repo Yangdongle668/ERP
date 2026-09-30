@@ -19,8 +19,8 @@ public class UomDO extends BaseDO {
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String nameEn;
     private UomCategory category;
-    @TableField("qty_precision")
-    private Integer precision;
+    /** 数量小数位（列名避开 MySQL 保留字 precision） */
+    private Integer qtyPrecision;
     private Integer sort;
     @TableField("is_builtin")
     private Boolean builtin;

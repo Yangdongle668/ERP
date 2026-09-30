@@ -58,7 +58,7 @@ public class PaymentTermService implements PaymentTermApi {
 
     public List<TermResp> list(String keyword, String usage, String status) {
         LambdaQueryWrapper<PaymentTermDO> w = new LambdaQueryWrapper<PaymentTermDO>()
-                .eq(StringUtils.hasText(usage), PaymentTermDO::getUsage, StringUtils.hasText(usage) ? TermUsage.valueOf(usage) : null)
+                .eq(StringUtils.hasText(usage), PaymentTermDO::getTermUsage, StringUtils.hasText(usage) ? TermUsage.valueOf(usage) : null)
                 .eq(StringUtils.hasText(status), PaymentTermDO::getStatus, StringUtils.hasText(status) ? EnableStatus.valueOf(status) : null)
                 .and(StringUtils.hasText(keyword), x -> x.like(PaymentTermDO::getCode, keyword.trim()).or().like(PaymentTermDO::getName, keyword.trim()))
                 .orderByAsc(PaymentTermDO::getCode);
@@ -78,8 +78,8 @@ public class PaymentTermService implements PaymentTermApi {
     public List<TermSimple> simple(String usage) {
         return termMapper.selectList(new LambdaQueryWrapper<PaymentTermDO>().eq(PaymentTermDO::getStatus, EnableStatus.ENABLED)
                         .orderByAsc(PaymentTermDO::getCode)).stream()
-                .filter(t -> !StringUtils.hasText(usage) || t.getUsage().accepts(usage))
-                .map(t -> new TermSimple(t.getId(), t.getCode(), t.getName(), t.getNameEn(), t.getUsage().name())).toList();
+                .filter(t -> !StringUtils.hasText(usage) || t.getTermUsage().accepts(usage))
+                .map(t -> new TermSimple(t.getId(), t.getCode(), t.getName(), t.getNameEn(), t.getTermUsage().name())).toList();
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -118,7 +118,7 @@ public class PaymentTermService implements PaymentTermApi {
         t.setName(req.name().trim());
         t.setNameEn(StringUtils.hasText(req.nameEn()) ? req.nameEn().trim() : null);
         t.setSettlementMethod(req.settlementMethod());
-        t.setUsage(TermUsage.valueOf(req.usage()));
+        t.setTermUsage(TermUsage.valueOf(req.usage()));
         t.setRemark(req.remark());
     }
 
@@ -174,7 +174,7 @@ public class PaymentTermService implements PaymentTermApi {
         List<NodeVO> vos = sorted.stream().map(n -> new NodeVO(n.getName(), n.getPercent().stripTrailingZeros(), n.getBaseEvent().name(), n.getDays())).toList();
         String summary = sorted.stream().map(n -> n.getPercent().multiply(BigDecimal.valueOf(100)).stripTrailingZeros().toPlainString() + "% "
                 + EVENT_LABELS.get(n.getBaseEvent()) + (n.getDays() > 0 ? " " + n.getDays() + " 天" : "")).collect(Collectors.joining(" / "));
-        return new TermResp(t.getId(), t.getCode(), t.getName(), t.getNameEn(), t.getSettlementMethod(), t.getUsage().name(),
+        return new TermResp(t.getId(), t.getCode(), t.getName(), t.getNameEn(), t.getSettlementMethod(), t.getTermUsage().name(),
                 t.getStatus().name(), t.getRemark(), vos, summary, t.getVersion());
     }
 
@@ -187,7 +187,7 @@ public class PaymentTermService implements PaymentTermApi {
         List<PaymentTermDTO.Node> nodes = nodes(id).stream()
                 .map(n -> new PaymentTermDTO.Node(n.getSeq(), n.getName(), n.getPercent(), n.getBaseEvent(), n.getDays())).toList();
         return Optional.of(new PaymentTermDTO(t.getId(), t.getCode(), t.getName(), t.getNameEn(), t.getSettlementMethod(),
-                t.getUsage().name(), t.getStatus() == EnableStatus.ENABLED, nodes));
+                t.getTermUsage().name(), t.getStatus() == EnableStatus.ENABLED, nodes));
     }
 
     @Override
