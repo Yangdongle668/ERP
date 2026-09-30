@@ -103,6 +103,50 @@ class ShippingDocsIntegrationTest extends ShippingTestSupport {
         assertThat(ok(doGet("/api/shipping/invoices?no=" + id.at("/invoiceNo").asText(), admin)).at("/list/0/invalid").asBoolean()).isTrue();
     }
 
+    /** 多张出货单合并一张 Packing List：箱号接续、行带出货单号、合计相加；不同客户 / 已有 PL 的不能合并；任一出货单反确认使之失效 */
+    @Test
+    void mergePackingList() throws Exception {
+        String m1 = fg("合并成品甲", Map.of());
+        String m2 = fg("合并成品乙", Map.of());
+        stock(m1, "500", null);
+        stock(m2, "300", null);
+        String c = customer("Merge Buyer", true);
+        String s1 = exportShipment(c, m1, "500", "100");   // 5 箱
+        String s2 = exportShipment(c, m2, "300", "100");   // 3 箱
+        String s1No = shipment(s1).at("/docNo").asText();
+        String s2No = shipment(s2).at("/docNo").asText();
+
+        assertError(doPost("/api/shipping/packing-lists/merge", admin, Map.of("shipmentIds", List.of(s1))), "请选择 2 张以上的出货单合并");
+        // 不同客户
+        String other = customer("Other Buyer", true);
+        String m3 = fg("合并成品丙", Map.of());
+        stock(m3, "10", null);
+        String s3 = exportShipment(other, m3, "10", "10");
+        assertError(doPost("/api/shipping/packing-lists/merge", admin, Map.of("shipmentIds", List.of(s1, s3))),
+                "出货单 " + s1No + " 与 " + shipment(s3).at("/docNo").asText() + " 的客户不同，不能合并");
+
+        String pl = ok(doPost("/api/shipping/packing-lists/merge", admin, Map.of("shipmentIds", List.of(s1, s2)))).asText();
+        JsonNode d = ok(doGet("/api/shipping/packing-lists/" + pl, admin));
+        assertThat(d.at("/lines").size()).isEqualTo(2);
+        assertThat(d.at("/lines/0/cartonRange").asText()).isEqualTo("1-5");
+        assertThat(d.at("/lines/0/shipmentNo").asText()).isEqualTo(s1No);
+        assertThat(d.at("/lines/1/cartonRange").asText()).isEqualTo("6-8");
+        assertThat(d.at("/lines/1/shipmentNo").asText()).isEqualTo(s2No);
+        assertThat(d.at("/totals/cartons").asInt()).isEqualTo(8);
+        assertThat(d.at("/totals/qty").decimalValue()).isEqualByComparingTo("800");
+        assertThat(d.at("/shippingMarks").asText()).contains("C/NO. 1-8");
+        assertThat(d.at("/shipmentNos").size()).isEqualTo(2);
+        // 出货单详情显示这张 PL；已在 PL 中的出货单不能再单独生成或合并
+        assertThat(shipment(s2).at("/packingList/id").asText()).isEqualTo(pl);
+        assertError(doPost("/api/shipping/shipments/" + s2 + "/packing-list", admin, null), "出货单已生成Packing List：" + d.at("/plNo").asText());
+        assertError(doPost("/api/shipping/packing-lists/merge", admin, Map.of("shipmentIds", List.of(s1, s2))), "出货单已生成Packing List：" + d.at("/plNo").asText());
+        assertThat(ok(doGet("/api/shipping/packing-lists?no=" + d.at("/plNo").asText(), admin)).at("/list/0/shipmentNo").asText()).contains(s1No).contains(s2No);
+
+        // 合并的任一出货单反确认 → PL 失效
+        ok(doPost("/api/inventory/stock-outs/" + shipment(s2).at("/stockOutId").asText() + "/unconfirm", admin, Map.of("reason", "测试反确认")));
+        assertThat(ok(doGet("/api/shipping/packing-lists/" + pl, admin)).at("/invalid").asBoolean()).isTrue();
+    }
+
     private String m(String name) throws Exception {
         String id = fg(name, Map.of());
         stock(id, "10", null);

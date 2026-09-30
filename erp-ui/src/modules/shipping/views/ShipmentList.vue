@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import type { SearchField, TableColumn } from '@/components'
 import { useListPage } from '@/composables/useListPage'
-import { joinList, LOGISTICS_STATUS, optionsOf, SHIPMENT_STATUS, shipmentApi, type ShipmentRow } from '../api/shipping'
+import { docApi, joinList, LOGISTICS_STATUS, optionsOf, SHIPMENT_STATUS, shipmentApi, type ShipmentRow } from '../api/shipping'
 
 defineOptions({ name: 'ShpShipmentList' })
 
@@ -50,6 +52,21 @@ const columns: TableColumn<ShipmentRow>[] = [
   { prop: 'ownerName', label: '船务', width: 90 },
   { prop: 'noticeNo', label: '出货通知', width: 150, hidden: true }
 ]
+
+/** 多张出货单合并一张 Packing List：同一客户、同一收货地址，已提交且尚无 Packing List */
+const selected = ref<ShipmentRow[]>([])
+const merging = ref(false)
+async function mergePackingList() {
+  if (selected.value.length < 2) return ElMessage.warning('请勾选 2 张以上的出货单')
+  merging.value = true
+  try {
+    const id = await docApi.mergePackingList(selected.value.map((r) => r.id))
+    ElMessage.success('已生成 Packing List')
+    router.push(`/shipping/packing-list/${id}`)
+  } finally {
+    merging.value = false
+  }
+}
 </script>
 
 <template>
@@ -60,8 +77,9 @@ const columns: TableColumn<ShipmentRow>[] = [
           <template #field-customerId><CustomerSelect v-model="query.customerId" /></template>
         </ErpSearchForm>
       </template>
-      <ErpTable :columns="columns" :data="list" :loading="loading" storage-key="shp.shipment" @refresh="load">
+      <ErpTable :columns="columns" :data="list" :loading="loading" storage-key="shp.shipment" selection @selection-change="(rows: ShipmentRow[]) => (selected = rows)" @refresh="load">
         <template #toolbar>
+          <el-button v-perm="'shp:document:create'" :loading="merging" :disabled="selected.length < 2" @click="mergePackingList">合并生成 Packing List</el-button>
           <ExportButton url="/shipping/shipments/export" :params="() => toParams(query)" permission="shp:shipment:export" />
         </template>
       </ErpTable>

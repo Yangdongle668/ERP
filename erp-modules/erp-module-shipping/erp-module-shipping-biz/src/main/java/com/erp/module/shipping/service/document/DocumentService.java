@@ -152,8 +152,7 @@ public class DocumentService {
     @Transactional(rollbackFor = Exception.class)
     public Long createPackingList(Long shipmentId) {
         ShpShipmentDO s = shipmentForDoc(shipmentId);
-        ShpPackingListDO exist = plMapper.selectOne(new LambdaQueryWrapper<ShpPackingListDO>().eq(ShpPackingListDO::getShipmentId, shipmentId).last("LIMIT 1"));
-        if (exist != null) throw BizException.of(ShippingErrorCodes.DOC_EXISTS, "Packing List", exist.getPlNo());
+        checkNoPackingList(s);
         CustomerDTO c = support.customer(s.getCustomerId());
         List<PlLine> lines = plLines(s);
         PlTotals totals = plTotals(lines);
@@ -175,6 +174,83 @@ public class DocumentService {
         return pl.getId();
     }
 
+    /** 出货单已在某张 Packing List 中（单张或合并）时不能再生成 */
+    private void checkNoPackingList(ShpShipmentDO s) {
+        ShpPackingListDO exist = s.getPackingListId() == null ? null : plMapper.selectById(s.getPackingListId());
+        if (exist == null) exist = plMapper.selectOne(new LambdaQueryWrapper<ShpPackingListDO>().eq(ShpPackingListDO::getShipmentId, s.getId()).last("LIMIT 1"));
+        if (exist != null) throw BizException.of(ShippingErrorCodes.DOC_EXISTS, "Packing List", exist.getPlNo());
+    }
+
+    /**
+     * 多张出货单合并一张 Packing List（P2）：同一客户、同一收货地址，都已提交且尚无 Packing List。
+     * 各出货单的箱号接续编号（第二张从第一张最后一箱之后开始），行上带出货单号，合计相加；主出货单为第一张。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Long mergePackingList(List<Long> shipmentIds) {
+        List<Long> ids = shipmentIds == null ? List.of() : shipmentIds.stream().filter(Objects::nonNull).distinct().toList();
+        if (ids.size() < 2) throw new BizException(ShippingErrorCodes.DOC_MERGE_COUNT);
+        List<ShpShipmentDO> ships = new ArrayList<>();
+        for (Long id : ids) {
+            ShpShipmentDO s = shipmentForDoc(id);
+            checkNoPackingList(s);
+            if (!ships.isEmpty()) {
+                ShpShipmentDO first = ships.get(0);
+                if (!Objects.equals(first.getCustomerId(), s.getCustomerId())) throw BizException.of(ShippingErrorCodes.DOC_MERGE_CUSTOMER, first.getDocNo(), s.getDocNo());
+                if (!Objects.equals(first.getShipToSnapshot(), s.getShipToSnapshot())) throw BizException.of(ShippingErrorCodes.DOC_MERGE_ADDRESS, first.getDocNo(), s.getDocNo());
+            }
+            ships.add(s);
+        }
+        ShpShipmentDO main = ships.get(0);
+        CustomerDTO c = support.customer(main.getCustomerId());
+        List<PlLine> lines = new ArrayList<>();
+        int offset = 0;
+        for (ShpShipmentDO s : ships) {
+            List<PlLine> part = plLines(s);
+            for (PlLine l : part) lines.add(shifted(l, offset, s.getDocNo()));
+            offset += plTotals(part).cartons();
+        }
+        PlTotals totals = plTotals(lines);
+        ShpPackingListDO pl = new ShpPackingListDO();
+        pl.setShipmentId(main.getId());
+        pl.setShipmentIds(ids.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
+        pl.setPlNo(support.nextNo(ShippingModuleConfig.PACKING_LIST));
+        pl.setPlDate(ships.stream().map(ShpShipmentDO::getShipDate).filter(Objects::nonNull).max(LocalDate::compareTo).orElse(LocalDate.now()));
+        pl.setConsignee(ShpSupport.limit(consignee(main, c), 512));
+        pl.setNotifyParty(ShpSupport.limit(notifyParty(main), 512));
+        pl.setShippingMarks(ShpSupport.limit(englishName(c) + "\nC/NO. 1-" + totals.cartons() + "\nMADE IN CHINA", 1000));
+        pl.setLineData(support.toJson(lines));
+        pl.setTotalData(support.toJson(totals));
+        pl.setInvalid(false);
+        plMapper.insert(pl);
+        for (ShpShipmentDO s : ships) {
+            ShpShipmentDO fresh = shipmentService.get(s.getId());
+            fresh.setPackingListId(pl.getId());
+            shipmentMapper.updateByIdOrFail(fresh);
+            support.log(ShippingModuleConfig.SHIPMENT, s.getId(), s.getDocNo(), "PACKING_LIST", "合并生成 Packing List", null, null, pl.getPlNo());
+        }
+        return pl.getId();
+    }
+
+    /** 箱号区间整体后移 offset（"3-5" → offset+3 ~ offset+5），并标注所属出货单 */
+    static PlLine shifted(PlLine l, int offset, String shipmentNo) {
+        String range = l.cartonRange();
+        if (offset > 0 && range != null && !range.isBlank()) {
+            String[] p = range.split("-");
+            range = p.length == 2 ? (Integer.parseInt(p[0].trim()) + offset) + "-" + (Integer.parseInt(p[1].trim()) + offset)
+                    : String.valueOf(Integer.parseInt(p[0].trim()) + offset);
+        }
+        return new PlLine(range, l.description(), l.partNo(), l.batchNo(), l.qtyPerCarton(), l.cartons(), l.qty(), l.uom(), l.netWeight(), l.grossWeight(),
+                l.cbm(), shipmentNo);
+    }
+
+    /** PL 包含的出货单单号（单张为主出货单） */
+    private List<String> shipmentNos(ShpPackingListDO pl) {
+        if (!StringUtils.hasText(pl.getShipmentIds())) return List.of(shipmentService.get(pl.getShipmentId()).getDocNo());
+        List<Long> ids = java.util.Arrays.stream(pl.getShipmentIds().split(",")).map(Long::valueOf).toList();
+        Map<Long, ShpShipmentDO> map = shipments(ids);
+        return ids.stream().map(i -> map.get(i) == null ? String.valueOf(i) : map.get(i).getDocNo()).toList();
+    }
+
     /** 相同内容（单一物料 + 批次 + 数量 + 规格重量）的连续箱合并为“1-12”；混装箱逐行列出；未装箱时按出货单行 */
     List<PlLine> plLines(ShpShipmentDO s) {
         List<CartonVO> cartons = shipmentService.cartons(s.getId());
@@ -191,7 +267,7 @@ public class DocumentService {
                 BigDecimal nw = a == null || a.unitNetWeight() == null ? null : a.unitNetWeight().multiply(l.getBaseQty()).setScale(3, RoundingMode.HALF_UP);
                 BigDecimal gw = a == null || a.unitGrossWeight() == null ? nw : a.unitGrossWeight().multiply(l.getBaseQty()).setScale(3, RoundingMode.HALF_UP);
                 out.add(new PlLine("", description(l, m), partNo(l.getCustomerPartNo(), m), l.getBatchNo(), null, null, l.getBaseQty(),
-                        m == null ? l.getUom() : m.baseUom(), nw, gw, null));
+                        m == null ? l.getUom() : m.baseUom(), nw, gw, null, null));
             }
             return out;
         }
@@ -207,7 +283,7 @@ public class DocumentService {
                 String range = n == 1 ? String.valueOf(c.cartonNo()) : c.cartonNo() + "-" + cartons.get(j - 1).cartonNo();
                 out.add(new PlLine(range, descByNoticeLine.getOrDefault(l.noticeLineId(), m == null ? null : m.name()), partNo(l.customerPartNo(), m),
                         l.batchNo(), l.qty(), n, l.qty().multiply(BigDecimal.valueOf(n)), m == null ? null : m.baseUom(), mul(c.netWeightKg(), n),
-                        mul(c.grossWeightKg(), n), mul(c.cbm(), n)));
+                        mul(c.grossWeightKg(), n), mul(c.cbm(), n), null));
                 i = j;
             } else {
                 boolean first = true;
@@ -215,7 +291,7 @@ public class DocumentService {
                     MaterialDTO m = ms.get(l.materialId());
                     out.add(new PlLine(first ? String.valueOf(c.cartonNo()) : "", descByNoticeLine.getOrDefault(l.noticeLineId(), m == null ? null : m.name()),
                             partNo(l.customerPartNo(), m), l.batchNo(), l.qty(), first ? 1 : null, l.qty(), m == null ? null : m.baseUom(),
-                            first ? c.netWeightKg() : null, first ? c.grossWeightKg() : null, first ? c.cbm() : null));
+                            first ? c.netWeightKg() : null, first ? c.grossWeightKg() : null, first ? c.cbm() : null, null));
                     first = false;
                 }
                 i++;
@@ -271,7 +347,7 @@ public class DocumentService {
         });
         return new PackingListDetail(pl.getId(), pl.getPlNo(), pl.getPlDate(), s.getId(), s.getDocNo(), s.getShipmentStatus(), s.getCustomerId(),
                 ShpSupport.customerName(c), pl.getConsignee(), pl.getNotifyParty(), pl.getShippingMarks(), lines == null ? List.of() : lines, totals,
-                pl.getRemark(), Boolean.TRUE.equals(pl.getInvalid()), pl.getCreatedAt());
+                pl.getRemark(), Boolean.TRUE.equals(pl.getInvalid()), pl.getCreatedAt(), shipmentNos(pl));
     }
 
     /** 可修改抬头、收货人、通知方、唛头、描述、料号、备注；数量与重量只读（SHP-DOC-R04 单号唯一） */
@@ -298,7 +374,7 @@ public class DocumentService {
                 PlLineEdit e = req.lines().get(i);
                 edited.add(new PlLine(l.cartonRange(), e.description() != null ? ShpSupport.limit(e.description(), 512) : l.description(),
                         e.partNo() != null ? ShpSupport.limit(e.partNo(), 64) : l.partNo(), l.batchNo(), l.qtyPerCarton(), l.cartons(), l.qty(), l.uom(),
-                        l.netWeight(), l.grossWeight(), l.cbm()));
+                        l.netWeight(), l.grossWeight(), l.cbm(), l.shipmentNo()));
             }
             pl.setLineData(support.toJson(edited));
         }
@@ -321,7 +397,7 @@ public class DocumentService {
             ShpShipmentDO s = ships.get(pl.getShipmentId());
             PlTotals t = support.fromJson(pl.getTotalData(), new TypeReference<PlTotals>() {
             });
-            return new DocRow(pl.getId(), pl.getPlNo(), pl.getPlDate(), pl.getShipmentId(), s == null ? null : s.getDocNo(), s == null ? null : s.getCustomerId(),
+            return new DocRow(pl.getId(), pl.getPlNo(), pl.getPlDate(), pl.getShipmentId(), s == null ? null : StringUtils.hasText(pl.getShipmentIds()) ? String.join("、", shipmentNos(pl)) : s.getDocNo(), s == null ? null : s.getCustomerId(),
                     s == null ? null : ShpSupport.customerName(cus.get(s.getCustomerId())), null, t == null ? null : t.qty(), t == null ? null : t.cartons(),
                     null, Boolean.TRUE.equals(pl.getInvalid()), pl.getCreatedAt());
         }).toList(), p.getTotal());

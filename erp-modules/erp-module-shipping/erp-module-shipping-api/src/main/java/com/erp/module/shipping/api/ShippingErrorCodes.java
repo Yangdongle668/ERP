@@ -52,6 +52,9 @@ public interface ShippingErrorCodes {
     ErrorCode DOC_NO_DUPLICATE = new ErrorCode(1_011_004_001, "单证号「{}」已存在");
     ErrorCode DOC_EXISTS = new ErrorCode(1_011_004_002, "出货单已生成{}：{}");
     ErrorCode DOC_SHIPMENT_DRAFT = new ErrorCode(1_011_004_003, "出货单提交后才能生成单证");
+    ErrorCode DOC_MERGE_COUNT = new ErrorCode(1_011_004_004, "请选择 2 张以上的出货单合并");
+    ErrorCode DOC_MERGE_CUSTOMER = new ErrorCode(1_011_004_005, "出货单 {} 与 {} 的客户不同，不能合并");
+    ErrorCode DOC_MERGE_ADDRESS = new ErrorCode(1_011_004_006, "出货单 {} 与 {} 的收货地址不同，不能合并");
 
     // ========== 物流 005 ==========
     ErrorCode LOG_BACKWARD = new ErrorCode(1_011_005_000, "物流状态不能倒退，如需更正请填写说明");

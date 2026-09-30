@@ -535,7 +535,12 @@ public class ShipmentService {
 
     /** SHP-DOC-R03：出货单反确认 / 作废时单证标记“已失效” */
     private void invalidateDocs(Long shipmentId) {
-        packingListMapper.update(null, new LambdaUpdateWrapper<ShpPackingListDO>().set(ShpPackingListDO::getInvalid, true).eq(ShpPackingListDO::getShipmentId, shipmentId));
+        ShpShipmentDO self = mapper.selectById(shipmentId);
+        packingListMapper.update(null, new LambdaUpdateWrapper<ShpPackingListDO>().set(ShpPackingListDO::getInvalid, true).and(w -> {
+            w.eq(ShpPackingListDO::getShipmentId, shipmentId);
+            // 合并的 Packing List：其中任一出货单反确认 / 作废都使之失效
+            if (self != null && self.getPackingListId() != null) w.or().eq(ShpPackingListDO::getId, self.getPackingListId());
+        }));
         invoiceMapper.update(null, new LambdaUpdateWrapper<ShpInvoiceDO>().set(ShpInvoiceDO::getInvalid, true).eq(ShpInvoiceDO::getShipmentId, shipmentId));
         customsMapper.update(null, new LambdaUpdateWrapper<ShpCustomsDO>().set(ShpCustomsDO::getInvalid, true).eq(ShpCustomsDO::getShipmentId, shipmentId));
     }
@@ -752,7 +757,8 @@ public class ShipmentService {
         ops.putAll(support.users(evs.stream().map(ShpLogisticsEventDO::getOperatorId).toList()));
         List<LogisticsEventVO> events = evs.stream().map(ev -> new LogisticsEventVO(ev.getId(), ev.getLogisticsStatus(), ev.getOccurredAt(), ev.getLocation(),
                 ev.getRemark(), ev.getOperatorId(), ShpSupport.name(ops, ev.getOperatorId()))).toList();
-        ShpPackingListDO pl = packingListMapper.selectOne(new LambdaQueryWrapper<ShpPackingListDO>().eq(ShpPackingListDO::getShipmentId, id).last("LIMIT 1"));
+        ShpPackingListDO pl = s.getPackingListId() != null ? packingListMapper.selectById(s.getPackingListId())
+                : packingListMapper.selectOne(new LambdaQueryWrapper<ShpPackingListDO>().eq(ShpPackingListDO::getShipmentId, id).last("LIMIT 1"));
         ShpInvoiceDO inv = invoiceMapper.selectOne(new LambdaQueryWrapper<ShpInvoiceDO>().eq(ShpInvoiceDO::getShipmentId, id).last("LIMIT 1"));
         ShpCustomsDO cd = customsMapper.selectOne(new LambdaQueryWrapper<ShpCustomsDO>().eq(ShpCustomsDO::getShipmentId, id).last("LIMIT 1"));
         ShpForwarderDO fw = s.getForwarderId() == null ? null : forwarderMapper.selectById(s.getForwarderId());

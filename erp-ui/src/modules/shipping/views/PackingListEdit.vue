@@ -59,7 +59,8 @@ async function save() {
             <el-col :span="8"><el-form-item label="Date" required><el-date-picker v-model="d.plDate" value-format="YYYY-MM-DD" class="w-full" /></el-form-item></el-col>
             <el-col :span="8">
               <el-form-item label="出货单">
-                <el-link type="primary" underline="never" @click="router.push(`/shipping/shipment/${d.shipmentId}`)">{{ d.shipmentNo }}</el-link>
+                <template v-if="d.shipmentNos.length > 1"><span v-for="no in d.shipmentNos" :key="no" class="gap-r">{{ no }}</span></template>
+                <el-link v-else type="primary" underline="never" @click="router.push(`/shipping/shipment/${d.shipmentId}`)">{{ d.shipmentNo }}</el-link>
                 <span class="gap-l">{{ d.customerName }}</span>
               </el-form-item>
             </el-col>
@@ -72,6 +73,7 @@ async function save() {
       </ErpPanel>
       <ErpPanel title="明细" description="箱号区间、数量、重量来自装箱数据，不可修改">
         <el-table :data="d.lines">
+          <el-table-column v-if="d.shipmentNos.length > 1" prop="shipmentNo" label="出货单" width="150" />
           <el-table-column prop="cartonRange" label="Carton No." width="100" />
           <el-table-column label="Description" min-width="200">
             <template #default="{ row }"><el-input v-model="row.description" :disabled="!canEdit" maxlength="512" /></template>
@@ -98,4 +100,5 @@ async function save() {
 .gap-b { margin-bottom: var(--erp-section-gap); }
 .gap-l { margin-left: var(--erp-space-2); }
 .totals { padding-top: var(--erp-space-3); text-align: right; font-weight: var(--erp-font-weight-medium); }
+.gap-r { margin-right: var(--erp-space-2); }
 </style>

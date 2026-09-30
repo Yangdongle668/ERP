@@ -37,7 +37,7 @@ public final class DocumentVOs {
 
     /** PL 行快照 */
     public record PlLine(String cartonRange, String description, String partNo, String batchNo, BigDecimal qtyPerCarton, Integer cartons, BigDecimal qty,
-                         String uom, BigDecimal netWeight, BigDecimal grossWeight, BigDecimal cbm) {
+                         String uom, BigDecimal netWeight, BigDecimal grossWeight, BigDecimal cbm, String shipmentNo) {
     }
 
     public record PlTotals(Integer cartons, BigDecimal qty, BigDecimal netWeight, BigDecimal grossWeight, BigDecimal cbm) {
@@ -45,7 +45,11 @@ public final class DocumentVOs {
 
     public record PackingListDetail(Long id, String plNo, LocalDate plDate, Long shipmentId, String shipmentNo, String shipmentStatus, Long customerId,
                                     String customerName, String consignee, String notifyParty, String shippingMarks, List<PlLine> lines, PlTotals totals,
-                                    String remark, boolean invalid, LocalDateTime createdAt) {
+                                    String remark, boolean invalid, LocalDateTime createdAt, List<String> shipmentNos) {
+    }
+
+    /** 合并出货单生成 Packing List */
+    public record PlMergeReq(@jakarta.validation.constraints.NotEmpty List<Long> shipmentIds) {
     }
 
     public record PlLineEdit(String description, String partNo) {

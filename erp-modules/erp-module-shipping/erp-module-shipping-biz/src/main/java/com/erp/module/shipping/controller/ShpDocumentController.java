@@ -15,6 +15,7 @@ import com.erp.module.shipping.controller.vo.DocumentVOs.InvoiceSave;
 import com.erp.module.shipping.controller.vo.DocumentVOs.PackingListDetail;
 import com.erp.module.shipping.controller.vo.DocumentVOs.PackingListSave;
 import com.erp.module.shipping.controller.vo.DocumentVOs.PlLine;
+import com.erp.module.shipping.controller.vo.DocumentVOs.PlMergeReq;
 import com.erp.module.shipping.service.document.DocumentService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,6 +24,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -35,6 +37,7 @@ import java.util.Map;
 public class ShpDocumentController {
 
     static final List<ExcelColumn<PlLine>> PL_COLUMNS = List.of(
+            ExcelColumn.text("shipmentNo", "Shipment", PlLine::shipmentNo),
             ExcelColumn.text("cartonRange", "Carton No.", PlLine::cartonRange),
             ExcelColumn.text("description", "Description", PlLine::description),
             ExcelColumn.text("partNo", "Part No.", PlLine::partNo),
@@ -85,6 +88,12 @@ public class ShpDocumentController {
     @PreAuthorize("@ss.has('shp:document:query')")
     public CommonResult<PageResult<DocRow>> packingLists(@Valid DocQuery q) {
         return CommonResult.success(service.packingLists(q));
+    }
+
+    @PostMapping("/api/shipping/packing-lists/merge")
+    @PreAuthorize("@ss.has('shp:document:create')")
+    public CommonResult<Long> mergePackingList(@Valid @RequestBody PlMergeReq req) {
+        return CommonResult.success(service.mergePackingList(req.shipmentIds()));
     }
 
     @GetMapping("/api/shipping/packing-lists/{id}")

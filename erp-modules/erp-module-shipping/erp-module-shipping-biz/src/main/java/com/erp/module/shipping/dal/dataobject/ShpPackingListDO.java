@@ -15,7 +15,11 @@ import java.time.LocalDate;
 @TableName("shp_packing_list")
 public class ShpPackingListDO extends BaseDO {
 
+    /** 主出货单（合并时为第一张） */
     private Long shipmentId;
+    /** 合并的全部出货单 ID（逗号分隔，含主出货单）；单张出货单为空 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private String shipmentIds;
     private String plNo;
     private LocalDate plDate;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)

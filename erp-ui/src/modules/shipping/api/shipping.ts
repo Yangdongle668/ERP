@@ -223,12 +223,12 @@ export interface DocRow {
 }
 export interface PlLine {
   cartonRange?: string; description?: string; partNo?: string; batchNo?: string; qtyPerCarton?: string; cartons?: number; qty?: string; uom?: string
-  netWeight?: string; grossWeight?: string; cbm?: string
+  netWeight?: string; grossWeight?: string; cbm?: string; shipmentNo?: string
 }
 export interface PlTotals { cartons: number; qty: string; netWeight: string; grossWeight: string; cbm: string }
 export interface PackingListDetail {
   id: string; plNo: string; plDate: string; shipmentId: string; shipmentNo: string; shipmentStatus: string; customerId: string; customerName?: string
-  consignee?: string; notifyParty?: string; shippingMarks?: string; lines: PlLine[]; totals?: PlTotals; remark?: string; invalid: boolean; createdAt: string
+  consignee?: string; notifyParty?: string; shippingMarks?: string; lines: PlLine[]; totals?: PlTotals; remark?: string; invalid: boolean; createdAt: string; shipmentNos: string[]
 }
 export interface InvoiceLine {
   id: string; lineNo: number; shipmentLineId?: string; orderNo?: string; customerPoNo?: string; customerPartNo?: string; description?: string
@@ -253,6 +253,7 @@ export interface CustomsDetail {
 export const docApi = {
   packingLists: (q: PageParam & Record<string, unknown>) => http.get<PageResult<DocRow>>('/shipping/packing-lists', q),
   packingList: (id: string) => http.get<PackingListDetail>(`/shipping/packing-lists/${id}`),
+  mergePackingList: (shipmentIds: string[]) => http.post<string>('/shipping/packing-lists/merge', { shipmentIds }),
   updatePackingList: (id: string, d: object) => http.put<void>(`/shipping/packing-lists/${id}`, d),
   invoices: (q: PageParam & Record<string, unknown>) => http.get<PageResult<DocRow>>('/shipping/invoices', q),
   invoice: (id: string) => http.get<InvoiceDetail>(`/shipping/invoices/${id}`),
