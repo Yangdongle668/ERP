@@ -10,6 +10,8 @@ import com.erp.module.engineering.api.category.MaterialCategoryApi;
 import com.erp.module.engineering.api.category.MaterialCategoryDTO;
 import com.erp.module.engineering.api.material.MaterialDTO;
 import com.erp.module.inventory.api.stock.InventoryQueryApi;
+import com.erp.module.production.api.order.ProductionQueryApi;
+import com.erp.module.production.api.order.WipDTO;
 import com.erp.module.inventory.api.stock.StockSummary;
 import com.erp.module.sales.api.SalesErrorCodes;
 import com.erp.module.sales.controller.vo.ReportVOs.CustomerRankRow;
@@ -42,6 +44,7 @@ import com.erp.module.sales.service.order.OrderExecService;
 import com.erp.module.sales.service.order.OrderService;
 import com.erp.module.system.api.org.OrgDTO;
 import com.erp.module.system.api.user.UserDTO;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -77,11 +80,13 @@ public class SalesReportService {
     private final SalSupport support;
     private final InventoryQueryApi inventoryQueryApi;
     private final MaterialCategoryApi categoryApi;
+    private final ObjectProvider<ProductionQueryApi> productionQueryApi;
 
     public SalesReportService(SalOrderMapper orderMapper, SalOrderLineMapper lineMapper, SalOrderExecMapper execMapper, SalQuotationMapper quotationMapper,
                               SalQuotationLineMapper quotationLineMapper, SalRfqMapper rfqMapper, SalSupport support, InventoryQueryApi inventoryQueryApi,
-                              MaterialCategoryApi categoryApi) {
+                              MaterialCategoryApi categoryApi, ObjectProvider<ProductionQueryApi> productionQueryApi) {
         this.categoryApi = categoryApi;
+        this.productionQueryApi = productionQueryApi;
         this.orderMapper = orderMapper;
         this.lineMapper = lineMapper;
         this.execMapper = execMapper;
@@ -118,6 +123,8 @@ public class SalesReportService {
         Set<Long> materialIds = lines.stream().map(SalOrderLineDO::getMaterialId).collect(Collectors.toSet());
         Map<Long, MaterialDTO> ms = support.materials(materialIds);
         Map<Long, StockSummary> stock = materialIds.isEmpty() ? Map.of() : inventoryQueryApi.getStockSummary(materialIds);
+        ProductionQueryApi production = productionQueryApi.getIfAvailable();
+        Map<Long, WipDTO> wip = materialIds.isEmpty() || production == null ? Map.of() : production.getWipQty(materialIds);
         Map<Long, CustomerDTO> cs = support.customers(orders.stream().map(SalOrderDO::getCustomerId).toList());
         Map<Long, UserDTO> users = support.users(orders.stream().map(SalOrderDO::getOwnerId).toList());
         return lines.stream().map(l -> {
@@ -126,7 +133,8 @@ public class SalesReportService {
             StockSummary s = stock.get(l.getMaterialId());
             return new OpenOrderRow(o.getId(), o.getDocNo(), l.getId(), l.getLineNo(), o.getCustomerId(), SalSupport.shortName(cs, o.getCustomerId()),
                     l.getMaterialId(), m == null ? null : m.code(), m == null ? null : m.name(), m == null ? null : m.spec(), m == null ? null : m.baseUom(),
-                    l.getBaseQty(), l.getShippedQty(), OrderService.openQty(l), s == null ? BigDecimal.ZERO : s.availableQty(), null, l.getRequiredDate(),
+                    l.getBaseQty(), l.getShippedQty(), OrderService.openQty(l), s == null ? BigDecimal.ZERO : s.availableQty(),
+                    wip.containsKey(l.getMaterialId()) ? wip.get(l.getMaterialId()).wipQty() : BigDecimal.ZERO, l.getRequiredDate(),
                     l.getPromisedDate(), (int) ChronoUnit.DAYS.between(today, OrderService.dueDate(l)), SalSupport.name(users, o.getOwnerId()));
         }).sorted(Comparator.comparingInt(OpenOrderRow::daysToDue).thenComparing(OpenOrderRow::orderNo).thenComparing(OpenOrderRow::lineNo)).toList();
     }

@@ -136,4 +136,4 @@ SAL_QUOTATION（报价单，中/英）、SAL_ORDER（销售订单合同，中文
 - **库存**：退货审核后通过 `InventoryDocApi` 生成 `SALES_RETURN` 入库单（退货仓），监听入库确认回写已收货数量；作废退货单同时作废未入库的入库单。
 - **预测冲销**：订单审核时按 `sal.forecast.consume-window` 冲减已发布预测：先冲要求交期所在月，再按距离由近到远冲窗口内其他月份（同一月份先客户专属、后不分客户，不冲已过去的月份）；反审核、关闭（按已出货数量）、变更时重算；冲销明细见预测详情。
 - **定时任务**：`SAL_QUOTATION_EXPIRE`（00:10 报价过期）、`SAL_PAYMENT_STATUS`（00:20 回款计划状态重算）、`SAL_PAYMENT_OVERDUE_REMIND`（每周一 09:00 逾期回款提醒）、`SAL_DELIVERY_REMIND`（08:30 交期预警）、`SAL_RFQ_DUE_REMIND`（08:00 RFQ 回复截止提醒）。
-- **报表**：“未交订单”的在制数量待生产模块提供后显示；金额统计口径为本位币不含税。
+- **报表**：“未交订单”的在制数量取 `ProductionQueryApi.getWipQty`（已下达未完工生产订单的剩余数量，按物料）；金额统计口径为本位币不含税。

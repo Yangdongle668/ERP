@@ -338,4 +338,27 @@ class PmcPlanningIntegrationTest extends PmcTestSupport {
         assertThat(doPut("/api/pmc/shipping-plans/" + plan, admin, Map.of("planWeek", w, "lines", without)).at("/msg").asText()).contains("已生成出货通知");
         assertThat(so).isNotBlank();
     }
+
+    /** 跨模块：仓库安全库存预警计入在途采购；销售未交订单报表显示在制数量 */
+    @Test
+    void inTransitAndWipInReports() throws Exception {
+        String screw = raw("在途螺丝", Map.of("safetyStock", 800));
+        stock(screw, W_RAW, "100");
+        purchaseOrder(supplier(screw), screw, "500", LocalDate.now().plusDays(7));
+        JsonNode hit = null;
+        for (JsonNode a : ok(doGet("/api/inventory/alerts?type=LOW", admin))) if (a.at("/materialId").asText().equals(screw)) hit = a;
+        assertThat(hit).as("低于安全库存").isNotNull();
+        assertThat(hit.at("/inTransitQty").decimalValue()).isEqualByComparingTo("500");
+        assertThat(hit.at("/gap").decimalValue()).isEqualByComparingTo("200");
+
+        String fg = fg("在制成品", Map.of());
+        bom(fg, List.of(bomLine(screw, 1)));
+        String so = salesOrder(customer(), List.of(soLine(fg, "50", LocalDate.now().plusDays(20))));
+        String mo = prodOrder(fg, "30", LocalDate.now(), LocalDate.now().plusDays(5), null, null);
+        ok(doPost("/api/production/prod-orders/" + mo + "/release", admin, Map.of()));
+        JsonNode rows = ok(doGet("/api/sales/reports/open-orders?materialId=" + fg, admin)).at("/list");
+        assertThat(rows.size()).isEqualTo(1);
+        assertThat(rows.at("/0/orderId").asText()).isEqualTo(so);
+        assertThat(rows.at("/0/wipQty").decimalValue()).isEqualByComparingTo("30");
+    }
 }

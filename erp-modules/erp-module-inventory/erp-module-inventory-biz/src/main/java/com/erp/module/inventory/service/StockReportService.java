@@ -46,8 +46,10 @@ import com.erp.module.inventory.dal.mapper.WarehouseMapper;
 import com.erp.module.inventory.service.doc.DocSupport;
 import com.erp.module.inventory.service.doc.StockInService;
 import com.erp.module.inventory.service.posting.PeriodGuard;
+import com.erp.module.purchase.api.order.PurchaseQueryApi;
 import com.erp.module.system.api.param.ParamApi;
 import com.erp.module.system.api.user.UserDTO;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -102,11 +104,13 @@ public class StockReportService {
     private final MaterialCategoryApi categoryApi;
     private final BomApi bomApi;
     private final ParamApi paramApi;
+    private final ObjectProvider<PurchaseQueryApi> purchaseQueryApi;
 
     public StockReportService(StockMapper stockMapper, StockTxnMapper txnMapper, BatchMapper batchMapper, WarehouseMapper warehouseMapper,
                               PeriodMapper periodMapper, PeriodBalanceMapper balanceMapper, WarehouseService warehouseService,
                               InventoryQueryService queryService, DocSupport support, MaterialApi materialApi, MaterialCategoryApi categoryApi,
-                              BomApi bomApi, ParamApi paramApi) {
+                              BomApi bomApi, ParamApi paramApi, ObjectProvider<PurchaseQueryApi> purchaseQueryApi) {
+        this.purchaseQueryApi = purchaseQueryApi;
         this.stockMapper = stockMapper;
         this.txnMapper = txnMapper;
         this.batchMapper = batchMapper;
@@ -585,7 +589,16 @@ public class StockReportService {
         return new AlertCounts(stockLevelAlerts(true).size(), stockLevelAlerts(false).size(), expiryAlerts().size(), qcOverdueAlerts().size());
     }
 
-    /** 低于安全库存（可用量 + 在途 < 安全库存）/ 超过最高库存（现存量 > 最高库存）；在途采购由资材模块提供，未接入时为 0 */
+    /** 低于安全库存（可用量 + 在途采购 < 安全库存）/ 超过最高库存（现存量 > 最高库存）；在途采购取资材模块已审核未到货数量 */
+    /** 在途采购数量（资材模块未启用时为空） */
+    private Map<Long, BigDecimal> inTransit(Set<Long> materialIds) {
+        PurchaseQueryApi api = purchaseQueryApi.getIfAvailable();
+        if (api == null || materialIds.isEmpty()) return Map.of();
+        Map<Long, BigDecimal> map = new HashMap<>();
+        api.getInTransitQty(materialIds).forEach((id, t) -> map.put(id, t.qty() == null ? BigDecimal.ZERO : t.qty()));
+        return map;
+    }
+
     List<AlertRow> stockLevelAlerts(boolean low) {
         Map<Long, WarehouseDO> whs = warehouses(null, null, null);
         if (whs.isEmpty()) return List.of();
@@ -597,6 +610,7 @@ public class StockReportService {
         Map<Long, List<StockDO>> byMaterial = stocks.stream().collect(Collectors.groupingBy(StockDO::getMaterialId));
         List<AlertRow> rows = new ArrayList<>();
         Map<Long, Long> buyers = new HashMap<>();
+        Map<Long, BigDecimal> inTransitQty = low ? inTransit(mids) : Map.of();
         for (Map.Entry<Long, List<StockDO>> e : byMaterial.entrySet()) {
             MaterialStockAttr a = materialApi.getStockAttr(e.getKey());
             MaterialDTO m = materials.get(e.getKey());
@@ -605,7 +619,7 @@ public class StockReportService {
             BigDecimal avail = sum(e.getValue(), usable::usable).subtract(reserved.getOrDefault(e.getKey(), BigDecimal.ZERO));
             if (low) {
                 if (a.safetyStock() == null || a.safetyStock().signum() <= 0) continue;
-                BigDecimal inTransit = BigDecimal.ZERO;
+                BigDecimal inTransit = inTransitQty.getOrDefault(e.getKey(), BigDecimal.ZERO);
                 BigDecimal gap = a.safetyStock().subtract(avail.add(inTransit));
                 if (gap.signum() <= 0) continue;
                 buyers.put(e.getKey(), materialApi.getPurchaseAttr(e.getKey()).buyerId());

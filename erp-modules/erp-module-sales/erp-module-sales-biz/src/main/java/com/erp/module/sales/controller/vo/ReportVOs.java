@@ -29,7 +29,7 @@ public final class ReportVOs {
 
     /**
      * @param daysToDue 距交期天数（负数为已过期）
-     * @param wipQty    在制数量（生产模块提供后显示，当前为空）
+     * @param wipQty    在制数量（生产模块已下达未完工订单的剩余数量，按物料汇总）
      */
     public record OpenOrderRow(Long orderId, String orderNo, Long orderLineId, int lineNo, Long customerId, String customerName, Long materialId,
                                String materialCode, String materialName, String materialSpec, String baseUom, BigDecimal orderQty, BigDecimal shippedQty,
