@@ -2,14 +2,16 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElNotification, type FormInstance, type FormRules } from 'element-plus'
-import type { LineColumn } from '@/components'
+import type { LineColumn, Option } from '@/components'
 import type { MaterialBrief } from '@/api/refs'
 import { refApi } from '@/api/refs'
 import { useLeaveGuard } from '@/composables/useLeaveGuard'
 import { tabKeyOf, useTabsStore } from '@/stores/tabs'
+import { useDict } from '@/stores/dict'
 import { useUserStore } from '@/stores/user'
 import { bomApi, BOM_STATUS, ISSUE_METHOD_OPTIONS, PARENT_TYPES, type BomDetail, type BomLine, type BomRow, type BomSave, type SubstituteRow } from '../api/bom'
 import { labelOf, MATERIAL_TYPE_OPTIONS, type MaterialType } from '../api/material'
+import { routingApi } from '../api/routing'
 
 defineOptions({ name: 'EngBomEdit' })
 
@@ -68,6 +70,8 @@ const columns = computed<LineColumn<Line>[]>(() => [
   },
   { prop: 'positionNo', label: '位号', type: 'text', width: 180 },
   { prop: 'issueMethod', label: '发料方式', type: 'select', width: 90, options: ISSUE_METHOD_OPTIONS, required: true },
+  // 工序：父件默认工艺路线的工序（ENG-BOM 3.3），没有工艺路线时不显示
+  ...(opOptions.value.length ? [{ prop: 'operationSeq', label: '工序', type: 'select', width: 120, options: opOptions.value } as LineColumn<Line>] : []),
   { prop: 'isKey', label: '关键件', type: 'checkbox', width: 64 },
   { prop: 'substitutes', label: '替代料', type: 'slot', width: 90 },
   { prop: 'remark', label: '备注', type: 'text', width: 140 }
@@ -87,6 +91,19 @@ async function onMaterial(row: Line, m: MaterialBrief | undefined) {
 async function onParent(m?: MaterialBrief | MaterialBrief[]) {
   parent.value = Array.isArray(m) ? m[0] : m
   nextVersion.value = parent.value && !id.value ? (await bomApi.nextVersion(parent.value.id)).version : nextVersion.value
+  await loadOperations(parent.value?.id)
+}
+
+// ---------- 工序（父件默认工艺路线） ----------
+const operationDict = useDict('eng_operation')
+const opOptions = ref<Option[]>([])
+async function loadOperations(materialId?: string) {
+  opOptions.value = []
+  if (!materialId) return
+  const [r] = (await routingApi.page({ materialId, defaultOnly: true, pageNo: 1, pageSize: 1 })).list
+  if (!r) return
+  const d = await routingApi.get(r.id)
+  opOptions.value = d.steps.filter((s) => s.seq !== undefined).map((s) => ({ value: s.seq!, label: `${s.seq} ${operationDict.label(s.operation)}` }))
 }
 
 // ---------- 替代料 ----------
@@ -169,6 +186,7 @@ onMounted(async () => {
     detail.value = d
     form.value = { materialId: d.materialId, baseQty: d.baseQty, description: d.description, remark: d.remark, fileIds: [], lines: [...d.lines.map(toLine), newLine()] }
     parent.value = { id: d.materialId, code: d.materialCode, name: d.materialName, spec: d.materialSpec, baseUom: d.uom, materialType: d.materialType }
+    await loadOperations(d.materialId)
     tabs.setTitle(tabKeyOf(route), `编辑 BOM ${d.docNo}`)
   } else if (typeof route.query.materialId === 'string') {
     form.value.materialId = route.query.materialId
@@ -207,7 +225,8 @@ function payload(): BomSave {
     fileIds: f.fileIds, rowVersion: detail.value?.rowVersion,
     lines: linesRef.value!.validRows().map((l) => ({
       componentId: l.componentId!, qtyPer: l.qtyPer!, scrapRate: String(Number(((Number(l.scrapPct) || 0) / 100).toFixed(6))),
-      positionNo: l.positionNo?.trim() || undefined, issueMethod: l.issueMethod, isKey: !!l.isKey, remark: l.remark?.trim() || undefined,
+      positionNo: l.positionNo?.trim() || undefined, issueMethod: l.issueMethod, operationSeq: l.operationSeq ?? undefined, isKey: !!l.isKey,
+      remark: l.remark?.trim() || undefined,
       substitutes: l.substitutes.map((s, i) => ({ substituteId: s.substituteId, priority: s.priority ?? i + 1, ratio: s.ratio ?? '1', remark: s.remark }))
     }))
   }

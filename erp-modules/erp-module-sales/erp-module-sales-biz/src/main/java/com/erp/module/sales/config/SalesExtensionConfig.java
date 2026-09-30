@@ -6,6 +6,8 @@ import com.erp.module.crm.api.credit.CreditUsage;
 import com.erp.module.crm.api.credit.CreditUsageProvider;
 import com.erp.module.crm.api.customer.CustomerReferenceChecker;
 import com.erp.module.crm.api.part.CustomerPartReferenceChecker;
+import com.erp.module.engineering.api.ecn.EcnImpact;
+import com.erp.module.engineering.api.ecn.EcnImpactProvider;
 import com.erp.module.engineering.api.material.MaterialReferenceChecker;
 import com.erp.module.engineering.api.material.MaterialUsage;
 import com.erp.module.sales.dal.dataobject.SalForecastLineDO;
@@ -28,6 +30,7 @@ import com.erp.module.sales.dal.mapper.SalReturnMapper;
 import com.erp.module.sales.dal.mapper.SalRfqMapper;
 import com.erp.module.sales.service.SalSupport;
 import com.erp.module.sales.service.order.OpenAmountCalculator;
+import com.erp.module.sales.service.order.OrderService;
 import com.erp.module.system.api.dict.DictReferenceChecker;
 import com.erp.module.system.api.file.FileAccessChecker;
 import com.erp.module.system.api.paymentterm.PaymentTermReferenceChecker;
@@ -35,6 +38,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -142,6 +146,29 @@ public class SalesExtensionConfig {
             public boolean canEdit(String bizType, Long bizId) {
                 return SalSupport.hasPermission(perms.get(bizType)[1]);
             }
+        };
+    }
+
+    /** ECN 影响分析（需求 05-05）：产品为被变更父件的未完成销售订单行（已审核 / 执行中，未交数量 > 0） */
+    @Bean
+    public EcnImpactProvider salesEcnImpactProvider(SalOrderMapper orderMapper, SalOrderLineMapper lineMapper) {
+        return (componentIds, parentIds) -> {
+            if (parentIds == null || parentIds.isEmpty()) return List.of();
+            List<SalOrderLineDO> lines = lineMapper.selectList(new LambdaQueryWrapper<SalOrderLineDO>().in(SalOrderLineDO::getMaterialId, parentIds)
+                    .eq(SalOrderLineDO::getLineStatus, OrderService.OPEN));
+            if (lines.isEmpty()) return List.of();
+            Map<Long, SalOrderDO> orders = orderMapper.selectList(new LambdaQueryWrapper<SalOrderDO>()
+                            .in(SalOrderDO::getId, lines.stream().map(SalOrderLineDO::getOrderId).collect(Collectors.toSet()))
+                            .in(SalOrderDO::getStatus, OrderService.ACTIVE))
+                    .stream().collect(Collectors.toMap(SalOrderDO::getId, o -> o));
+            List<EcnImpact> out = new ArrayList<>();
+            for (SalOrderLineDO l : lines) {
+                SalOrderDO o = orders.get(l.getOrderId());
+                BigDecimal open = OrderService.openQty(l);
+                if (o == null || open.signum() <= 0) continue;
+                out.add(new EcnImpact(l.getMaterialId(), "SALES", o.getDocNo() + " 行 " + l.getLineNo(), open));
+            }
+            return out;
         };
     }
 }

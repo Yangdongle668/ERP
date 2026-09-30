@@ -226,6 +226,7 @@ onMounted(load)
               <el-table-column label="损耗率" width="80" align="right"><template #default="{ row }"><span class="num">{{ pct(row.scrapRate) }}</span></template></el-table-column>
               <el-table-column prop="positionNo" label="位号" min-width="140" show-overflow-tooltip />
               <el-table-column label="发料" width="70"><template #default="{ row }">{{ issue(row.issueMethod) }}</template></el-table-column>
+              <el-table-column label="工序" width="70" align="right"><template #default="{ row }">{{ row.operationSeq ?? '' }}</template></el-table-column>
               <el-table-column label="关键件" width="70" align="center"><template #default="{ row }">{{ row.isKey ? '是' : '' }}</template></el-table-column>
               <el-table-column label="替代" width="60" align="right"><template #default="{ row }">{{ row.substitutes.length || '' }}</template></el-table-column>
               <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />

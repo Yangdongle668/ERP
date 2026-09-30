@@ -1,6 +1,8 @@
 package com.erp.it.shipping;
 
 import com.erp.module.crm.api.customer.CustomerReferenceChecker;
+import com.erp.module.engineering.api.ecn.EcnImpact;
+import com.erp.module.engineering.api.ecn.EcnImpactProvider;
 import com.erp.module.engineering.api.material.MaterialReferenceChecker;
 import com.erp.module.engineering.api.material.MaterialUsage;
 import com.erp.module.system.api.currency.CurrencyReferenceChecker;
@@ -91,5 +93,21 @@ class ReferenceCheckIntegrationTest extends ShippingTestSupport {
         jdbc.update("UPDATE crm_customer SET dept_id = ? WHERE id = ?", Long.valueOf(used), Long.valueOf(c));
         assertError(doDelete("/api/system/orgs/" + used, admin), "该组织已被业务数据使用，只能停用");
         ok(doDelete("/api/system/orgs/" + free, admin));
+    }
+
+    @Autowired
+    List<EcnImpactProvider> ecnImpactProviders;
+
+    /** ECN 影响分析：被变更父件的未完成销售订单（销售模块实现 EcnImpactProvider） */
+    @Test
+    void ecnImpactIncludesOpenSalesOrders() throws Exception {
+        String m = fg("ECN 影响成品", Map.of());
+        String o = approvedOrder(customer("ECN 影响客户", false), List.of(orderLine(m, "30", "10", null)));
+        String no = ok(doGet("/api/sales/orders/" + o, admin)).at("/docNo").asText();
+        List<EcnImpact> impacts = ecnImpactProviders.stream().flatMap(p -> p.impacts(List.of(), List.of(Long.valueOf(m))).stream())
+                .filter(i -> "SALES".equals(i.impactType())).toList();
+        assertThat(impacts).hasSize(1);
+        assertThat(impacts.get(0).docNo()).startsWith(no);
+        assertThat(impacts.get(0).qty()).isEqualByComparingTo("30");
     }
 }
