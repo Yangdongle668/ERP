@@ -22,3 +22,7 @@ erp-ui/dist/
 backups/
 deploy/certs/*.crt
 docker-compose.override.yml
+
+# Playwright
+erp-ui/test-results/
+erp-ui/playwright-report/

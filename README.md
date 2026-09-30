@@ -133,6 +133,11 @@ cd erp-ui && npm install && npm run dev
 
 # 前端类型检查 + 设计系统检查 + 构建
 cd erp-ui && npm run build
+
+# 前端 E2E（Playwright）：先按上面启动后端（H2），再执行；前端开发服务器由测试自动启动
+# 首次需安装浏览器：npx playwright install chromium
+# 用例：登录 / 退出、逐个打开全部菜单页面（无脚本错误、无 5xx）、订单 → 出货 → 应收主线
+cd erp-ui && npm run e2e
 ```
 
 接口文档：<http://localhost:8080/swagger-ui.html>；健康检查：`/actuator/health`。
