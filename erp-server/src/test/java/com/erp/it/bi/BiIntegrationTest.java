@@ -390,4 +390,56 @@ class BiIntegrationTest extends ShippingTestSupport {
         return mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch(started))
                 .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
     }
+
+    /** 销售预测建议：历史满 12 个月的物料给出趋势预测，不足的不出现；一键生成销售预测草稿；数据范围非“全部”不能使用 */
+    @Test
+    void forecastSuggestionsAndDraft() throws Exception {
+        String m = fg("预测成品", Map.of());
+        String few = fg("历史不足成品", Map.of());
+        YearMonth last = YearMonth.now().minusMonths(1);
+        for (int i = 0; i < 14; i++) forecastAgg(last.minusMonths(13 - i).atDay(15), Long.valueOf(m), 100 + 10 * i);
+        for (int i = 0; i < 5; i++) forecastAgg(last.minusMonths(4 - i).atDay(15), Long.valueOf(few), 50);
+
+        JsonNode res = ok(doGet("/api/bi/forecast/suggestions?months=3", admin));
+        assertThat(res.at("/months").asInt()).isEqualTo(3);
+        assertThat(res.at("/startPeriod").asText()).isEqualTo(YearMonth.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMM")));
+        JsonNode hit = null;
+        for (JsonNode s : res.at("/suggestions")) {
+            if (s.at("/materialId").asText().equals(m)) hit = s;
+            assertThat(s.at("/materialId").asText()).isNotEqualTo(few);
+        }
+        assertThat(hit).as(res.toString()).isNotNull();
+        assertThat(hit.at("/method").asText()).isEqualTo("TREND");
+        assertThat(hit.at("/historyMonths").asInt()).isEqualTo(14);
+        assertThat(hit.at("/history").size()).isEqualTo(12);
+        // 100,110,…,230 的线性趋势：本月起 240、250、260
+        assertThat(hit.at("/forecast").size()).isEqualTo(3);
+        assertThat(hit.at("/forecast/" + YearMonth.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMM"))).decimalValue()).isEqualByComparingTo("240");
+
+        // 数据范围不是“全部”的用户不能使用
+        User self = user("SELF", List.of("bi:forecast:use"));
+        assertError(doGet("/api/bi/forecast/suggestions", self.token()), "销售预测建议基于全公司出货数据，需要数据范围为“全部”");
+
+        // 没有选择物料、所选物料没有建议
+        assertError(doPost("/api/bi/forecast/generate", admin, Map.of("materialIds", List.of())), "请选择要生成预测的物料");
+        assertError(doPost("/api/bi/forecast/generate", admin, Map.of("materialIds", List.of(Long.valueOf(few)))), "所选物料没有可用的预测建议（历史出货不足 12 个月）");
+
+        // 一键生成销售预测草稿
+        JsonNode gen = ok(doPost("/api/bi/forecast/generate", admin, Map.of("materialIds", List.of(Long.valueOf(m)), "months", 3)));
+        assertThat(gen.at("/materialCount").asInt()).isEqualTo(1);
+        JsonNode fc = ok(doGet("/api/sales/forecasts/" + gen.at("/forecastId").asText(), admin));
+        assertThat(fc.at("/status").asText()).isEqualTo("DRAFT");
+        assertThat(fc.at("/title").asText()).startsWith("销售预测建议");
+        assertThat(fc.at("/rows").size()).isEqualTo(1);
+        assertThat(fc.at("/rows/0/cells").size()).isEqualTo(3);
+        assertThat(fc.at("/rows/0/cells/0/qty").decimalValue()).isEqualByComparingTo("240");
+    }
+
+    private void forecastAgg(LocalDate date, long materialId, int qty) {
+        jdbc.update("INSERT INTO bi_agg_sales_daily (id, stat_date, period, customer_id, material_id, owner_id, dept_id, order_amount, ship_amount, ship_qty, "
+                        + "ship_cost, costed_ship_amount, return_amount, ship_line_count, on_time_line_count, receipt_amount, version, created_at, updated_at, deleted) "
+                        + "VALUES (?, ?, ?, 1, ?, 1, NULL, 0, ?, ?, 0, 0, 0, 0, 0, 0, 0, ?, ?, 0)",
+                AGG_ID.incrementAndGet(), date, date.toString().substring(0, 7).replace("-", ""), materialId, new BigDecimal(qty), new BigDecimal(qty),
+                LocalDateTime.now(), LocalDateTime.now());
+    }
 }

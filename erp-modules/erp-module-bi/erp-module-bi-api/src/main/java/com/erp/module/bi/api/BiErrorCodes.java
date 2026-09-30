@@ -16,4 +16,9 @@ public interface BiErrorCodes {
     ErrorCode AI_QUOTA = new ErrorCode(1_013_003_001, "今日提问次数已达上限 {}");
     ErrorCode AI_UNAVAILABLE = new ErrorCode(1_013_003_002, "AI 服务暂时不可用，请稍后重试");
     ErrorCode AI_QUESTION_REQUIRED = new ErrorCode(1_013_003_003, "请输入问题");
+
+    ErrorCode FORECAST_SCOPE = new ErrorCode(1_013_004_000, "销售预测建议基于全公司出货数据，需要数据范围为“全部”");
+    ErrorCode FORECAST_NO_SELECTION = new ErrorCode(1_013_004_001, "请选择要生成预测的物料");
+    ErrorCode FORECAST_NOT_AVAILABLE = new ErrorCode(1_013_004_002, "所选物料没有可用的预测建议（历史出货不足 12 个月）");
+    ErrorCode FORECAST_NO_CREATE_PERMISSION = new ErrorCode(1_013_004_003, "没有新建销售预测的权限");
 }

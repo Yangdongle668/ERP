@@ -180,6 +180,18 @@ public class ForecastService implements ForecastApi {
 
     // ==================== 编辑 ====================
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Long createDraft(DraftRequest req) {
+        List<RowSave> rows = new java.util.ArrayList<>();
+        req.quantities().forEach((materialId, byPeriod) -> {
+            List<CellSave> cells = byPeriod.entrySet().stream().filter(e -> e.getValue() != null && e.getValue().signum() > 0)
+                    .sorted(Map.Entry.comparingByKey()).map(e -> new CellSave(e.getKey(), e.getValue())).toList();
+            if (!cells.isEmpty()) rows.add(new RowSave(null, materialId, null, cells));
+        });
+        return create(new ForecastSave(req.title(), req.startPeriod(), req.endPeriod(), req.remark(), rows, null));
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public Long create(ForecastSave req) {
         SalForecastDO f = new SalForecastDO();

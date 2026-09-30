@@ -143,3 +143,19 @@ export const aiApi = {
   usage: (from?: string, to?: string) => http.get<UsageRow[]>('/bi/ai/usage', { from, to }),
   logs: (q: PageParam & { userId?: string; success?: boolean; feedback?: string }) => http.get<PageResult<AiLog>>('/bi/ai/logs', q)
 }
+
+// ---------- 销售预测建议（需求 13-04 2.4） ----------
+export interface ForecastSuggestion {
+  materialId: string
+  materialLabel: string
+  historyMonths: number
+  history: { month: string; qty: string }[]
+  forecast: Record<string, string>
+  method: 'TREND' | 'TREND_SEASONAL'
+  mape?: number
+}
+export interface ForecastResult { startPeriod: string; endPeriod: string; months: number; suggestions: ForecastSuggestion[] }
+export const forecastApi = {
+  suggestions: (months: number) => http.get<ForecastResult>('/bi/forecast/suggestions', { months }, { timeout: 120000 }),
+  generate: (materialIds: string[], months: number) => http.post<{ forecastId: string; materialCount: number }>('/bi/forecast/generate', { materialIds, months }, { timeout: 120000 })
+}
