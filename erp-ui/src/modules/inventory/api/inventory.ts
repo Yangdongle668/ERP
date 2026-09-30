@@ -471,6 +471,13 @@ export interface CountLineRow {
   counterName?: string
   countedAt?: string
   remark?: string
+  /** 序列号物料：账面 / 实盘 / 复盘序列号与比对出的盘盈、盘亏序列号（INV-CNT-R07） */
+  serialTracked: boolean
+  bookSerials?: string[]
+  countSerials: string[]
+  recountSerials: string[]
+  gainSerials: string[]
+  lossSerials: string[]
 }
 export interface LineInput {
   id: string
@@ -478,6 +485,8 @@ export interface LineInput {
   recountQty?: string
   reason?: string
   remark?: string
+  countSerials?: string[]
+  recountSerials?: string[]
 }
 
 export const countApi = {

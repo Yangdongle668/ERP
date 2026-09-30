@@ -25,6 +25,8 @@ const loadingLines = ref(false)
 const saving = ref(false)
 /** 行 ID → 未保存的录入 */
 const dirty = reactive(new Map<string, CountLineRow>())
+/** 行 ID → 未保存的序列号清单（序列号物料） */
+const serialEdits = reactive(new Map<string, { count?: string[]; recount?: string[] }>())
 const importRef = ref<{ open: () => void }>()
 
 async function load() {
@@ -39,6 +41,7 @@ async function loadLines() {
     lines.value = r.list
     lineTotal.value = r.total
     dirty.clear()
+    serialEdits.clear()
   } finally {
     loadingLines.value = false
   }
@@ -90,10 +93,21 @@ function touch(r: CountLineRow) {
   dirty.set(r.id, r)
 }
 async function saveInputs(silent = false) {
-  if (!dirty.size) return
+  if (!dirty.size && !serialEdits.size) return
   saving.value = true
   try {
-    await countApi.input(id, [...dirty.values()].map((r) => ({ id: r.id, countQty: r.countQty ?? undefined, recountQty: r.recountQty ?? undefined, reason: r.reason, remark: r.remark })))
+    const rows = new Map<string, CountLineRow>(dirty)
+    for (const lid of serialEdits.keys()) {
+      const r = lines.value.find((x) => x.id === lid)
+      if (r) rows.set(lid, r)
+    }
+    await countApi.input(id, [...rows.values()].map((r) => {
+      const e = serialEdits.get(r.id)
+      // 序列号物料：数量由序列号清单决定，不提交数量
+      return r.serialTracked
+        ? { id: r.id, reason: r.reason, remark: r.remark, countSerials: e?.count, recountSerials: e?.recount }
+        : { id: r.id, countQty: r.countQty ?? undefined, recountQty: r.recountQty ?? undefined, reason: r.reason, remark: r.remark }
+    }))
     if (!silent) ElMessage.success('已保存')
     await loadLines()
     d.value = await countApi.get(id)
@@ -102,15 +116,41 @@ async function saveInputs(silent = false) {
   }
 }
 
+// ---------- 序列号物料：录入序列号清单 ----------
+const serialDlg = reactive({ visible: false, row: undefined as CountLineRow | undefined, kind: 'count' as 'count' | 'recount', text: '' })
+const splitSerials = (t: string) => [...new Set(t.split(/[\s,，;；]+/).map((x) => x.trim()).filter(Boolean))]
+function openSerials(r: CountLineRow, kind: 'count' | 'recount') {
+  serialDlg.row = r
+  serialDlg.kind = kind
+  const e = serialEdits.get(r.id)
+  serialDlg.text = ((kind === 'count' ? e?.count ?? r.countSerials : e?.recount ?? r.recountSerials) ?? []).join('\n')
+  serialDlg.visible = true
+}
+async function saveSerials() {
+  const r = serialDlg.row
+  if (!r) return
+  const list = splitSerials(serialDlg.text)
+  if (!list.length) return ElMessage.warning('请录入序列号')
+  const e = serialEdits.get(r.id) ?? {}
+  if (serialDlg.kind === 'count') e.count = list
+  else e.recount = list
+  serialEdits.set(r.id, e)
+  serialDlg.visible = false
+  await saveInputs()
+}
+const serialTip = (r: CountLineRow) => [r.gainSerials.length ? `盘盈：${r.gainSerials.join('、')}` : '', r.lossSerials.length ? `盘亏：${r.lossSerials.join('、')}` : ''].filter(Boolean).join('\n')
+
 // ---------- 新增盘点外物料 ----------
 const addVisible = ref(false)
-const addForm = ref<{ warehouseId?: string; locationId?: string; materialId?: string; batchNo?: string; countQty?: string; reason?: string; remark?: string }>({})
+const addForm = ref<{ warehouseId?: string; locationId?: string; materialId?: string; batchNo?: string; countQty?: string; reason?: string; remark?: string; serialText?: string }>({})
 function openAdd() {
   addForm.value = { warehouseId: d.value?.warehouseIds?.[0] }
   addVisible.value = true
 }
 async function addLine() {
-  await countApi.addLine(id, addForm.value)
+  const { serialText, ...rest } = addForm.value
+  const serialNos = serialText ? splitSerials(serialText) : undefined
+  await countApi.addLine(id, { ...rest, serialNos, countQty: serialNos?.length ? String(serialNos.length) : rest.countQty })
   ElMessage.success('已新增')
   addVisible.value = false
   loadLines()
@@ -188,19 +228,32 @@ onMounted(load)
           </el-table-column>
           <el-table-column label="实盘数量" width="130">
             <template #default="{ row }">
-              <QtyInput v-if="counting" v-model="asLine(row).countQty" :uom="asLine(row).baseUom" @change="touch(asLine(row))" />
+              <template v-if="asLine(row).serialTracked">
+                <span class="num">{{ asLine(row).countSerials.length ? formatQty(asLine(row).countQty) : '' }}</span>
+                <el-button v-if="counting" link type="primary" @click="openSerials(asLine(row), 'count')">序列号</el-button>
+                <el-button v-else-if="asLine(row).countSerials.length" link type="primary" @click="openSerials(asLine(row), 'count')">查看</el-button>
+              </template>
+              <QtyInput v-else-if="counting" v-model="asLine(row).countQty" :uom="asLine(row).baseUom" @change="touch(asLine(row))" />
               <span v-else class="num">{{ formatQty(asLine(row).countQty) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="复盘数量" width="130">
             <template #default="{ row }">
-              <QtyInput v-if="counting && asLine(row).needRecount" v-model="asLine(row).recountQty" :uom="asLine(row).baseUom" @change="touch(asLine(row))" />
+              <template v-if="asLine(row).serialTracked && asLine(row).needRecount">
+                <span class="num">{{ asLine(row).recountSerials.length ? formatQty(asLine(row).recountQty) : '' }}</span>
+                <el-button v-if="counting" link type="primary" @click="openSerials(asLine(row), 'recount')">序列号</el-button>
+              </template>
+              <QtyInput v-else-if="counting && asLine(row).needRecount" v-model="asLine(row).recountQty" :uom="asLine(row).baseUom" @change="touch(asLine(row))" />
               <span v-else class="num">{{ asLine(row).recountQty ? formatQty(asLine(row).recountQty) : '' }}</span>
             </template>
           </el-table-column>
           <el-table-column label="差异" width="90" align="right">
             <template #default="{ row }">
               <span v-if="d.bookVisible" :class="['num', diffClass(asLine(row).diffQty)]">{{ asLine(row).diffQty ? formatQty(asLine(row).diffQty) : '' }}</span>
+              <el-tooltip v-if="d.bookVisible && (asLine(row).gainSerials.length || asLine(row).lossSerials.length)" placement="top">
+                <template #content><span class="serial-tip">{{ serialTip(asLine(row)) }}</span></template>
+                <ErpBadge type="warning">盘盈 {{ asLine(row).gainSerials.length }} / 盘亏 {{ asLine(row).lossSerials.length }}</ErpBadge>
+              </el-tooltip>
               <span v-else class="text-muted">***</span>
             </template>
           </el-table-column>
@@ -242,7 +295,8 @@ onMounted(load)
         <el-form-item label="库位"><LocationSelect v-model="addForm.locationId" :warehouse-id="addForm.warehouseId" /></el-form-item>
         <el-form-item label="物料" required><MaterialSelect v-model="addForm.materialId" class="w-full" /></el-form-item>
         <el-form-item label="批次号"><el-input v-model="addForm.batchNo" maxlength="64" placeholder="批次管理物料必填，可填写新批次号" /></el-form-item>
-        <el-form-item label="实盘数量" required><QtyInput v-model="addForm.countQty" /></el-form-item>
+        <el-form-item label="序列号清单"><el-input v-model="addForm.serialText" type="textarea" :rows="3" placeholder="序列号物料必填，每行一个（数量按清单计算）" /></el-form-item>
+        <el-form-item v-if="!addForm.serialText" label="实盘数量" required><QtyInput v-model="addForm.countQty" /></el-form-item>
         <el-form-item label="差异原因"><DictSelect v-model="addForm.reason" type="inv_count_diff_reason" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="addForm.remark" maxlength="256" /></el-form-item>
       </el-form>
@@ -252,11 +306,24 @@ onMounted(load)
       </template>
     </el-dialog>
 
+    <el-dialog v-model="serialDlg.visible" :title="`${serialDlg.kind === 'count' ? '实盘' : '复盘'}序列号 — ${serialDlg.row?.materialCode ?? ''}`" width="560px" append-to-body>
+      <p v-if="serialDlg.row?.bookSerials" class="serial-book">账面 {{ serialDlg.row.bookSerials.length }} 个：{{ serialDlg.row.bookSerials.join('、') || '无' }}</p>
+      <el-input v-model="serialDlg.text" type="textarea" :rows="10" :disabled="!counting" placeholder="每行一个序列号，也可用逗号 / 空格分隔" />
+      <p class="serial-count">共 {{ splitSerials(serialDlg.text).length }} 个（数量按清单计算）</p>
+      <template #footer>
+        <el-button @click="serialDlg.visible = false">{{ counting ? '取消' : '关闭' }}</el-button>
+        <el-button v-if="counting" type="primary" @click="saveSerials">保存</el-button>
+      </template>
+    </el-dialog>
+
     <ImportDialog ref="importRef" title="导入实盘" :base="`/inventory/counts/${id}`" template-name="盘点表" allow-partial @done="loadLines" />
   </ErpPage>
 </template>
 
 <style scoped>
+.serial-tip { white-space: pre-line; }
+.serial-book { margin: 0 0 var(--erp-space-2); color: var(--erp-color-text-secondary); font-size: var(--erp-font-size-secondary); word-break: break-all; }
+.serial-count { margin: var(--erp-space-2) 0 0; color: var(--erp-color-text-secondary); font-size: var(--erp-font-size-secondary); }
 .line-tools { display: flex; align-items: center; gap: var(--erp-space-2); flex-wrap: wrap; }
 .adj { margin: 0 var(--erp-space-3) 0 var(--erp-space-1); }
 </style>

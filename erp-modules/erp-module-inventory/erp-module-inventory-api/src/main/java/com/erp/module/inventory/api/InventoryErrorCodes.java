@@ -80,6 +80,9 @@ public interface InventoryErrorCodes {
     ErrorCode COUNT_BATCH_REQUIRED = new ErrorCode(1_008_005_004, "请填写批次号");
     ErrorCode COUNT_STATUS = new ErrorCode(1_008_005_005, "盘点单当前状态【{}】不允许执行该操作");
     ErrorCode COUNT_EMPTY = new ErrorCode(1_008_005_006, "盘点范围内没有库存");
+    ErrorCode COUNT_SERIAL_REQUIRED = new ErrorCode(1_008_005_007, "物料「{}」按序列号管理，请录入实盘序列号清单");
+    ErrorCode COUNT_SERIAL_ELSEWHERE = new ErrorCode(1_008_005_008, "序列号「{}」账面在仓库「{}」，不能在本仓盘盈，请先核对或调拨");
+    ErrorCode COUNT_SERIAL_IMPORT = new ErrorCode(1_008_005_009, "序列号物料请在线录入序列号清单");
 
     // ========== 批次 1_008_006_xxx ==========
     ErrorCode BATCH_NOT_EXISTS = new ErrorCode(1_008_006_000, "批次不存在");

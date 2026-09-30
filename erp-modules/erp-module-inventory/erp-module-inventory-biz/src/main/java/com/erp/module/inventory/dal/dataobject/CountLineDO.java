@@ -44,4 +44,13 @@ public class CountLineDO extends BaseDO {
     private LocalDateTime countedAt;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String remark;
+    /** 序列号物料：实盘 / 复盘序列号清单与比对出的盘盈、盘亏序列号（逗号分隔） */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private String countSerials;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private String recountSerials;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private String gainSerials;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private String lossSerials;
 }

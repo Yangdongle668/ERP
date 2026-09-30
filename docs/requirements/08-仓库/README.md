@@ -152,5 +152,5 @@ INV_STOCK_IN、INV_STOCK_OUT、INV_TRANSFER、INV_COUNT、INV_BATCH（见 01-系
 - **期间与期初**：未设置启用期间或期初未完成时任何单据都不能过账（期初入库除外）；期初入库单据日期为启用期间前一天，流水期间标记为 `OPENING`。
 - **盘点冻结**：全盘冻结整个仓库，抽盘冻结盘点表中的（仓库 + 物料）；盘盈入库、盘亏出库自身不受冻结限制，由审核人确认（不校验仓库数据权限）。
 - **成本**：入库流水记录单价；调拨按参考单价（最近已结账期间期末单价，没有时取最近入库单价）同时记录调出、调入；出库成本由财务月末计算后回填，收发存汇总在财务结账前出库金额显示为“未计算”。
-- 暂未实现：序列号物料的盘点差异比对（INV-CNT-R07）。安全库存预警的在途采购量取 `PurchaseQueryApi.getInTransitQty`（已审核未到货）。
+- **序列号盘点**（INV-CNT-R07）：`inv_count_line` 增加 `count_serials / recount_serials / gain_serials / loss_serials`（V2 迁移），账面序列号取本维度（仓库 + 库位 + 批次）在库的序列号。安全库存预警的在途采购量取 `PurchaseQueryApi.getInTransitQty`（已审核未到货）。
 - 品质模块接入后：`StockInConfirmedEvent` 增加入库单的 `supplierId` / `customerId`（原构造函数保留）；检验调拨由品质判定后调用 `InventoryDocApi.createTransfer` 生成（来源类型 `QC_INSPECTION`），重判时品质调用 `cancelBySource` 作废未确认的检验调拨。

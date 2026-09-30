@@ -63,18 +63,23 @@ public final class CountVOs {
     public record CountLineRow(Long id, int lineNo, Long warehouseId, String warehouseName, Long locationId, String locationCode, Long materialId,
                                String materialCode, String materialName, String materialSpec, String baseUom, String batchNo, BigDecimal bookQty,
                                BigDecimal countQty, BigDecimal recountQty, BigDecimal finalQty, BigDecimal diffQty, BigDecimal diffAmount,
-                               boolean needRecount, boolean added, String reason, String counterName, LocalDateTime countedAt, String remark) {
+                               boolean needRecount, boolean added, String reason, String counterName, LocalDateTime countedAt, String remark,
+                               boolean serialTracked, List<String> bookSerials, List<String> countSerials, List<String> recountSerials,
+                               List<String> gainSerials, List<String> lossSerials) {
     }
 
     public record LineInput(@NotNull Long id, @DecimalMin(value = "0", message = "实盘数量不能小于 0") BigDecimal countQty,
                             @DecimalMin(value = "0", message = "复盘数量不能小于 0") BigDecimal recountQty, @Size(max = 32) String reason,
-                            @Size(max = 256) String remark) {
+                            @Size(max = 256) String remark, List<String> countSerials, List<String> recountSerials) {
+        public LineInput(Long id, BigDecimal countQty, BigDecimal recountQty, String reason, String remark) {
+            this(id, countQty, recountQty, reason, remark, null, null);
+        }
     }
 
     public record AddLine(@NotNull(message = "请选择仓库") Long warehouseId, Long locationId, @NotNull(message = "请选择物料") Long materialId,
                           @Size(max = 64) String batchNo,
                           @NotNull(message = "请填写实盘数量") @DecimalMin(value = "0", inclusive = false, message = "实盘数量必须大于 0") BigDecimal countQty,
-                          @Size(max = 32) String reason, @Size(max = 256) String remark) {
+                          @Size(max = 32) String reason, @Size(max = 256) String remark, List<String> serialNos) {
     }
 
     /** 生成盘点表前的提示：范围内尚未确认的单据（R01，不阻止） */

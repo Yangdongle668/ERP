@@ -29,6 +29,7 @@ import com.erp.module.inventory.controller.vo.CountVOs.RelatedDoc;
 import com.erp.module.inventory.dal.dataobject.CountDO;
 import com.erp.module.inventory.dal.dataobject.CountLineDO;
 import com.erp.module.inventory.dal.dataobject.LocationDO;
+import com.erp.module.inventory.dal.dataobject.SerialDO;
 import com.erp.module.inventory.dal.dataobject.StockDO;
 import com.erp.module.inventory.dal.dataobject.StockInDO;
 import com.erp.module.inventory.dal.dataobject.StockInLineDO;
@@ -38,6 +39,7 @@ import com.erp.module.inventory.dal.dataobject.TransferDO;
 import com.erp.module.inventory.dal.dataobject.WarehouseDO;
 import com.erp.module.inventory.dal.mapper.CountLineMapper;
 import com.erp.module.inventory.dal.mapper.CountMapper;
+import com.erp.module.inventory.dal.mapper.SerialMapper;
 import com.erp.module.inventory.dal.mapper.StockInMapper;
 import com.erp.module.inventory.dal.mapper.StockMapper;
 import com.erp.module.inventory.dal.mapper.StockOutMapper;
@@ -95,10 +97,12 @@ public class CountService {
     private final MaterialCategoryApi categoryApi;
     private final ParamApi paramApi;
     private final WorkflowApi workflowApi;
+    private final SerialMapper serialMapper;
 
     public CountService(CountMapper docMapper, CountLineMapper lineMapper, StockMapper stockMapper, StockInMapper stockInMapper,
                         StockOutMapper stockOutMapper, TransferMapper transferMapper, StockInService stockInService, StockOutService stockOutService,
-                        DocSupport support, MaterialApi materialApi, MaterialCategoryApi categoryApi, ParamApi paramApi, WorkflowApi workflowApi) {
+                        DocSupport support, MaterialApi materialApi, MaterialCategoryApi categoryApi, ParamApi paramApi, WorkflowApi workflowApi,
+                        SerialMapper serialMapper) {
         this.docMapper = docMapper;
         this.lineMapper = lineMapper;
         this.stockMapper = stockMapper;
@@ -112,6 +116,7 @@ public class CountService {
         this.categoryApi = categoryApi;
         this.paramApi = paramApi;
         this.workflowApi = workflowApi;
+        this.serialMapper = serialMapper;
     }
 
     // ==================== 新建 ====================
@@ -267,13 +272,30 @@ public class CountService {
         requireStatus(d, CountStatus.COUNTING);
         if (inputs == null || inputs.isEmpty()) return;
         Map<Long, CountLineDO> lines = lineMapper.selectByDoc(id).stream().collect(Collectors.toMap(CountLineDO::getId, l -> l));
+        Map<Long, MaterialDTO> materials = support.materials(lines.values().stream().map(CountLineDO::getMaterialId).toList());
         Long me = SecurityUtils.getLoginUserIdOrNull();
         for (LineInput in : inputs) {
             CountLineDO l = lines.get(in.id());
             if (l == null) continue;
-            boolean changed = !Objects.equals(scaled(l.getCountQty()), scaled(in.countQty())) || !Objects.equals(scaled(l.getRecountQty()), scaled(in.recountQty()));
-            l.setCountQty(in.countQty());
-            l.setRecountQty(Boolean.TRUE.equals(l.getNeedRecount()) ? in.recountQty() : null);
+            MaterialDTO m = materials.get(l.getMaterialId());
+            boolean serial = isSerial(m);
+            boolean changed;
+            if (serial) {
+                // 序列号物料：实盘 / 复盘数量由序列号清单决定（INV-CNT-R07）；只改原因、备注时保持原清单
+                if (in.countSerials() == null && l.getCountSerials() == null && in.countQty() != null) throw BizException.of(InventoryErrorCodes.COUNT_SERIAL_REQUIRED, m.code());
+                String oldCount = l.getCountSerials();
+                String oldRecount = l.getRecountSerials();
+                if (in.countSerials() != null) l.setCountSerials(DocSupport.serialText(in.countSerials()));
+                if (in.recountSerials() != null) l.setRecountSerials(DocSupport.serialText(in.recountSerials()));
+                l.setCountQty(l.getCountSerials() == null ? null : BigDecimal.valueOf(DocSupport.serials(l.getCountSerials()).size()));
+                l.setRecountQty(l.getRecountSerials() == null ? null : BigDecimal.valueOf(DocSupport.serials(l.getRecountSerials()).size()));
+                changed = !Objects.equals(oldCount, l.getCountSerials()) || !Objects.equals(oldRecount, l.getRecountSerials());
+            } else {
+                changed = !Objects.equals(scaled(l.getCountQty()), scaled(in.countQty())) || !Objects.equals(scaled(l.getRecountQty()), scaled(in.recountQty()));
+                l.setCountQty(in.countQty());
+                l.setRecountQty(in.recountQty());
+            }
+            if (!Boolean.TRUE.equals(l.getNeedRecount()) && !serial) l.setRecountQty(null);
             l.setReason(StringUtils.hasText(in.reason()) ? in.reason() : null);
             l.setRemark(StringUtils.hasText(in.remark()) ? in.remark().trim() : null);
             if (changed) {
@@ -281,8 +303,50 @@ public class CountService {
                 l.setCountedAt(LocalDateTime.now());
             }
             compute(l);
+            if (serial) compareSerials(l);
             lineMapper.updateByIdOrFail(l);
         }
+    }
+
+    private static boolean isSerial(MaterialDTO m) {
+        return m != null && m.tracking() == Tracking.SERIAL;
+    }
+
+    /** 账面序列号：本维度（仓库 + 库位 + 物料 + 批次）在库的序列号 */
+    List<String> bookSerials(CountLineDO l) {
+        LambdaQueryWrapper<SerialDO> w = new LambdaQueryWrapper<SerialDO>().eq(SerialDO::getMaterialId, l.getMaterialId())
+                .eq(SerialDO::getSerialStatus, "IN_STOCK").eq(SerialDO::getWarehouseId, l.getWarehouseId());
+        if (l.getLocationId() == 0) w.and(x -> x.isNull(SerialDO::getLocationId).or().eq(SerialDO::getLocationId, 0L));
+        else w.eq(SerialDO::getLocationId, l.getLocationId());
+        if (l.getBatchNo().isEmpty()) w.isNull(SerialDO::getBatchNo);
+        else w.eq(SerialDO::getBatchNo, l.getBatchNo());
+        return serialMapper.selectList(w).stream().map(SerialDO::getSerialNo).sorted().toList();
+    }
+
+    /**
+     * 序列号比对（INV-CNT-R07）：最终清单（有复盘取复盘）与账面序列号比较，清单有而账面无为盘盈序列号，账面有而清单无为盘亏序列号。
+     * 盘盈的序列号不能是别处在库的（请先核对或调拨）。数量相同但序列号不同（调包）也会产生盘盈盘亏。
+     */
+    private void compareSerials(CountLineDO l) {
+        if (l.getRecountQty() == null) l.setRecountSerials(null);
+        if (l.getCountSerials() == null) {
+            l.setGainSerials(null);
+            l.setLossSerials(null);
+            return;
+        }
+        List<String> fin = DocSupport.serials(l.getRecountSerials() != null ? l.getRecountSerials() : l.getCountSerials());
+        java.util.Set<String> book = new java.util.LinkedHashSet<>(bookSerials(l));
+        List<String> gain = fin.stream().filter(x -> !book.contains(x)).toList();
+        List<String> loss = book.stream().filter(x -> !fin.contains(x)).toList();
+        for (String sn : gain) {
+            SerialDO sd = serialMapper.selectOne(new LambdaQueryWrapper<SerialDO>().eq(SerialDO::getMaterialId, l.getMaterialId()).eq(SerialDO::getSerialNo, sn));
+            if (sd != null && "IN_STOCK".equals(sd.getSerialStatus())) {
+                WarehouseDO w = sd.getWarehouseId() == null ? null : support.warehouse(sd.getWarehouseId());
+                throw BizException.of(InventoryErrorCodes.COUNT_SERIAL_ELSEWHERE, sn, w == null ? "-" : w.getName());
+            }
+        }
+        l.setGainSerials(DocSupport.serialText(gain));
+        l.setLossSerials(DocSupport.serialText(loss));
     }
 
     /** 最终数量、差异、差异金额；录入实盘后按阈值判定是否需要复盘（R04） */
@@ -349,12 +413,19 @@ public class CountService {
         l.setRefCost(support.refCost(m.id()));
         l.setCountQty(req.countQty());
         l.setIsAdded(true);
+        if (isSerial(m)) {
+            List<String> sns = req.serialNos() == null ? List.of() : req.serialNos().stream().map(String::trim).filter(StringUtils::hasText).distinct().toList();
+            if (sns.isEmpty()) throw BizException.of(InventoryErrorCodes.COUNT_SERIAL_REQUIRED, m.code());
+            l.setCountSerials(DocSupport.serialText(sns));
+            l.setCountQty(BigDecimal.valueOf(sns.size()));
+        }
         l.setNeedRecount(false);
         l.setReason(req.reason());
         l.setRemark(req.remark());
         l.setCounterId(SecurityUtils.getLoginUserIdOrNull());
         l.setCountedAt(LocalDateTime.now());
         compute(l);
+        if (isSerial(m)) compareSerials(l);
         lineMapper.insert(l);
         return l.getId();
     }
@@ -372,7 +443,8 @@ public class CountService {
         long recount = lines.stream().filter(l -> Boolean.TRUE.equals(l.getNeedRecount()) && l.getRecountQty() == null).count();
         if (recount > 0) throw BizException.of(InventoryErrorCodes.COUNT_RECOUNT_UNINPUT, recount);
         for (CountLineDO l : lines) {
-            if (l.getDiffQty() != null && l.getDiffQty().signum() != 0 && !StringUtils.hasText(l.getReason())) {
+            boolean diff = (l.getDiffQty() != null && l.getDiffQty().signum() != 0) || l.getGainSerials() != null || l.getLossSerials() != null;
+            if (diff && !StringUtils.hasText(l.getReason())) {
                 throw BizException.of(InventoryErrorCodes.COUNT_REASON_REQUIRED, l.getLineNo());
             }
         }
@@ -433,46 +505,60 @@ public class CountService {
     private void doApprove(CountDO d) {
         List<CountLineDO> lines = lineMapper.selectByDoc(d.getId());
         Map<Long, MaterialDTO> materials = support.materials(lines.stream().map(CountLineDO::getMaterialId).toList());
-        Map<Long, List<CountLineDO>> gains = new LinkedHashMap<>();
-        Map<Long, List<CountLineDO>> losses = new LinkedHashMap<>();
+        // 普通物料按差异数量；序列号物料按比对出的盘盈 / 盘亏序列号（数量相同但序列号不同也要调整）
+        record Adj(CountLineDO line, BigDecimal qty, List<String> serials) {
+        }
+        Map<Long, List<Adj>> gains = new LinkedHashMap<>();
+        Map<Long, List<Adj>> losses = new LinkedHashMap<>();
         for (CountLineDO l : lines) {
+            if (isSerial(materials.get(l.getMaterialId()))) {
+                List<String> g = DocSupport.serials(l.getGainSerials());
+                List<String> x = DocSupport.serials(l.getLossSerials());
+                if (!g.isEmpty()) gains.computeIfAbsent(l.getWarehouseId(), k -> new ArrayList<>()).add(new Adj(l, BigDecimal.valueOf(g.size()), g));
+                if (!x.isEmpty()) losses.computeIfAbsent(l.getWarehouseId(), k -> new ArrayList<>()).add(new Adj(l, BigDecimal.valueOf(x.size()), x));
+                continue;
+            }
             if (l.getDiffQty() == null || l.getDiffQty().signum() == 0) continue;
-            (l.getDiffQty().signum() > 0 ? gains : losses).computeIfAbsent(l.getWarehouseId(), k -> new ArrayList<>()).add(l);
+            (l.getDiffQty().signum() > 0 ? gains : losses).computeIfAbsent(l.getWarehouseId(), k -> new ArrayList<>())
+                    .add(new Adj(l, l.getDiffQty().abs(), null));
         }
         Long firstGain = null;
         Long firstLoss = null;
-        for (Map.Entry<Long, List<CountLineDO>> e : gains.entrySet()) {
-            List<StockInLineDO> ins = e.getValue().stream().map(l -> {
+        for (Map.Entry<Long, List<Adj>> e : gains.entrySet()) {
+            List<StockInLineDO> ins = e.getValue().stream().map(a -> {
+                CountLineDO l = a.line();
                 MaterialDTO m = materials.get(l.getMaterialId());
                 StockInLineDO x = new StockInLineDO();
                 x.setMaterialId(l.getMaterialId());
                 x.setUom(m.baseUom());
-                x.setQty(l.getDiffQty());
-                x.setBaseQty(l.getDiffQty());
+                x.setQty(a.qty());
+                x.setBaseQty(a.qty());
                 x.setLocationId(l.getLocationId() == 0 ? null : l.getLocationId());
                 x.setBatchNo(l.getBatchNo().isEmpty() ? null : l.getBatchNo());
                 x.setUnitCost(l.getRefCost());
-                x.setAmount(DocSupport.amount(l.getDiffQty(), l.getRefCost()));
+                x.setAmount(DocSupport.amount(a.qty(), l.getRefCost()));
                 x.setRemark(l.getReason());
+                x.setSerialNos(DocSupport.serialText(a.serials()));
                 return x;
             }).toList();
             Long inId = stockInService.createSystem(StockInType.COUNT_GAIN, e.getKey(), d.getDocDate(), BIZ_TYPE, d.getId(), d.getDocNo(), "盘盈", ins);
             stockInService.confirm(inId, null, null, false);
             if (firstGain == null) firstGain = inId;
         }
-        for (Map.Entry<Long, List<CountLineDO>> e : losses.entrySet()) {
-            List<StockOutLineDO> outs = e.getValue().stream().map(l -> {
+        for (Map.Entry<Long, List<Adj>> e : losses.entrySet()) {
+            List<StockOutLineDO> outs = e.getValue().stream().map(a -> {
+                CountLineDO l = a.line();
                 MaterialDTO m = materials.get(l.getMaterialId());
-                BigDecimal q = l.getDiffQty().negate();
                 StockOutLineDO x = new StockOutLineDO();
                 x.setMaterialId(l.getMaterialId());
                 x.setUom(m.baseUom());
-                x.setRequestQty(q);
-                x.setQty(q);
-                x.setBaseQty(q);
+                x.setRequestQty(a.qty());
+                x.setQty(a.qty());
+                x.setBaseQty(a.qty());
                 x.setLocationId(l.getLocationId() == 0 ? null : l.getLocationId());
                 x.setBatchNo(l.getBatchNo().isEmpty() ? null : l.getBatchNo());
                 x.setRemark(l.getReason());
+                x.setSerialNos(DocSupport.serialText(a.serials()));
                 return x;
             }).toList();
             Long outId = stockOutService.createSystem(StockOutType.COUNT_LOSS, e.getKey(), d.getDocDate(), BIZ_TYPE, d.getId(), d.getDocNo(), "盘亏", outs);
@@ -593,7 +679,8 @@ public class CountService {
         String f = q.getFilter() == null ? "ALL" : q.getFilter();
         switch (f) {
             case "UNINPUT" -> w.isNull(CountLineDO::getCountQty);
-            case "DIFF" -> w.isNotNull(CountLineDO::getDiffQty).ne(CountLineDO::getDiffQty, BigDecimal.ZERO);
+            case "DIFF" -> w.and(x -> x.and(y -> y.isNotNull(CountLineDO::getDiffQty).ne(CountLineDO::getDiffQty, BigDecimal.ZERO))
+                    .or().isNotNull(CountLineDO::getGainSerials).or().isNotNull(CountLineDO::getLossSerials));
             case "RECOUNT" -> w.eq(CountLineDO::getNeedRecount, true);
             default -> {
             }
@@ -624,7 +711,9 @@ public class CountService {
                     loc == null ? null : loc.getCode(), l.getMaterialId(), m == null ? null : m.code(), m == null ? null : m.name(), m == null ? null : m.spec(),
                     m == null ? null : m.baseUom(), l.getBatchNo().isEmpty() ? null : l.getBatchNo(), book ? l.getBookQty() : null, l.getCountQty(),
                     l.getRecountQty(), l.getFinalQty(), book ? l.getDiffQty() : null, cost ? l.getDiffAmount() : null, Boolean.TRUE.equals(l.getNeedRecount()),
-                    Boolean.TRUE.equals(l.getIsAdded()), l.getReason(), DocSupport.name(users, l.getCounterId()), l.getCountedAt(), l.getRemark());
+                    Boolean.TRUE.equals(l.getIsAdded()), l.getReason(), DocSupport.name(users, l.getCounterId()), l.getCountedAt(), l.getRemark(),
+                    isSerial(m), isSerial(m) && book ? bookSerials(l) : null, DocSupport.serials(l.getCountSerials()), DocSupport.serials(l.getRecountSerials()),
+                    DocSupport.serials(l.getGainSerials()), DocSupport.serials(l.getLossSerials()));
         }).toList();
     }
 
@@ -644,7 +733,10 @@ public class CountService {
         CountDO d = getOrThrow(id);
         checkAccess(d);
         requireStatus(d, CountStatus.COUNTING);
-        Set<Long> lineIds = lineMapper.selectByDoc(id).stream().map(CountLineDO::getId).collect(Collectors.toSet());
+        List<CountLineDO> all = lineMapper.selectByDoc(id);
+        Set<Long> lineIds = all.stream().map(CountLineDO::getId).collect(Collectors.toSet());
+        Map<Long, MaterialDTO> mats = support.materials(all.stream().map(CountLineDO::getMaterialId).toList());
+        Set<Long> serialLines = all.stream().filter(x -> isSerial(mats.get(x.getMaterialId()))).map(CountLineDO::getId).collect(Collectors.toSet());
         Map<Integer, String> actions = new HashMap<>();
         for (ImportRow r : rows) {
             String lid = r.get("id");
@@ -655,6 +747,10 @@ public class CountService {
             String qty = r.get("countQty");
             if (!StringUtils.hasText(qty)) {
                 actions.put(r.rowNo(), "跳过（未填实盘）");
+                continue;
+            }
+            if (serialLines.contains(Long.valueOf(lid.trim()))) {
+                r.error(InventoryErrorCodes.COUNT_SERIAL_IMPORT.message());
                 continue;
             }
             try {
