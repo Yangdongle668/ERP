@@ -1,8 +1,8 @@
 import { defineModule } from '../types'
 
 /**
- * 研发工程模块前端入口。菜单项未指定 component 时显示“开发中”占位页；
- * 开发某个页面时在 ./views 下新建组件并在此处填写 component 即可。
+ * 研发工程模块前端入口。新增页面时在 ./views 下新建组件，并在此处登记菜单与 component；
+ * 未指定 component 的菜单会由路由回退到“开发中”占位页。
  */
 export default defineModule({
   code: 'engineering',
