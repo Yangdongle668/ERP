@@ -78,7 +78,7 @@ public final class CustomerVOs {
                                @NotBlank(message = "请选择国家") String country,
                                Boolean isForeign,
                                @Size(max = 64) String province, @Size(max = 64) String city, @Size(max = 256) String address,
-                               String industry, String source, @Size(max = 128) String website, @Size(max = 64) String phone,
+                               String industry, String appDomain, String source, @Size(max = 128) String website, @Size(max = 64) String phone,
                                @Size(max = 128) String email, @Size(max = 32) String taxNo, Long ownerId,
                                String currency, Long paymentTermId, String tradeTerm, BigDecimal salesTaxRate, Integer creditDays, String creditControl,
                                @Size(max = 1000) String remark,
@@ -107,7 +107,7 @@ public final class CustomerVOs {
     }
 
     public record CustomerDetail(Long id, String code, String name, String nameEn, String shortName, String customerType, String level,
-                                 String customerStatus, boolean isForeign, String country, String province, String city, String address, String industry,
+                                 String customerStatus, boolean isForeign, String country, String province, String city, String address, String industry, String appDomain,
                                  String source, String website, String phone, String email, String taxNo, Long ownerId, String ownerName, Long deptId,
                                  String deptName, String currency, Long paymentTermId, String paymentTermName, String tradeTerm, BigDecimal salesTaxRate,
                                  String blacklistReason, LocalDate firstOrderDate, LocalDate lastOrderDate, String remark,

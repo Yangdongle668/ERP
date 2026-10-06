@@ -244,6 +244,16 @@
                 <artifactId>erp-module-backup-biz</artifactId>
                 <version>${revision}</version>
             </dependency>
+            <dependency>
+                <groupId>com.erp</groupId>
+                <artifactId>erp-module-asset-api</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.erp</groupId>
+                <artifactId>erp-module-asset-biz</artifactId>
+                <version>${revision}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

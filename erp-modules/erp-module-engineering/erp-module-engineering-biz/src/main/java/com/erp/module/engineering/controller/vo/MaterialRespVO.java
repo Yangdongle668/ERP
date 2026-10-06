@@ -26,7 +26,7 @@ public record MaterialRespVO(
         Boolean iqcRequired, Boolean fqcRequired, Boolean oqcRequired,
         BigDecimal standardCost, String salesUom, BigDecimal purchaseTaxRate, BigDecimal salesTaxRate,
         Integer version, Long createdBy, String createdByName, LocalDateTime createdAt, LocalDateTime updatedAt,
-        List<UomRow> uoms) {
+        String codeSegments, List<UomRow> uoms) {
 
     /** @param used 已被单据使用（不能删除、不能改换算率） */
     public record UomRow(Long id, String uom, BigDecimal rate, String remark, boolean used) {

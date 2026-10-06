@@ -56,6 +56,8 @@ export interface UserSave {
   username: string
   realName: string
   employeeNo?: string
+  /** 工号为空时按工厂生成（字典 sys_factory，如 11 → 11-0001） */
+  factoryCode?: string
   gender?: string
   mobile?: string
   email?: string

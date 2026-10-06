@@ -39,6 +39,7 @@ const shortTouched = ref(false)
 
 const rules = computed<FormRules>(() => ({
   name: [{ required: true, message: '请填写客户名称', trigger: 'blur' }],
+  appDomain: detail.value || form.value.code ? [] : [{ required: true, message: '请选择应用领域（客户编码按领域生成）', trigger: 'change' }],
   nameEn: form.value.isForeign ? [{ required: true, message: '外销客户必须填写英文名称', trigger: 'blur' }] : [],
   shortName: [{ required: true, message: '请填写简称', trigger: 'blur' }],
   customerType: [{ required: true, message: '请选择客户类型', trigger: 'change' }],
@@ -105,7 +106,7 @@ onMounted(async () => {
     detail.value = d
     form.value = {
       code: d.code, name: d.name, nameEn: d.nameEn, shortName: d.shortName, customerType: d.customerType, level: d.level, country: d.country,
-      isForeign: d.isForeign, province: d.province, city: d.city, address: d.address, industry: d.industry, source: d.source, website: d.website,
+      isForeign: d.isForeign, province: d.province, city: d.city, address: d.address, industry: d.industry, appDomain: d.appDomain, source: d.source, website: d.website,
       phone: d.phone, email: d.email, taxNo: d.taxNo, ownerId: d.ownerId, currency: d.currency, paymentTermId: d.paymentTermId, tradeTerm: d.tradeTerm,
       taxPct: String(Number((Number(d.salesTaxRate) * 100).toFixed(4))), creditDays: d.credit?.creditDays, creditControl: d.credit?.creditControl ?? 'DEFAULT',
       remark: d.remark, contacts: d.contacts.map((c) => ({ ...c })), addresses: d.addresses.map((a) => ({ ...a })), banks: d.banks.map((b) => ({ ...b })),
@@ -198,7 +199,7 @@ const asBank = (r: unknown) => r as Bank
           <el-col :xl="8" :span="12"><el-form-item label="简称" prop="shortName"><el-input v-model="form.shortName" maxlength="32" @input="shortTouched = true" /></el-form-item></el-col>
           <el-col :xl="8" :span="12">
             <el-form-item label="编码">
-              <el-input v-model="form.code" maxlength="32" :disabled="!!detail" placeholder="留空自动生成" @input="form.code = form.code?.toUpperCase()" />
+              <el-input v-model="form.code" maxlength="32" :disabled="!!detail" placeholder="留空按应用领域自动生成，如 LD-A-001" @input="form.code = form.code?.toUpperCase()" />
             </el-form-item>
           </el-col>
           <el-col :xl="8" :span="12"><el-form-item label="客户类型" prop="customerType"><DictSelect v-model="form.customerType" type="crm_customer_type" :clearable="false" /></el-form-item></el-col>
@@ -209,6 +210,12 @@ const asBank = (r: unknown) => r as Bank
           </el-form-item></el-col>
           <el-col :xl="8" :span="12"><el-form-item label="税号"><el-input v-model="form.taxNo" maxlength="32" @blur="checkDuplicate" /></el-form-item></el-col>
           <el-col :span="24"><el-form-item label="公司地址"><el-input v-model="form.address" maxlength="256" /></el-form-item></el-col>
+          <el-col :xl="8" :span="12">
+            <el-form-item label="应用领域" prop="appDomain">
+              <DictSelect v-model="form.appDomain" type="crm_app_domain" />
+              <div v-if="!detail" class="form-tip">客户编码 = LD-领域字母-三位流水，如智能医疗 LD-A-001</div>
+            </el-form-item>
+          </el-col>
           <el-col :xl="8" :span="12"><el-form-item label="行业"><DictSelect v-model="form.industry" type="crm_industry" /></el-form-item></el-col>
           <el-col :xl="8" :span="12"><el-form-item label="来源"><DictSelect v-model="form.source" type="crm_source" /></el-form-item></el-col>
           <el-col :xl="8" :span="12"><el-form-item label="网址"><el-input v-model="form.website" maxlength="128" @blur="checkDuplicate" /></el-form-item></el-col>

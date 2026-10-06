@@ -54,7 +54,8 @@ public class UserController {
     private static final List<ExcelColumn<Object>> IMPORT_COLUMNS = List.of(
             ExcelColumn.input("username", "用户名", true, "4～32 位，字母开头，字母数字 . _ -"),
             ExcelColumn.input("realName", "姓名", true, ""),
-            ExcelColumn.input("employeeNo", "工号", false, "非空时唯一"),
+            ExcelColumn.input("employeeNo", "工号", false, "非空时唯一；为空且填写工厂代码时自动生成"),
+            ExcelColumn.input("factoryCode", "工厂代码", false, "11 广东蓝电锂能 / 10 东莞蓝电新能源，用于生成工号 11-0001"),
             ExcelColumn.input("deptCode", "主部门编码", true, "组织编码，必须存在且启用"),
             ExcelColumn.input("roleCodes", "角色编码", true, "多个用英文逗号分隔"),
             ExcelColumn.input("mobile", "手机号", false, "11 位手机号或 + 开头的国际号码"),

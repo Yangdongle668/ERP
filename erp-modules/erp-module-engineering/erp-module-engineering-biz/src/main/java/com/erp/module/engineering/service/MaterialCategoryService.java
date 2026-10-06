@@ -9,7 +9,10 @@ import com.erp.module.engineering.api.category.MaterialCategoryDTO;
 import com.erp.module.engineering.controller.vo.CategoryVOs.CategoryNode;
 import com.erp.module.engineering.controller.vo.CategoryVOs.CategorySave;
 import com.erp.module.engineering.controller.vo.CategoryVOs.SimpleNode;
+import com.erp.module.engineering.dal.dataobject.CodeSegmentDO;
 import com.erp.module.engineering.dal.dataobject.MaterialCategoryDO;
+import com.erp.module.engineering.dal.mapper.CodeSegmentMapper;
+import com.erp.module.engineering.dal.mapper.CodeSegmentValueMapper;
 import com.erp.module.engineering.dal.mapper.MaterialCategoryMapper;
 import com.erp.module.engineering.dal.mapper.MaterialMapper;
 import com.erp.module.system.api.uom.UomApi;
@@ -40,11 +43,23 @@ public class MaterialCategoryService implements MaterialCategoryApi {
     private final MaterialCategoryMapper categoryMapper;
     private final MaterialMapper materialMapper;
     private final UomApi uomApi;
+    private final CodeSegmentMapper segmentMapper;
+    private final CodeSegmentValueMapper segmentValueMapper;
 
-    public MaterialCategoryService(MaterialCategoryMapper categoryMapper, MaterialMapper materialMapper, UomApi uomApi) {
+    public MaterialCategoryService(MaterialCategoryMapper categoryMapper, MaterialMapper materialMapper, UomApi uomApi,
+                                   CodeSegmentMapper segmentMapper, CodeSegmentValueMapper segmentValueMapper) {
         this.categoryMapper = categoryMapper;
         this.materialMapper = materialMapper;
         this.uomApi = uomApi;
+        this.segmentMapper = segmentMapper;
+        this.segmentValueMapper = segmentValueMapper;
+    }
+
+    /** 类别 id → 编码段数 */
+    private Map<Long, Integer> segmentCounts() {
+        Map<Long, Integer> counts = new HashMap<>();
+        segmentMapper.selectList(null).forEach(s -> counts.merge(s.getCategoryId(), 1, Integer::sum));
+        return counts;
     }
 
     // ==================== 查询 ====================
@@ -65,6 +80,7 @@ public class MaterialCategoryService implements MaterialCategoryApi {
         }
         Map<Long, Long> enabledCounts = materialMapper.countEnabledByCategory();
         Map<Long, Long> anyCounts = materialMapper.countAllByCategory();
+        Map<Long, Integer> segCounts = segmentCounts();
         // 含下级的启用物料数：把每个类别的数量累加到其全部祖先
         Map<Long, Integer> totals = new HashMap<>();
         for (MaterialCategoryDO c : all) {
@@ -76,7 +92,8 @@ public class MaterialCategoryService implements MaterialCategoryApi {
                 c -> new CategoryNode(c.getId(), c.getParentId(), c.getCode(), c.getName(), c.getCodePrefix(), c.getDefaultMaterialType(),
                         c.getDefaultBaseUom(), c.getDefaultTracking(), Boolean.TRUE.equals(c.getDefaultIqcRequired()), c.getDefaultShelfLifeDays(),
                         c.getLevel(), c.getSort(), c.getStatus().name(), c.getRemark(), totals.getOrDefault(c.getId(), 0),
-                        anyCounts.getOrDefault(c.getId(), 0L) > 0, c.getVersion(), new ArrayList<>()),
+                        anyCounts.getOrDefault(c.getId(), 0L) > 0, c.getVersion(), c.getCodeSeqLength(), segCounts.getOrDefault(c.getId(), 0),
+                        new ArrayList<>()),
                 CategoryNode::children);
     }
 
@@ -87,9 +104,10 @@ public class MaterialCategoryService implements MaterialCategoryApi {
         categoryMapper.selectList(null).forEach(c -> {
             if (c.getParentId() != null) parents.add(c.getParentId());
         });
+        Map<Long, Integer> segCounts = segmentCounts();
         return build(enabled, c -> new SimpleNode(c.getId(), c.getParentId(), c.getCode(), c.getName(), c.getCodePrefix(), c.getDefaultMaterialType(),
                         c.getDefaultBaseUom(), c.getDefaultTracking(), Boolean.TRUE.equals(c.getDefaultIqcRequired()), c.getDefaultShelfLifeDays(),
-                        !parents.contains(c.getId()), new ArrayList<>()),
+                        !parents.contains(c.getId()), c.getCodeSeqLength(), segCounts.getOrDefault(c.getId(), 0), new ArrayList<>()),
                 SimpleNode::children);
     }
 
@@ -127,6 +145,7 @@ public class MaterialCategoryService implements MaterialCategoryApi {
         MaterialCategoryDO parent = req.parentId() == null ? null : getOrThrow(req.parentId());
         if (parent != null) {
             if (materialMapper.countByCategory(parent.getId()) > 0) throw new BizException(EngineeringErrorCodes.CATEGORY_HAS_MATERIAL);
+            if (!segmentMapper.selectByCategory(parent.getId()).isEmpty()) throw new BizException(EngineeringErrorCodes.CODE_SEGMENT_NOT_LEAF);
             if (parent.getLevel() + 1 > MAX_LEVEL) throw new BizException(EngineeringErrorCodes.CATEGORY_TOO_DEEP);
         }
         String code = req.code().trim().toUpperCase();
@@ -173,6 +192,7 @@ public class MaterialCategoryService implements MaterialCategoryApi {
         MaterialCategoryDO parent = newParentId == null ? null : getOrThrow(newParentId);
         if (parent != null && parent.getPath().startsWith(c.getPath())) throw new BizException(EngineeringErrorCodes.CATEGORY_PARENT_CYCLE);
         if (parent != null && materialMapper.countByCategory(parent.getId()) > 0) throw new BizException(EngineeringErrorCodes.CATEGORY_HAS_MATERIAL);
+        if (parent != null && !segmentMapper.selectByCategory(parent.getId()).isEmpty()) throw new BizException(EngineeringErrorCodes.CODE_SEGMENT_NOT_LEAF);
         int newLevel = parent == null ? 1 : parent.getLevel() + 1;
         int depth = categoryMapper.selectDescendants(c.getPath()).stream().mapToInt(MaterialCategoryDO::getLevel).max().orElse(c.getLevel()) - c.getLevel();
         if (newLevel + depth > MAX_LEVEL) throw new BizException(EngineeringErrorCodes.CATEGORY_TOO_DEEP);
@@ -211,12 +231,16 @@ public class MaterialCategoryService implements MaterialCategoryApi {
         if (!categoryMapper.selectChildren(id).isEmpty() || materialMapper.countByCategory(id) > 0) {
             throw new BizException(EngineeringErrorCodes.CATEGORY_NOT_DELETABLE);
         }
+        List<Long> segIds = segmentMapper.selectByCategory(id).stream().map(CodeSegmentDO::getId).toList();
+        segmentValueMapper.selectBySegments(segIds).forEach(v -> segmentValueMapper.deleteById(v.getId()));
+        segIds.forEach(segmentMapper::deleteById);
         categoryMapper.deleteById(id);
     }
 
     private void fill(MaterialCategoryDO c, CategorySave req) {
         c.setName(req.name().trim());
         c.setCodePrefix(req.codePrefix().trim().toUpperCase());
+        c.setCodeSeqLength(req.codeSeqLength());
         c.setDefaultMaterialType(req.defaultMaterialType());
         c.setDefaultBaseUom(StringUtils.hasText(req.defaultBaseUom()) ? uomApi.validate(req.defaultBaseUom().trim()).code() : null);
         c.setDefaultTracking(req.defaultTracking());

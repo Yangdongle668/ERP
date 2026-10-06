@@ -60,7 +60,8 @@ public class PurchaseModuleConfig {
 
     @Bean
     public CodeRuleDefinition purSupplierCodeRule() {
-        return CodeRuleDefinition.of(SUPPLIER, "供应商编码", MODULE, "V", "", "", 5, ResetCycle.NEVER).manual(true);
+        // 《编码规则管理制度》5.2：LD-S + 四位流水，如 LD-S0001
+        return CodeRuleDefinition.of(SUPPLIER, "供应商编码", MODULE, "LD-S", "", "", 4, ResetCycle.NEVER).manual(true);
     }
 
     @Bean

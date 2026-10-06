@@ -250,7 +250,7 @@ class SalesDocsIntegrationTest extends SalesTestSupport {
         assertThat(ok(doGet("/api/sales/quotations/" + r1, admin)).at("/quoteStatus").asText()).isEqualTo("DRAFT");
 
         // T06：潜在客户
-        String prospect = ok(doPost("/api/crm/customers", admin, Map.of("name", "潜在客户" + uniq(), "country", "CN"))).at("/id").asText();
+        String prospect = ok(doPost("/api/crm/customers", admin, Map.of("name", "潜在客户" + uniq(), "country", "CN", "appDomain", "C"))).at("/id").asText();
         String pq = ok(doPost("/api/sales/quotations", admin, quoteBody(prospect, fg1, "20"))).at("/id").asText();
         ok(doPost("/api/sales/quotations/" + pq + "/submit", admin, null));
         JsonNode pqd = ok(doGet("/api/sales/quotations/" + pq, admin));

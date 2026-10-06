@@ -80,15 +80,21 @@ public class CodeRuleService implements CodeRuleApi {
 
     @Override
     public String nextCode(String bizCode, Map<String, String> vars) {
+        return nextCode(bizCode, vars, null);
+    }
+
+    @Override
+    public String nextCode(String bizCode, Map<String, String> vars, Integer seqLengthOverride) {
         CodeRuleDO rule = loadOrInitRule(bizCode);
+        int seqLength = seqLengthOverride != null && seqLengthOverride >= 1 && seqLengthOverride <= 12 ? seqLengthOverride : rule.getSeqLength();
         LocalDate today = LocalDate.now(clock);
         String prefix = resolvePrefix(rule, vars);
         String resetKey = resetKey(rule.getResetCycle(), today) + (hasVars(rule.getPrefix()) ? "|" + prefix : "");
         long seq = seqAllocator.next(bizCode, resetKey);
-        if (String.valueOf(seq).length() > rule.getSeqLength()) {
-            log.warn("[编码规则] {} 流水号 {} 已超过 {} 位，请调整编码规则", bizCode, seq, rule.getSeqLength());
+        if (String.valueOf(seq).length() > seqLength) {
+            log.warn("[编码规则] {} 流水号 {} 已超过 {} 位，请调整编码规则", bizCode, seq, seqLength);
         }
-        String code = format(prefix, rule.getDatePattern(), rule.getSeqSeparator(), rule.getSeqLength(), today, seq);
+        String code = format(prefix, rule.getDatePattern(), rule.getSeqSeparator(), seqLength, today, seq);
         if (code.length() > MAX_CODE_LENGTH) throw BizException.of(SystemErrorCodes.CODE_RULE_TOO_LONG, rule.getName());
         return code;
     }

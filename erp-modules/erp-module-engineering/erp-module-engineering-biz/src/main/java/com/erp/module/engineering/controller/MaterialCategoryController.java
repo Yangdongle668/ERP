@@ -2,8 +2,11 @@ package com.erp.module.engineering.controller;
 
 import com.erp.common.result.CommonResult;
 import com.erp.module.engineering.controller.vo.CategoryVOs.CategoryNode;
+import com.erp.module.engineering.controller.vo.CategoryVOs.CodeScheme;
+import com.erp.module.engineering.controller.vo.CategoryVOs.CodeSchemeSave;
 import com.erp.module.engineering.controller.vo.CategoryVOs.CategorySave;
 import com.erp.module.engineering.controller.vo.CategoryVOs.SimpleNode;
+import com.erp.module.engineering.service.CodeSegmentService;
 import com.erp.module.engineering.service.MaterialCategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,9 +31,11 @@ import java.util.List;
 public class MaterialCategoryController {
 
     private final MaterialCategoryService categoryService;
+    private final CodeSegmentService segmentService;
 
-    public MaterialCategoryController(MaterialCategoryService categoryService) {
+    public MaterialCategoryController(MaterialCategoryService categoryService, CodeSegmentService segmentService) {
         this.categoryService = categoryService;
+        this.segmentService = segmentService;
     }
 
     @Operation(summary = "树形表格（含停用）")
@@ -84,6 +89,21 @@ public class MaterialCategoryController {
     @PreAuthorize("@ss.has('eng:category:update')")
     public CommonResult<Void> disable(@PathVariable Long id) {
         categoryService.disable(id);
+        return CommonResult.success();
+    }
+
+    @Operation(summary = "编码方案（编码段与特征值）")
+    @GetMapping("/{id}/code-scheme")
+    @PreAuthorize("@ss.hasAny('eng:category:query', 'eng:material:create', 'eng:material:update')")
+    public CommonResult<CodeScheme> codeScheme(@PathVariable Long id) {
+        return CommonResult.success(segmentService.scheme(id));
+    }
+
+    @Operation(summary = "保存编码方案")
+    @PutMapping("/{id}/code-scheme")
+    @PreAuthorize("@ss.has('eng:category:update')")
+    public CommonResult<Void> saveCodeScheme(@PathVariable Long id, @Valid @RequestBody CodeSchemeSave req) {
+        segmentService.save(id, req);
         return CommonResult.success();
     }
 }

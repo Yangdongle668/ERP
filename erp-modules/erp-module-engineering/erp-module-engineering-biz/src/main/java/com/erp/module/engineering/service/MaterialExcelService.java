@@ -48,6 +48,7 @@ public class MaterialExcelService {
     public static final List<ExcelColumn<Object>> IMPORT_COLUMNS = List.of(
             ExcelColumn.input("categoryCode", "物料类别编码", true, "末级类别编码，如 FPC"),
             ExcelColumn.input("code", "编码", false, "留空自动生成"),
+            ExcelColumn.input("codeValues", "编码段特征值", false, "类别设置了编码段时填写，如线材 02,1（型号,颜色）"),
             ExcelColumn.input("name", "名称", true, null),
             ExcelColumn.input("nameEn", "英文名称", false, null),
             ExcelColumn.input("spec", "规格型号", false, null),
@@ -79,6 +80,7 @@ public class MaterialExcelService {
             ExcelColumn.input("remark", "备注", false, null));
 
     private final MaterialService materialService;
+    private final CodeSegmentService segmentService;
     private final MaterialMapper materialMapper;
     private final MaterialCategoryMapper categoryMapper;
     private final UomApi uomApi;
@@ -87,7 +89,8 @@ public class MaterialExcelService {
     private final TransactionTemplate tx;
 
     public MaterialExcelService(MaterialService materialService, MaterialMapper materialMapper, MaterialCategoryMapper categoryMapper, UomApi uomApi, UserApi userApi, ParamApi paramApi,
-                                PlatformTransactionManager transactionManager) {
+                                PlatformTransactionManager transactionManager, CodeSegmentService segmentService) {
+        this.segmentService = segmentService;
         this.materialService = materialService;
         this.materialMapper = materialMapper;
         this.categoryMapper = categoryMapper;
@@ -193,6 +196,15 @@ public class MaterialExcelService {
             MaterialCategoryDO cat = categories.get(upper(r.get("categoryCode")));
             if (cat == null) r.error("物料类别编码「" + r.get("categoryCode") + "」不存在");
             else if (cat.getStatus() != EnableStatus.ENABLED || parents.contains(cat.getId())) r.error("请选择末级物料类别");
+            List<String> codeValues = null;
+            if (cat != null && old == null) {
+                try {
+                    codeValues = segmentService.parse(cat, r.get("codeValues"));
+                    if (code == null && segmentService.hasSegments(cat.getId())) segmentService.compose(cat, codeValues, true);
+                } catch (BizException e) {
+                    r.error(e.getMessage());
+                }
+            }
             MaterialType type = parseEnum(r, "materialType", MaterialType.values(), MaterialType::label, "物料类型");
             String uom = upper(r.get("baseUom"));
             if (uom != null) {
@@ -246,7 +258,7 @@ public class MaterialExcelService {
                     or(cost, base, MaterialRespVO::standardCost), base == null ? null : base.salesUom(),
                     or(pTax, base, MaterialRespVO::purchaseTaxRate), or(sTax, base, MaterialRespVO::salesTaxRate),
                     base == null ? null : base.uoms().stream().map(u -> new MaterialSaveReqVO.UomSave(u.uom(), u.rate(), u.remark())).toList(),
-                    base == null ? null : base.version());
+                    codeValues, base == null ? null : base.version());
             if (block) {
                 var dups = materialService.suspects(cat.getId(), req.name(), req.spec(), req.mpn(), old == null ? null : old.getId());
                 if (!dups.isEmpty()) {

@@ -7,7 +7,7 @@ import type { FileInfo } from '@/api/system'
 import { useLeaveGuard } from '@/composables/useLeaveGuard'
 import { tabKeyOf, useTabsStore } from '@/stores/tabs'
 import { useUserStore } from '@/stores/user'
-import { categoryApi, findCategory, type CategorySimple } from '../api/category'
+import { categoryApi, codePreview, findCategory, type CategorySimple, type CodeScheme } from '../api/category'
 import {
   defaultSource, materialApi, ISSUE_RULE_OPTIONS, MATERIAL_STATUS, MATERIAL_TYPE_OPTIONS, ORDER_POLICY_OPTIONS, SOURCE_TYPE_OPTIONS, TRACKING_OPTIONS,
   type Material, type MaterialSave, type MaterialSettings, type MaterialStatus, type MaterialType, type Suspect
@@ -123,7 +123,40 @@ function onCategory(cid?: string) {
   applyDefault('tracking', c.defaultTracking)
   applyDefault('iqcRequired', c.defaultIqcRequired)
   applyDefault('shelfLifeDays', c.defaultShelfLifeDays)
+  loadScheme(c)
   checkDuplicate()
+}
+
+// ---------- 编码段（05-02 R14，《物料编码原则》）----------
+/** 新建时：类别设置了编码段则按顺序选择特征值，编码 = 前缀 + 特征值 + 流水号 */
+const scheme = ref<CodeScheme>()
+const codeValues = ref<(string | undefined)[]>([])
+/** 最近一次按特征值带出的规格：规格仍等于它（或为空）时才随选择更新 */
+const appliedSpec = ref('')
+
+async function loadScheme(c: CategorySimple) {
+  if (id.value || !c.segmentCount) {
+    scheme.value = undefined
+    codeValues.value = []
+    return
+  }
+  const s = await categoryApi.codeScheme(c.id).catch(() => undefined)
+  if (form.value.categoryId !== c.id) return
+  scheme.value = s
+  codeValues.value = (s?.segments ?? []).map(() => undefined)
+}
+
+const segmentOptions = computed(() => (scheme.value?.segments ?? []).map((sg) => sg.values.filter((v) => v.status === 'ENABLED')))
+const preview = computed(() => (scheme.value ? codePreview(scheme.value.codePrefix, codeValues.value, scheme.value.codeSeqLength) : ''))
+
+function onCodeValue() {
+  const sc = scheme.value
+  if (!sc) return
+  const names = sc.segments.map((sg, i) => sg.values.find((v) => v.code === codeValues.value[i])?.name).filter(Boolean)
+  const spec = names.length ? names.join('/') + '/' : ''
+  const cur = form.value.spec ?? ''
+  if (!cur || cur === appliedSpec.value) form.value.spec = spec
+  appliedSpec.value = spec
 }
 
 /** 物料类型变化：取得方式、完工/出货检验跟随（未手工修改时） */
@@ -192,7 +225,7 @@ const dec = (v?: string) => (v === undefined || v === null || v === '' ? undefin
 
 function toForm(m: Material, copy: boolean): Form {
   const { id: _i, status: _s, createdAt: _c, updatedAt: _u, uoms, code: c, version, categoryCode: _cc, categoryName: _cn, plannerName: _pn,
-    buyerName: _bn, createdBy: _cb, createdByName: _cbn, lowLevelCode: _l, ...rest } = m
+    buyerName: _bn, createdBy: _cb, createdByName: _cbn, lowLevelCode: _l, codeSegments: _cs, ...rest } = m
   return {
     ...rest,
     code: copy ? '' : c,
@@ -219,6 +252,8 @@ onMounted(async () => {
     const m = await materialApi.get(route.query.from)
     form.value = toForm(m, true)
     tabs.setTitle(tabKeyOf(route), `复制新建 ${m.code}`)
+    const c = findCategory(categories.value, m.categoryId)
+    if (c) await loadScheme(c)
   } else if (typeof route.query.categoryId === 'string') {
     form.value.categoryId = route.query.categoryId
     onCategory(form.value.categoryId)
@@ -275,8 +310,16 @@ async function save(andEnable = false) {
     return ElMessage.warning(uomErr)
   }
   const f = form.value
+  if (scheme.value && !f.code?.trim()) {
+    const missing = scheme.value.segments.find((_sg, i) => !codeValues.value[i])
+    if (missing) {
+      activeTab.value = 'basic'
+      return ElMessage.warning(`请选择编码段「${missing.name}」`)
+    }
+  }
   const { uomRows, ...rest } = f
   const data: MaterialSave = {
+    codeValues: scheme.value && !id.value ? codeValues.value.map((v) => v ?? '') : undefined,
     ...rest,
     code: f.code?.trim() || undefined,
     name: f.name.trim(),
@@ -356,8 +399,21 @@ const clearTabError = (prop: FormItemProp) => {
               <el-col :xl="8" :span="12">
                 <el-form-item label="编码" prop="code">
                   <el-input v-if="!locked" v-model="form.code" maxlength="64" :disabled="!settings.manualCodeAllowed"
-                            :placeholder="settings.manualCodeAllowed ? '留空按类别前缀自动生成' : '保存后自动生成'" @input="form.code = String($event).toUpperCase()" />
+                            :placeholder="scheme ? '留空按编码段自动生成' : settings.manualCodeAllowed ? '留空按类别前缀自动生成' : '保存后自动生成'"
+                            @input="form.code = String($event).toUpperCase()" />
                   <span v-else class="mono">{{ code }}</span>
+                </el-form-item>
+              </el-col>
+              <el-col v-if="scheme && !id" :span="24">
+                <el-form-item label="编码段" required>
+                  <div class="code-segments">
+                    <el-select v-for="(sg, i) in scheme.segments" :key="sg.id" v-model="codeValues[i]" filterable :placeholder="sg.name"
+                               class="code-segment" @change="onCodeValue">
+                      <el-option v-for="v in segmentOptions[i]" :key="v.code" :value="v.code" :label="`${v.code} ${v.name}`" />
+                    </el-select>
+                    <span class="mono code-preview">{{ form.code?.trim() || preview }}</span>
+                  </div>
+                  <div class="form-tip">按《物料编码原则》：类别前缀 {{ scheme.codePrefix }} + 各编码段特征值 + {{ scheme.codeSeqLength ?? 5 }} 位流水号；相同特征的物料依次编号</div>
                 </el-form-item>
               </el-col>
               <el-col :xl="8" :span="12">
@@ -562,6 +618,9 @@ const clearTabError = (prop: FormItemProp) => {
 </template>
 
 <style scoped>
+.code-segments { display: flex; flex-wrap: wrap; align-items: center; gap: var(--erp-space-2); width: 100%; }
+.code-segment { width: 180px; }
+.code-preview { font-size: var(--erp-font-size-section-title); }
 .suspects { display: flex; flex-direction: column; gap: var(--erp-space-1); margin-top: var(--erp-space-1); }
 .material-form :deep(.el-tabs__header) { margin-bottom: var(--erp-space-5); }
 .material-form .form-tip { width: 100%; }

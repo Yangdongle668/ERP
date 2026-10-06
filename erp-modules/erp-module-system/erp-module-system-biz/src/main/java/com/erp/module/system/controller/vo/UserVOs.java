@@ -53,6 +53,8 @@ public final class UserVOs {
             @NotBlank(message = "请输入用户名") String username,
             @NotBlank(message = "请输入姓名") @Size(max = 32, message = "姓名不能超过 32 个字") String realName,
             @Size(max = 32) String employeeNo,
+            /** 工号为空且填写工厂代码（字典 sys_factory）时按规则生成工号，如 11-0001 */
+            String factoryCode,
             String gender,
             @Pattern(regexp = "^$|^(1\\d{10}|\\+\\d{6,20})$", message = "手机号格式不正确，应为 11 位手机号或 + 开头的国际号码") String mobile,
             @Email(message = "邮箱格式不正确") @Size(max = 128) String email,

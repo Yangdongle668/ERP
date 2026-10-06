@@ -112,7 +112,17 @@ async function save(andNew = false) {
             </el-form-item>
           </el-col>
           <el-col :xl="8" :span="12"><el-form-item label="姓名" prop="realName"><el-input v-model="form.realName" maxlength="32" /></el-form-item></el-col>
-          <el-col :xl="8" :span="12"><el-form-item label="工号" prop="employeeNo"><el-input v-model="form.employeeNo" maxlength="32" /></el-form-item></el-col>
+          <el-col :xl="8" :span="12">
+            <el-form-item label="工号" prop="employeeNo">
+              <el-input v-model="form.employeeNo" maxlength="32" :placeholder="form.factoryCode ? '留空按工厂自动生成' : ''" />
+            </el-form-item>
+          </el-col>
+          <el-col v-if="!form.employeeNo" :xl="8" :span="12">
+            <el-form-item label="工厂">
+              <DictSelect v-model="form.factoryCode" type="sys_factory" />
+              <div class="form-tip">工号为空时按工厂生成：工厂代码-四位流水，如 11-0001</div>
+            </el-form-item>
+          </el-col>
           <el-col :xl="8" :span="12">
             <el-form-item label="性别">
               <el-radio-group v-model="form.gender">

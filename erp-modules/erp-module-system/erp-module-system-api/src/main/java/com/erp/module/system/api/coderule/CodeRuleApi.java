@@ -23,6 +23,14 @@ public interface CodeRuleApi {
      */
     String nextCode(String bizCode, Map<String, String> vars);
 
+    /**
+     * 带前缀变量、指定流水号位数生成（如物料编码段：泡棉、电芯等类别 3 位流水，其他 5 位）。
+     * {@code seqLength} 为空时按规则配置；计数与 {@link #nextCode(String, Map)} 相同（按前缀取值独立计数）。
+     */
+    default String nextCode(String bizCode, Map<String, String> vars, Integer seqLength) {
+        return nextCode(bizCode, vars);
+    }
+
     /** 是否允许手工输入编码（SYS-COD-R06）：为 false 时业务接口应忽略前端传入的编码，始终自动生成 */
     boolean isManualAllowed(String bizCode);
 }

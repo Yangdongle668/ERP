@@ -33,7 +33,7 @@ class SupplierPriceIntegrationTest extends PurchaseTestSupport {
         String id = ok(doPost("/api/purchase/suppliers", admin, body)).asText();
         JsonNode d = ok(doGet("/api/purchase/suppliers/" + id, admin));
         assertThat(d.at("/status").asText()).isEqualTo("POTENTIAL");
-        assertThat(d.at("/code").asText()).startsWith("V");
+        assertThat(d.at("/code").asText()).matches("LD-S\\d{4}");
 
         // T01：没有营业执照
         assertError(doPost("/api/purchase/suppliers/" + id + "/qualify", admin, null), "提交准入需要：营业执照资质");
