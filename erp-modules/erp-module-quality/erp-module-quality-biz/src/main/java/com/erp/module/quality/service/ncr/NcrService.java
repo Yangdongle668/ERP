@@ -7,8 +7,11 @@ import com.erp.common.result.PageResult;
 import com.erp.common.util.Decimals;
 import com.erp.framework.event.DomainEventPublisher;
 import com.erp.module.crm.api.customer.CustomerDTO;
+import com.erp.module.engineering.api.material.Tracking;
 import com.erp.module.engineering.api.material.MaterialDTO;
 import com.erp.module.inventory.api.batch.BatchApi;
+import com.erp.module.inventory.api.doc.StockInType;
+import com.erp.module.inventory.api.doc.StockInRequest;
 import com.erp.module.inventory.api.doc.InventoryDocApi;
 import com.erp.module.inventory.api.doc.SourceRef;
 import com.erp.module.inventory.api.doc.StockOutRequest;
@@ -84,9 +87,12 @@ public class NcrService {
 
     public static final String BIZ_TYPE = QualityModuleConfig.NCR;
     public static final List<String> SOURCES = List.of("IQC", "IPQC", "FQC", "OQC", "RETURN", "RECHECK", "PRODUCTION", "INVENTORY", "COMPLAINT");
-    public static final List<String> DISPOSITIONS = List.of("RETURN", "CONCESSION", "SORT", "REWORK", "SCRAP");
+    /** 降级转换生成的仓库单据来源类型 */
+    public static final String DOWNGRADE_SOURCE = "QC_NCR_DOWNGRADE";
+    public static final List<String> DISPOSITIONS = List.of("RETURN", "CONCESSION", "SORT", "REWORK", "SCRAP", "DOWNGRADE");
     public static final List<String> SEVERITIES = List.of("CRITICAL", "MAJOR", "MINOR");
-    static final Map<String, String> DISP_NAMES = Map.of("RETURN", "退货", "CONCESSION", "特采", "SORT", "挑选", "REWORK", "返工", "SCRAP", "报废");
+    static final Map<String, String> DISP_NAMES = Map.of("RETURN", "退货", "CONCESSION", "特采", "SORT", "挑选", "REWORK", "返工", "SCRAP", "报废",
+            "DOWNGRADE", "降级使用");
 
     private final QcNcrMapper mapper;
     private final QcNcrDispositionMapper dispMapper;
@@ -207,8 +213,13 @@ public class NcrService {
         QcComplaintDO cpl = n.getComplaintId() == null ? null : complaintMapper.selectById(n.getComplaintId());
         SupplierDTO sup = support.suppliers(java.util.Collections.singletonList(n.getSupplierId())).get(n.getSupplierId());
         CustomerDTO cus = support.customers(java.util.Collections.singletonList(n.getCustomerId())).get(n.getCustomerId());
-        List<DispositionRow> ds = dispMapper.selectByParent(id).stream().map(d -> new DispositionRow(d.getId(), d.getSeq(), d.getDisposition(), d.getQty(),
-                d.getRemark(), d.getFollowDocNo(), Boolean.TRUE.equals(d.getDone()), d.getDoneAt())).toList();
+        List<QcNcrDispositionDO> dlist = dispMapper.selectByParent(id);
+        Map<Long, MaterialDTO> targets = support.materials(dlist.stream().map(QcNcrDispositionDO::getTargetMaterialId).filter(java.util.Objects::nonNull).toList());
+        List<DispositionRow> ds = dlist.stream().map(d -> {
+            MaterialDTO t = d.getTargetMaterialId() == null ? null : targets.get(d.getTargetMaterialId());
+            return new DispositionRow(d.getId(), d.getSeq(), d.getDisposition(), d.getQty(), d.getRemark(), d.getFollowDocNo(), Boolean.TRUE.equals(d.getDone()),
+                    d.getDoneAt(), d.getTargetMaterialId(), t == null ? null : t.code(), t == null ? null : t.name());
+        }).toList();
         return new NcrDetail(n.getId(), n.getDocNo(), n.getDocDate(), n.getNcrSource(), n.getSourceNo(), n.getInspectionId(), ins == null ? null : ins.getDocNo(),
                 ins == null ? null : ins.getResult(), n.getMaterialId(), m == null ? null : m.code(), m == null ? null : m.name(), m == null ? null : m.spec(),
                 m == null ? null : m.baseUom(), n.getBatchNo(), n.getNcrQty(), n.getSupplierId(), sup == null ? null : sup.name(), n.getCustomerId(),
@@ -303,6 +314,10 @@ public class NcrService {
             d.setSeq(++seq);
             d.setDisposition(s.disposition());
             d.setQty(Decimals.qty(s.qty()));
+            if ("DOWNGRADE".equals(s.disposition())) {
+                if (s.targetMaterialId() == null || s.targetMaterialId().equals(n.getMaterialId())) throw new BizException(QualityErrorCodes.NCR_DOWNGRADE_TARGET);
+                d.setTargetMaterialId(support.materialApi().validateUsable(s.targetMaterialId()).id());
+            }
             d.setRemark(QcSupport.limit(s.remark(), 512));
             d.setDone(false);
             dispMapper.insert(d);
@@ -445,8 +460,8 @@ public class NcrService {
     /** QC-NCR-R02：检验来源的处置范围 */
     static List<String> allowedDispositions(String source) {
         return switch (source) {
-            case "IQC", "RECHECK" -> List.of("RETURN", "CONCESSION", "SORT", "SCRAP");
-            case "FQC", "RETURN" -> List.of("CONCESSION", "REWORK", "SCRAP");
+            case "IQC", "RECHECK" -> List.of("RETURN", "CONCESSION", "SORT", "SCRAP", "DOWNGRADE");
+            case "FQC", "RETURN" -> List.of("CONCESSION", "REWORK", "SCRAP", "DOWNGRADE");
             case "OQC" -> List.of("REWORK", "SORT", "CONCESSION");
             default -> DISPOSITIONS;
         };
@@ -472,7 +487,7 @@ public class NcrService {
         Map<String, BigDecimal> byDisp = new LinkedHashMap<>();
         for (QcNcrDispositionDO d : ds) byDisp.merge(d.getDisposition(), d.getQty(), BigDecimal::add);
         if (n.getInspectionId() != null) {
-            BigDecimal rejected = sum(byDisp, "RETURN", "REWORK", "SCRAP");
+            BigDecimal rejected = sum(byDisp, "RETURN", "REWORK", "SCRAP", "DOWNGRADE");
             inspectionService.applyMrb(n.getInspectionId(), n.getDocNo(), n.getNcrQty(), sum(byDisp, "CONCESSION"), rejected, sum(byDisp, "SORT"),
                     sum(byDisp, "REWORK"));
             // 检验单挑选处置由检验员按挑选判定后完成；其余处置随检验判定自动完成库存动作
@@ -553,11 +568,40 @@ public class NcrService {
                 .orElseGet(() -> warehouseApi.getDefaultWarehouse(n.getMaterialId(), WarehouseType.NG));
         MaterialDTO m = support.material(n.getMaterialId());
         inventoryDocApi.createStockOut(new StockOutRequest(StockOutType.OTHER_OUT, new SourceRef(BIZ_TYPE, n.getId(), n.getDocNo()), ng.id(), LocalDate.now(),
-                null, null, n.getSupplierId(), n.getCustomerId(), List.of(new StockOutRequest.Line(d.getId(), m.id(), m.baseUom(), d.getQty(), n.getBatchNo(), null))));
+                null, null, n.getSupplierId(), n.getCustomerId(), List.of(new StockOutRequest.Line(d.getId(), m.id(), m.baseUom(), d.getQty(), n.getBatchNo(), null)),
+                "SCRAP", QcSupport.limit("NCR " + n.getDocNo() + " 处置报废：" + n.getDefectDescription(), 500)));
         String follow = "报废出库（来源 " + n.getDocNo() + "）";
         d.setFollowDocNo(QcSupport.limit(follow, 64));
         dispMapper.updateByIdOrFail(d);
         support.log(BIZ_TYPE, id, n.getDocNo(), "SCRAP_OUT", "生成报废出库", n.getStatus().name(), n.getStatus().name(), QcSupport.plain(d.getQty()));
+        return follow;
+    }
+
+    /**
+     * 降级使用：不合格品从不良品仓出库（其他出库），同时以降级后的物料入物料默认仓（其他入库），均为草稿由仓库确认；
+     * 来源类型为 QC_NCR_DOWNGRADE、来源行 = 处置明细。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public String createDowngrade(Long id) {
+        QcNcrDO n = get(id);
+        QcNcrDispositionDO d = firstOpen(n, "DOWNGRADE");
+        if (d.getTargetMaterialId() == null) throw new BizException(QualityErrorCodes.NCR_DOWNGRADE_TARGET);
+        WarehouseDTO ng = warehouseApi.listByType(WarehouseType.NG).stream().filter(WarehouseDTO::isDefault).findFirst()
+                .orElseGet(() -> warehouseApi.getDefaultWarehouse(n.getMaterialId(), WarehouseType.NG));
+        MaterialDTO m = support.material(n.getMaterialId());
+        MaterialDTO t = support.material(d.getTargetMaterialId());
+        SourceRef src = new SourceRef(DOWNGRADE_SOURCE, d.getId(), n.getDocNo());
+        inventoryDocApi.createStockOut(new StockOutRequest(StockOutType.OTHER_OUT, src, ng.id(), LocalDate.now(), null, null, n.getSupplierId(), n.getCustomerId(),
+                List.of(new StockOutRequest.Line(d.getId(), m.id(), m.baseUom(), d.getQty(), n.getBatchNo(), null)), "DOWNGRADE",
+                QcSupport.limit("NCR " + n.getDocNo() + " 降级为 " + t.code(), 500)));
+        String batch = t.tracking() == Tracking.BATCH ? (StringUtils.hasText(n.getBatchNo()) ? n.getBatchNo() : n.getDocNo()) : null;
+        inventoryDocApi.createStockIn(new StockInRequest(StockInType.OTHER_IN, src, warehouseApi.getDefaultWarehouse(t.id(), null).id(), LocalDate.now(),
+                n.getSupplierId(), n.getCustomerId(), List.of(new StockInRequest.Line(d.getId(), t.id(), t.baseUom(), d.getQty(), batch, null, null, null, null))));
+        String follow = "降级 " + m.code() + " → " + t.code() + "（来源 " + n.getDocNo() + "）";
+        d.setFollowDocNo(QcSupport.limit(follow, 64));
+        dispMapper.updateByIdOrFail(d);
+        support.log(BIZ_TYPE, id, n.getDocNo(), "DOWNGRADE", "生成降级转换", n.getStatus().name(), n.getStatus().name(),
+                QcSupport.plain(d.getQty()) + " " + m.code() + " → " + t.code());
         return follow;
     }
 

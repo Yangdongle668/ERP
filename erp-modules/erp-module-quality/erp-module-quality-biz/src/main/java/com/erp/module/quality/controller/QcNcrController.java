@@ -99,6 +99,12 @@ public class QcNcrController {
         return CommonResult.success(service.createScrapOut(id));
     }
 
+    @PostMapping("/{id}/create-downgrade")
+    @PreAuthorize("@ss.has('qc:ncr:update')")
+    public CommonResult<String> downgrade(@PathVariable Long id) {
+        return CommonResult.success(service.createDowngrade(id));
+    }
+
     @PostMapping("/{id}/create-capa")
     @PreAuthorize("@ss.has('qc:capa:create')")
     public CommonResult<Long> createCapa(@PathVariable Long id) {

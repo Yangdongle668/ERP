@@ -27,6 +27,8 @@ public interface QualityErrorCodes {
     ErrorCode STD_DRAFT_EXISTS = new ErrorCode(1_010_001_009, "该标准已有草稿版本 V{}");
     ErrorCode SAMPLING_DISABLED = new ErrorCode(1_010_001_010, "抽样方案「{}」已停用");
     ErrorCode LOT_QTY_INVALID = new ErrorCode(1_010_001_011, "批量必须大于 0");
+    ErrorCode AQL_LETTER_INVALID = new ErrorCode(1_010_001_012, "样本量字码「{}」不正确");
+    ErrorCode AQL_PLAN_INVALID = new ErrorCode(1_010_001_013, "样本量必须大于 0，且 0 ≤ Ac < Re");
 
     // ========== 检验单 002 ==========
     ErrorCode INS_JUDGE_QTY = new ErrorCode(1_010_002_000, "判定数量合计必须等于批量 {}");
@@ -55,6 +57,7 @@ public interface QualityErrorCodes {
     ErrorCode NCR_FOLLOW_EXISTS = new ErrorCode(1_010_003_007, "已生成{}：{}");
     ErrorCode NCR_NO_DISP_OF = new ErrorCode(1_010_003_008, "NCR 没有「{}」处置");
     ErrorCode NCR_SCAR_NO_SUPPLIER = new ErrorCode(1_010_003_009, "NCR 没有供应商，不能生成 SCAR");
+    ErrorCode NCR_DOWNGRADE_TARGET = new ErrorCode(1_010_003_010, "降级使用请选择降级后的物料（不能与不合格物料相同）");
 
     // ========== CAPA 004 ==========
     ErrorCode CAPA_STEP_ORDER = new ErrorCode(1_010_004_000, "请按顺序完成步骤，当前为 D{}");

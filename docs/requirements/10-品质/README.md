@@ -110,7 +110,8 @@ QC_IQC、QC_IPQC、QC_FQC、QC_OQC、QC_RETURN（`RI-yyyyMMdd-3`）、QC_RECHECK
 
 检验基础数据、检验单（IQC / IPQC / FQC / OQC / 退货检验 / 复检）、NCR 与 MRB、CAPA / 8D、客诉、SCAR、质量追溯与报表的后端与页面均已实现。与其他模块的接入方式如下：
 
-- **抽样**：GB/T 2828.1 一次正常检验的字码表与主表以代码常量内置（`AqlTable`，未建 `qc_aql_table` 表），箭头规则按“字码序号 + AQL 序号”的对角结构展开；支持 AQL 0.010～10 与 0（零缺陷）。全检、固定数量方案按零缺陷判定（Ac0 / Re1），免检样本量为 0。初始数据：5 个抽样方案、5 个检验项目、8 个缺陷代码、每种检验类型一个“通用外观检验”标准。
+- **抽样**：GB/T 2828.1 一次正常检验的字码表（`qc_aql_code`）与主表（`qc_aql_table`，箭头规则已展开为实际使用的字码、n、Ac、Re）由迁移脚本 V2 初始化，`AqlTableService` 读取并缓存；“检验基础数据 → AQL 抽样表”页签可查看，拥有 `qc:sampling:manage` 的用户可修改单元格（只影响之后新建的检验单）。支持 AQL 0.010～10 与 0（零缺陷）。
+- **SCAR 加严抽样（QC-SCAR-R04）**：参数 `qc.scar.tightened-iqc`（默认开启）开启时，供应商 + 物料存在“验证中”的 SCAR，新生成的 IQC 检验水平提高一级（S1→S2→S3→S4，I→II→III），抽样快照文字带“（加严）”，操作日志记录原因；SCAR 结案或退回后恢复正常抽样。全检、固定数量方案按零缺陷判定（Ac0 / Re1），免检样本量为 0。初始数据：5 个抽样方案、5 个检验项目、8 个缺陷代码、每种检验类型一个“通用外观检验”标准。
 - **检验单生成**：
   - 监听 `StockInConfirmedEvent`：采购 / 委外入库进待检仓 → IQC，生产入库进待检仓 → FQC，销售退货入退货仓 → 退货检验。同一入库单来源行不重复生成；物料质量属性免检（或方案为免检）时直接判定合格。
   - `IpqcTriggerEvent` → IPQC（报工触发）；复检送检调拨确认（`TransferConfirmedEvent` 类型 RECHECK）→ 复检单；IPQC 首件 / 巡检 / 末件与复检可手工新建。
@@ -124,7 +125,8 @@ QC_IQC、QC_IPQC、QC_FQC、QC_OQC、QC_RETURN（`RI-yyyyMMdd-3`）、QC_RECHECK
 - **NCR / MRB**：
   - 提交时校验处置合计与来源允许的处置方式，审批流 `QC_NCR`（MRB 会签，条件字段 disposition / qty / amountBase / source）。
   - 审批通过后：检验来源按处置完成判定（含挑选时检验单回到检验中，只能按“挑选”判定）；致命缺陷冻结同批次（`BatchApi.freeze`，关闭时可选解冻）；发布 `NcrApprovedEvent`；含退货处置时提醒供应商的采购员。
-  - 报废处置生成不良品仓的其他出库草稿，返工处置生成“已计划”的返工生产订单（`ProductionOrderApi.createFromMrp`）。
+  - 报废处置生成不良品仓的其他出库草稿（原因 SCRAP，备注带 NCR 说明），返工处置生成“已计划”的返工生产订单（`ProductionOrderApi.createFromMrp`）。
+  - 降级使用（DOWNGRADE）：IQC / 复检 / FQC / 退货检验来源与手工 NCR 可选，处置明细须选择降级后的物料（`target_material_id`）；审批通过时计入不合格数量（进不良品仓）。[生成降级转换] 生成不良品仓的其他出库草稿（原因 DOWNGRADE）和降级后物料的其他入库草稿（物料默认仓，批次管理物料沿用原批次），来源类型 `QC_NCR_DOWNGRADE`。
   - 生产不良“生成 NCR”由本模块实现 `DefectNcrCreator`，另提供 `NcrApi.createNcr`。
 - **CAPA / 客诉 / SCAR**：按文档实现分步、验证、结案与回复流程；客诉结案走审批流 `QC_COMPLAINT_CLOSE`，同意赔偿金额 > 0 时发布 `ComplaintClaimAgreedEvent`，客诉列表按 CRM 客户负责人做数据权限；SCAR 结案发布 `ScarClosedEvent`，`QualityStatsApi.supplierLotStats` 提供供应商批次与 SCAR 统计。
 - **定时任务**：`QC_INSPECTION_OVERDUE`（每小时，检验超时提醒品质主管，每单一次）、`QC_FOLLOWUP_REMIND`（每天 08:30，CAPA 到期 / 超期、客诉回复期限、SCAR 逾期提醒）。品质主管取参数 `qc.managers`，为空时取拥有 `qc:ncr:close` 的用户；致命客诉另通知参数 `qc.complaint.executives`。
@@ -134,5 +136,5 @@ QC_IQC、QC_IPQC、QC_FQC、QC_OQC、QC_RETURN（`RI-yyyyMMdd-3`）、QC_RECHECK
   - 退供应商：“通知采购退货”调用资材 `PurchaseReturnApi.createDraft` 生成草稿退货单（IQC 来源对应到货行，其余按供应商 + 物料 + 批次找最近可退的到货；出库仓取批次所在的不良品仓），处置明细登记退货单号，并给采购员发待办确认提交；找不到可退的到货记录时只发待办，由采购员手工创建。
   - 同一不良当日预警（参数 `qc.defect.alert-threshold`）：IPQC 判定后，按缺陷代码汇总当天已判定 IPQC 的缺陷数，达到阈值时向品质主管发工作台预警（每个缺陷代码每天一次）。IPQC 不合格警示：`InspectionQueryApi.getIpqcRejected(prodOrderId)` 返回各工序最近一次判定为拒收的 IPQC，生产订单详情的工序页签显示“IPQC 不合格”标记（点击打开检验单），之后同工序判定合格即解除。
   - 质量追溯的出货记录取批次的销售出库流水，客户取出货模块 `ShipmentQueryApi.getShipmentsByBatch`。
-  - SCAR 加严抽样（QC-SCAR-R04，P2）、检验报告与 8D 报告的英文模板暂未提供（SCAR 已有英文模板）。
+  - 检验报告与 8D 报告的英文模板暂未提供（SCAR 已有英文模板）。
   - 质量报表的图表以条形图表示，制程良率、直通率沿用生产报表。

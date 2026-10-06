@@ -41,6 +41,8 @@ const actions = computed<DocAction[]>(() => [
     handler: async () => { ElMessage.success(await ncrApi.reworkOrder(id.value)); load() } },
   { key: 'scrap', label: '生成报废出库', permission: 'qc:ncr:update', visible: () => s.value === 'APPROVED' && hasDisp('SCRAP'),
     handler: async () => { ElMessage.success(await ncrApi.scrapOut(id.value)); load() } },
+  { key: 'downgrade', label: '生成降级转换', permission: 'qc:ncr:update', visible: () => s.value === 'APPROVED' && hasDisp('DOWNGRADE'),
+    handler: async () => { ElMessage.success(await ncrApi.downgrade(id.value)); load() } },
   { key: 'close', label: '关闭', permission: 'qc:ncr:close', visible: () => s.value === 'APPROVED' && allDone.value, handler: close },
   { key: 'edit', label: '编辑', permission: 'qc:ncr:update', visible: () => s.value === 'DRAFT', handler: () => router.push(`/quality/ncr/${id.value}/edit`) },
   { key: 'submit', label: '提交 MRB', type: 'primary', permission: 'qc:ncr:submit', visible: () => s.value === 'DRAFT',
@@ -117,7 +119,12 @@ const steps = [
             <el-table :data="d.dispositions">
               <el-table-column label="处置" width="110"><template #default="{ row }">{{ DISPOSITION[row.disposition] }}</template></el-table-column>
               <el-table-column label="数量" width="110" align="right"><template #default="{ row }">{{ formatQty(row.qty) }}</template></el-table-column>
-              <el-table-column label="说明" prop="remark" min-width="200" />
+              <el-table-column label="说明" min-width="200">
+                <template #default="{ row }">
+                  <div v-if="row.targetMaterialId">降级为 {{ row.targetMaterialCode }} {{ row.targetMaterialName }}</div>
+                  <div>{{ row.remark }}</div>
+                </template>
+              </el-table-column>
               <el-table-column label="后续单据" prop="followDocNo" min-width="200" />
               <el-table-column label="完成" width="160">
                 <template #default="{ row }">{{ row.done ? `已完成 ${formatDateTime(row.doneAt, true)}` : '未完成' }}</template>

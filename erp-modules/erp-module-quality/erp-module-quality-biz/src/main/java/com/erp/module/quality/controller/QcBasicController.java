@@ -2,6 +2,9 @@ package com.erp.module.quality.controller;
 
 import com.erp.common.result.CommonResult;
 import com.erp.common.result.PageResult;
+import com.erp.module.quality.controller.vo.BasicVOs.AqlCodeSave;
+import com.erp.module.quality.controller.vo.BasicVOs.AqlTableSave;
+import com.erp.module.quality.controller.vo.BasicVOs.AqlTableView;
 import com.erp.module.quality.controller.vo.BasicVOs.DefectCodeQuery;
 import com.erp.module.quality.controller.vo.BasicVOs.DefectCodeRow;
 import com.erp.module.quality.controller.vo.BasicVOs.DefectCodeSave;
@@ -13,6 +16,7 @@ import com.erp.module.quality.controller.vo.BasicVOs.SamplingQuery;
 import com.erp.module.quality.controller.vo.BasicVOs.SamplingResult;
 import com.erp.module.quality.controller.vo.BasicVOs.SamplingRow;
 import com.erp.module.quality.controller.vo.BasicVOs.SamplingSave;
+import com.erp.module.quality.service.basic.AqlTableService;
 import com.erp.module.quality.service.basic.BasicDataService;
 import com.erp.module.quality.service.basic.SamplingService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,10 +42,34 @@ public class QcBasicController {
 
     private final BasicDataService basicDataService;
     private final SamplingService samplingService;
+    private final AqlTableService aqlTableService;
 
-    public QcBasicController(BasicDataService basicDataService, SamplingService samplingService) {
+    public QcBasicController(BasicDataService basicDataService, SamplingService samplingService, AqlTableService aqlTableService) {
         this.basicDataService = basicDataService;
         this.samplingService = samplingService;
+        this.aqlTableService = aqlTableService;
+    }
+
+    // ==================== AQL 抽样表 ====================
+
+    @GetMapping("/aql-table")
+    @PreAuthorize("@ss.has('qc:standard:query')")
+    public CommonResult<AqlTableView> aqlTable() {
+        return CommonResult.success(aqlTableService.view());
+    }
+
+    @PutMapping("/aql-table/codes/{id}")
+    @PreAuthorize("@ss.has('qc:sampling:manage')")
+    public CommonResult<Void> updateAqlCode(@PathVariable Long id, @RequestBody AqlCodeSave req) {
+        aqlTableService.updateCode(id, req);
+        return CommonResult.success();
+    }
+
+    @PutMapping("/aql-table/rows/{id}")
+    @PreAuthorize("@ss.has('qc:sampling:manage')")
+    public CommonResult<Void> updateAqlRow(@PathVariable Long id, @RequestBody AqlTableSave req) {
+        aqlTableService.updateTable(id, req);
+        return CommonResult.success();
     }
 
     // ==================== 项目库 ====================

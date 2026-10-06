@@ -66,6 +66,22 @@ public final class BasicVOs {
     public record LevelPlan(String level, String aql, int n, int ac, int re) {
     }
 
+    /** AQL 抽样表（字码表 + 主表） */
+    public record AqlTableView(List<String> levels, List<String> letters, List<String> aqls, List<AqlCodeRow> codes, List<AqlRow> rows) {
+    }
+
+    public record AqlCodeRow(Long id, Long lotMin, Long lotMax, String inspectionLevel, String codeLetter, int version) {
+    }
+
+    public record AqlRow(Long id, String codeLetter, String aql, String sampleLetter, int sampleSize, int ac, int re, int version) {
+    }
+
+    public record AqlCodeSave(String codeLetter, Integer version) {
+    }
+
+    public record AqlTableSave(String sampleLetter, Integer sampleSize, Integer ac, Integer re, Integer version) {
+    }
+
     /** 抽样结果（检验单保存快照） */
     public record SamplingResult(Long planId, String planCode, String planName, String planType, String inspectionLevel, String letter,
                                  BigDecimal lotQty, int sampleQty, boolean full, List<LevelPlan> levels, String text) {

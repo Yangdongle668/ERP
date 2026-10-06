@@ -81,6 +81,8 @@ public class StockOutService {
     public static final String APPROVAL_TYPE = "INV_OTHER_OUT";
     static final String PARAM_AUTO_CONFIRM = "inv.out.auto-confirm-source";
     public static final String REASON_SCRAP = "SCRAP";
+    /** 降级转换（品质 NCR 降级使用）：不良品从不良品仓出库，以降级后的物料入库 */
+    public static final String REASON_DOWNGRADE = "DOWNGRADE";
 
     static final Map<StockOutType, String> TYPE_NAMES = Map.of(StockOutType.PRODUCTION_ISSUE, "生产领料出库", StockOutType.OUTSOURCE_ISSUE, "委外发料出库",
             StockOutType.SALES_OUT, "销售出库", StockOutType.PURCHASE_RETURN, "采购退货出库", StockOutType.OTHER_OUT, "其他出库",
@@ -91,7 +93,8 @@ public class StockOutService {
         return switch (t) {
             case PRODUCTION_ISSUE, OUTSOURCE_ISSUE, SALES_OUT -> DocSupport.AVAILABLE;
             case PURCHASE_RETURN -> DocSupport.with(DocSupport.AVAILABLE, WarehouseType.NG, WarehouseType.QC);
-            case OTHER_OUT -> REASON_SCRAP.equals(reason) ? DocSupport.with(DocSupport.AVAILABLE, WarehouseType.NG) : DocSupport.AVAILABLE;
+            case OTHER_OUT -> REASON_SCRAP.equals(reason) || REASON_DOWNGRADE.equals(reason) ? DocSupport.with(DocSupport.AVAILABLE, WarehouseType.NG)
+                    : DocSupport.AVAILABLE;
             case COUNT_LOSS -> EnumSet.allOf(WarehouseType.class);
         };
     }
@@ -99,7 +102,7 @@ public class StockOutService {
     /** 冻结、过期批次也能出：报废、退供应商、盘亏 */
     static boolean allowFrozen(StockOutDO d) {
         return d.getOutType() == StockOutType.PURCHASE_RETURN || d.getOutType() == StockOutType.COUNT_LOSS
-                || (d.getOutType() == StockOutType.OTHER_OUT && REASON_SCRAP.equals(d.getReason()));
+                || (d.getOutType() == StockOutType.OTHER_OUT && (REASON_SCRAP.equals(d.getReason()) || REASON_DOWNGRADE.equals(d.getReason())));
     }
 
     private final StockOutMapper docMapper;
@@ -148,7 +151,8 @@ public class StockOutService {
         List<Long> ids = new ArrayList<>();
         for (Map.Entry<Long, List<StockOutRequest.Line>> e : byWarehouse.entrySet()) {
             WarehouseDO w = support.warehouse(e.getKey());
-            checkWarehouse(req.outType(), null, w);
+            String reason = req.outType() == StockOutType.OTHER_OUT ? trim(req.reason()) : null;
+            checkWarehouse(req.outType(), reason, w);
             StockOutDO d = new StockOutDO();
             d.setDocNo(support.nextNo(InventoryModuleConfig.CODE_STOCK_OUT));
             d.setDocDate(req.docDate() != null ? req.docDate() : LocalDate.now());
@@ -163,6 +167,8 @@ public class StockOutService {
             d.setSourceId(src.sourceId());
             d.setSourceNo(src.sourceNo());
             d.setSourceDate(sourceDate);
+            d.setReason(reason);
+            if (StringUtils.hasText(req.remark())) d.setRemark(req.remark().trim());
             d.setManual(false);
             d.setOwnerId(support.currentUser());
             docMapper.insert(d);

@@ -37,7 +37,7 @@ onMounted(async () => {
   form.value = { source: n.source, sourceNo: n.sourceNo, materialId: n.materialId, batchNo: n.batchNo, ncrQty: n.ncrQty, supplierId: n.supplierId,
     customerId: n.customerId, defectDescription: n.defectDescription, defectCodes: [...n.defectCodes], severity: n.severity, responsibility: n.responsibility,
     containment: n.containment, capaRequired: n.capaRequired, scarRequired: n.scarRequired, fileIds: [] }
-  disps.value = n.dispositions.map((x) => ({ disposition: x.disposition, qty: x.qty, remark: x.remark }))
+  disps.value = n.dispositions.map((x) => ({ disposition: x.disposition, qty: x.qty, remark: x.remark, targetMaterialId: x.targetMaterialId }))
   suggested.value = n.capaSuggested
 })
 /** QC-NCR-R05 预判是否需要 CAPA */
@@ -114,6 +114,12 @@ async function save(submit: boolean) {
           </template>
         </el-table-column>
         <el-table-column label="数量" width="160"><template #default="{ row }"><QtyInput v-model="row.qty" /></template></el-table-column>
+        <el-table-column label="降级后的物料" min-width="220">
+          <template #default="{ row }">
+            <MaterialSelect v-if="row.disposition === 'DOWNGRADE'" v-model="row.targetMaterialId" />
+            <span v-else class="text-muted">-</span>
+          </template>
+        </el-table-column>
         <el-table-column label="说明" min-width="260"><template #default="{ row }"><el-input v-model="row.remark" maxlength="512" placeholder="如特采条件：仅用于 FG1 订单" /></template></el-table-column>
         <el-table-column label="" width="60" align="center"><template #default="{ $index }"><el-button link type="danger" @click="disps.splice($index, 1)">删除</el-button></template></el-table-column>
       </el-table>
