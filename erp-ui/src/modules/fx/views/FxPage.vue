@@ -16,7 +16,6 @@ const daily = ref<FxDailyRow[]>([])
 const monthly = ref<FxMonthlyRow[]>([])
 const loading = ref(false)
 const refreshing = ref(false)
-const dailyPair = ref<string>('USD_CNY')
 
 const pairOptions = FX_PAIRS.map((p) => ({ value: p.value, label: p.label }))
 const dailyColumns: TableColumn<FxDailyRow>[] = [
@@ -38,7 +37,7 @@ const monthlyColumns: TableColumn<FxMonthlyRow>[] = [
 async function load() {
   loading.value = true
   try {
-    const [s, d, m] = await Promise.all([fxApi.status(), fxApi.daily({ pair: dailyPair.value || undefined }), fxApi.monthly()])
+    const [s, d, m] = await Promise.all([fxApi.status(), fxApi.daily({ pair: 'USD_CNY' }), fxApi.monthly()])
     status.value = s
     daily.value = d
     monthly.value = m
@@ -48,7 +47,7 @@ async function load() {
 }
 
 async function loadDaily() {
-  daily.value = await fxApi.daily({ pair: dailyPair.value || undefined })
+  daily.value = await fxApi.daily({ pair: 'USD_CNY' })
 }
 
 async function refresh() {
@@ -88,10 +87,14 @@ onBeforeUnmount(() => window.clearInterval(timer))
 
     <div class="quotes">
       <ErpPanel v-for="q in status?.quotes ?? []" :key="q.pair" :title="q.label">
-        <template #extra><ErpBadge v-if="q.stale && q.rate" type="warning">超过 15 分钟未更新</ErpBadge></template>
+        <template #extra>
+          <ErpBadge v-if="q.stale && q.rate" type="warning">超过 15 分钟未更新</ErpBadge>
+          <ErpBadge v-else-if="!q.persisted" type="info" plain>仅实时</ErpBadge>
+        </template>
         <div class="rate num">{{ q.rate ? formatRate(q.rate) : '-' }}</div>
         <div class="meta">
-          <span>今日平均 <b class="num">{{ q.todayAverage ? formatRate(q.todayAverage) : '-' }}</b></span>
+          <span v-if="q.persisted">今日平均 <b class="num">{{ q.todayAverage ? formatRate(q.todayAverage) : '-' }}</b></span>
+          <span v-else class="text-muted">实时报价，不保存历史</span>
           <span class="text-muted">银行发布 {{ formatDateTime(q.publishTime, true) || '-' }}</span>
           <span class="text-muted">取得 {{ formatDateTime(q.fetchedAt, true) || '-' }}</span>
         </div>
@@ -104,7 +107,7 @@ onBeforeUnmount(() => window.clearInterval(timer))
         <el-descriptions-item label="上次成功">{{ formatDateTime(status.lastSuccessAt) || '-' }}</el-descriptions-item>
         <el-descriptions-item label="下次获取">{{ status.polling ? formatDateTime(status.nextRunAt) || '-' : '未启动' }}</el-descriptions-item>
         <el-descriptions-item label="推送目标">
-          {{ status.pushTarget ? '系统汇率表（USD、EUR 日汇率 / 月末汇率）' : '本位币不是人民币，只在本模块保存' }}
+          {{ status.pushTarget ? '系统汇率表（美元日汇率 / 月末汇率）' : '本位币不是人民币，只在本模块保存' }}
         </el-descriptions-item>
         <el-descriptions-item label="上次尝试">{{ formatDateTime(status.lastAttemptAt) || '-' }}</el-descriptions-item>
         <el-descriptions-item label="错误信息"><span :class="{ 'text-danger': status.lastError }">{{ status.lastError || '-' }}</span></el-descriptions-item>
@@ -112,16 +115,11 @@ onBeforeUnmount(() => window.clearInterval(timer))
       <el-skeleton v-else :rows="2" animated />
     </ErpPanel>
 
-    <ErpPanel title="日平均汇率" description="当天各次报价的平均值；当天结束后（00:05）结算" flush>
-      <template #extra>
-        <el-select v-model="dailyPair" clearable placeholder="全部汇率对" class="pair-select" @change="loadDaily">
-          <el-option v-for="p in FX_PAIRS" :key="p.value" v-bind="p" />
-        </el-select>
-      </template>
+    <ErpPanel title="美元日平均汇率" description="当天各次报价的平均值；当天结束后（00:05）结算。只保存美元的历史，数据保存 3 年" flush>
       <ErpTable :columns="dailyColumns" :data="daily" :loading="loading" no-toolbar :max-height="420" empty-text="近 30 天没有汇率数据" />
     </ErpPanel>
 
-    <ErpPanel title="月平均汇率" description="当月各日平均汇率的平均值；月份结束后结算，USD、EUR 写入系统月末汇率" flush>
+    <ErpPanel title="美元月平均汇率" description="当月各日平均汇率的平均值；月份结束后结算，写入系统月末汇率" flush>
       <ErpTable :columns="monthlyColumns" :data="monthly" :loading="loading" no-toolbar :max-height="420" empty-text="还没有月平均汇率" />
     </ErpPanel>
   </ErpPage>
@@ -131,5 +129,4 @@ onBeforeUnmount(() => window.clearInterval(timer))
 .quotes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--erp-space-4); }
 .rate { font-size: var(--erp-font-size-metric); font-weight: var(--erp-font-weight-semibold); }
 .meta { display: flex; flex-direction: column; gap: var(--erp-space-1); margin-top: var(--erp-space-2); font-size: var(--erp-font-size-secondary); }
-.pair-select { width: 180px; }
 </style>

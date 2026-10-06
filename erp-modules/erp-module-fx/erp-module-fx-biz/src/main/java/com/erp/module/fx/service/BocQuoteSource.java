@@ -26,7 +26,9 @@ import java.util.regex.Pattern;
 @Component
 public class BocQuoteSource implements FxQuoteSource {
 
-    static final Map<String, String> NAMES = Map.of("美元", "USD", "欧元", "EUR");
+    /** 牌价中的货币名称 → 币别代码 */
+    static final Map<String, String> NAMES = Map.of("美元", "USD", "欧元", "EUR", "日元", "JPY", "韩国元", "KRW", "韩元", "KRW",
+            "澳大利亚元", "AUD", "澳元", "AUD");
     private static final Pattern ROW = Pattern.compile("(?is)<tr[^>]*>(.*?)</tr>");
     private static final Pattern CELL = Pattern.compile("(?is)<t[dh][^>]*>(.*?)</t[dh]>");
     private static final Pattern DATE = Pattern.compile("(\\d{4})[.\\-/年](\\d{1,2})[.\\-/月](\\d{1,2})");
@@ -54,6 +56,7 @@ public class BocQuoteSource implements FxQuoteSource {
     static Map<String, Quote> parse(String html, LocalDateTime now) {
         int buyCol = 1;
         Map<String, Quote> result = new HashMap<>();
+        // 同一币别有多个名称（韩国元 / 韩元）时取第一行
         Matcher rows = ROW.matcher(html);
         while (rows.find()) {
             List<String> cells = cells(rows.group(1));
@@ -71,7 +74,7 @@ public class BocQuoteSource implements FxQuoteSource {
             result.put(code, new Quote(code, rate, publishTime(String.join(" ", cells.subList(buyCol, cells.size())), now)));
         }
         List<String> missing = new ArrayList<>();
-        for (String code : NAMES.values()) if (!result.containsKey(code)) missing.add(code);
+        for (String code : new java.util.TreeSet<>(NAMES.values())) if (!result.containsKey(code)) missing.add(code);
         if (!missing.isEmpty()) throw new IllegalStateException("牌价中没有 " + String.join("、", missing) + " 的现汇买入价");
         return result;
     }

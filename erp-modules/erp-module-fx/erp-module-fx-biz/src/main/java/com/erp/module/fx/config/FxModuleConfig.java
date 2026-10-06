@@ -30,6 +30,6 @@ public class FxModuleConfig {
     public ParamDefinitions fxParams() {
         return ParamDefinitions.of(
                 ParamDefinition.bool(P_ENABLED, MODULE, "实时汇率", "自动获取汇率", true,
-                        "每 15 分钟获取中国银行现汇买入价（USD、EUR），失败时按 1、2、4…60 分钟退避重试").sort(10));
+                        "每 15 分钟获取中国银行现汇买入价（美元、欧元、日元、韩元、澳元，只保存美元），失败时按 1、2、4…60 分钟退避重试").sort(10));
     }
 }

@@ -10,7 +10,7 @@ public interface FxQuoteSource {
     /**
      * 取得外币对人民币的现汇买入价（每 1 单位外币）。
      *
-     * @return 币别代码（USD、EUR）→ 报价；缺少某个币别时抛出异常
+     * @return 币别代码（USD、EUR、JPY、KRW、AUD）→ 报价；缺少某个币别时抛出异常
      */
     Map<String, Quote> fetch() throws Exception;
 
