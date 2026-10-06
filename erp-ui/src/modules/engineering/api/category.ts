@@ -21,6 +21,10 @@ export interface CategoryNode {
   /** 本类别直接挂有物料（含停用） */
   hasMaterial: boolean
   version: number
+  /** 流水号位数，空则按编码规则 */
+  codeSeqLength?: number
+  /** 编码段数（《物料编码原则》特征值） */
+  segmentCount: number
   children?: CategoryNode[]
 }
 
@@ -37,6 +41,8 @@ export interface CategorySimple {
   defaultIqcRequired: boolean
   defaultShelfLifeDays?: number
   leaf: boolean
+  codeSeqLength?: number
+  segmentCount: number
   children?: CategorySimple[]
 }
 
@@ -45,6 +51,7 @@ export interface CategorySave {
   code: string
   name: string
   codePrefix: string
+  codeSeqLength?: number
   defaultMaterialType: MaterialType
   defaultBaseUom?: string
   defaultTracking: Tracking
@@ -53,6 +60,37 @@ export interface CategorySave {
   sort: number
   remark?: string
   version?: number
+}
+
+/** 编码段特征值，如线材型号 02 = UL3302 */
+export interface SegmentValue {
+  id?: string
+  code: string
+  name: string
+  status: 'ENABLED' | 'DISABLED'
+  remark?: string
+}
+export interface CodeSegment {
+  id?: string
+  name: string
+  length: number
+  remark?: string
+  values: SegmentValue[]
+}
+/** 类别编码方案：编码 = 前缀 + 各段特征值 + 流水号；locked 为已有物料（只能改名称、新增 / 停用特征值） */
+export interface CodeScheme {
+  categoryId: string
+  categoryName: string
+  codePrefix: string
+  codeSeqLength?: number
+  leaf: boolean
+  locked: boolean
+  segments: CodeSegment[]
+}
+
+/** 编码预览：前缀 + 特征值 + 流水号占位（N 位 #） */
+export function codePreview(prefix: string, values: (string | undefined)[], seqLength?: number): string {
+  return prefix + values.map((v) => v || '?').join('') + '#'.repeat(seqLength ?? 5)
 }
 
 const BASE = '/engineering/categories'
@@ -65,7 +103,9 @@ export const categoryApi = {
   update: (id: string, data: CategorySave) => http.put<void>(`${BASE}/${id}`, data),
   remove: (id: string) => http.delete<void>(`${BASE}/${id}`),
   enable: (id: string) => http.post<void>(`${BASE}/${id}/enable`),
-  disable: (id: string) => http.post<void>(`${BASE}/${id}/disable`)
+  disable: (id: string) => http.post<void>(`${BASE}/${id}/disable`),
+  codeScheme: (id: string) => http.get<CodeScheme>(`${BASE}/${id}/code-scheme`),
+  saveCodeScheme: (id: string, segments: CodeSegment[]) => http.put<void>(`${BASE}/${id}/code-scheme`, { segments })
 }
 
 /** 在树中查找节点 */

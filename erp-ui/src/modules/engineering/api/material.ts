@@ -119,6 +119,8 @@ export interface Material {
   version: number
   createdBy?: string
   createdByName?: string
+  /** 编码构成（按编码段生成时记录） */
+  codeSegments?: string
   createdAt: string
   updatedAt: string
   uoms?: UomRow[]
@@ -144,6 +146,8 @@ export type MaterialSave = Omit<Partial<Material>, 'id' | 'status' | 'createdAt'
   name: string
   baseUom: string
   uoms?: { uom: string; rate: string; remark?: string }[]
+  /** 编码段特征值（按类别编码段顺序）；类别设置了编码段且自动生成编码时必填 */
+  codeValues?: string[]
   version?: number
 }
 

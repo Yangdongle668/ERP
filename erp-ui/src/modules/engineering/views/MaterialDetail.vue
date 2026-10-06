@@ -105,6 +105,7 @@ onMounted(async () => {
             <el-descriptions-item label="物料类型">{{ labelOf(MATERIAL_TYPE_OPTIONS, m.materialType) }}</el-descriptions-item>
             <el-descriptions-item label="基本单位">{{ m.baseUom }}</el-descriptions-item>
             <el-descriptions-item label="规格型号" :span="3">{{ val(m.spec) }}</el-descriptions-item>
+            <el-descriptions-item v-if="m.codeSegments" label="编码构成" :span="3">{{ m.codeSegments }}</el-descriptions-item>
             <el-descriptions-item label="英文名称">{{ val(m.nameEn) }}</el-descriptions-item>
             <el-descriptions-item label="图号 / 版本">{{ val(m.drawingNo) }} / {{ val(m.revision) }}</el-descriptions-item>
             <el-descriptions-item label="品牌">{{ val(m.brand) }}</el-descriptions-item>

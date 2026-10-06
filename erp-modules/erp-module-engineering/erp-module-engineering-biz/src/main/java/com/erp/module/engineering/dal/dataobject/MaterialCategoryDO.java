@@ -20,6 +20,9 @@ public class MaterialCategoryDO extends BaseDO {
     private String code;
     private String name;
     private String codePrefix;
+    /** 流水号位数，空则按编码规则 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Integer codeSeqLength;
     private MaterialType defaultMaterialType;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String defaultBaseUom;

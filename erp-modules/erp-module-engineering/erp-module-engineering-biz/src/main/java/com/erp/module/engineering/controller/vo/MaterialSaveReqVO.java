@@ -72,6 +72,8 @@ public record MaterialSaveReqVO(
         @DecimalMin(value = "0", message = "税率为 0～100%") @DecimalMax(value = "1", message = "税率为 0～100%") BigDecimal purchaseTaxRate,
         @DecimalMin(value = "0", message = "税率为 0～100%") @DecimalMax(value = "1", message = "税率为 0～100%") BigDecimal salesTaxRate,
         @Valid List<UomSave> uoms,
+        /** 编码段特征值（按类别编码段顺序，如 ["02", "1"]）；类别设置了编码段且自动生成编码时必填 */
+        List<String> codeValues,
         Integer version) {
 
     public record UomSave(@NotBlank(message = "请选择辅助单位") String uom,
@@ -84,6 +86,6 @@ public record MaterialSaveReqVO(
                                           String baseUom, String remark, Integer version) {
         return new MaterialSaveReqVO(code, name, nameEn, spec, type, categoryId, baseUom, null, null, null, null, null, null, null, null, null,
                 remark, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, version);
+                null, null, null, null, null, null, null, version);
     }
 }

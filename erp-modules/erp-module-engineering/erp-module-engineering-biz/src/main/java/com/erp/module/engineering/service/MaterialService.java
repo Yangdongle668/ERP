@@ -123,12 +123,14 @@ public class MaterialService {
     private final DomainEventPublisher eventPublisher;
     private final List<MaterialReferenceChecker> referenceCheckers;
     private final TransactionTemplate tx;
+    private final CodeSegmentService segmentService;
 
     public MaterialService(MaterialMapper materialMapper, MaterialUomMapper uomMapper, BomLineMapper bomLineMapper,
                            MaterialCategoryService categoryService, CodeRuleApi codeRuleApi, UomApi uomApi, ParamApi paramApi,
                            UserApi userApi, FileApi fileApi, WorkflowApi workflowApi, DocLogApi docLogApi,
                            DomainEventPublisher eventPublisher, List<MaterialReferenceChecker> referenceCheckers,
-                           PlatformTransactionManager transactionManager) {
+                           PlatformTransactionManager transactionManager, CodeSegmentService segmentService) {
+        this.segmentService = segmentService;
         this.materialMapper = materialMapper;
         this.uomMapper = uomMapper;
         this.bomLineMapper = bomLineMapper;
@@ -190,13 +192,15 @@ public class MaterialService {
     @Transactional(rollbackFor = Exception.class)
     public Long create(MaterialSaveReqVO req) {
         MaterialCategoryDO category = checkCategory(req.categoryId());
-        String code = StringUtils.hasText(req.code()) && codeRuleApi.isManualAllowed(EngineeringModuleConfig.CODE_RULE_MATERIAL)
-                ? req.code().trim().toUpperCase()
-                : codeRuleApi.nextCode(EngineeringModuleConfig.CODE_RULE_MATERIAL, Map.of("categoryPrefix", category.getCodePrefix()));
+        boolean manual = StringUtils.hasText(req.code()) && codeRuleApi.isManualAllowed(EngineeringModuleConfig.CODE_RULE_MATERIAL);
+        // R14：类别设置了编码段时，编码 = 类别前缀 + 各段特征值 + 流水号（不同特征组合独立计数）
+        CodeSegmentService.Composed composed = segmentService.compose(category, req.codeValues(), !manual);
+        String code = manual ? req.code().trim().toUpperCase() : generateCode(category, composed);
         assertCodeUnique(code, null);
 
         MaterialDO m = new MaterialDO();
         m.setCode(code);
+        m.setCodeSegments(composed == null ? null : composed.description());
         m.setStatus(MaterialStatus.DRAFT);
         m.setMaterialType(req.materialType());
         m.setBaseUom(uomApi.validate(req.baseUom().trim()).code());
@@ -249,6 +253,17 @@ public class MaterialService {
         if (!groups.isEmpty() && m.getStatus() != MaterialStatus.DRAFT) {
             eventPublisher.publish(new MaterialChangedEvent(m.getId(), m.getCode(), groups));
         }
+    }
+
+    private String generateCode(MaterialCategoryDO category, CodeSegmentService.Composed composed) {
+        String prefix = composed == null ? category.getCodePrefix() : composed.prefix();
+        Integer seqLength = category.getCodeSeqLength();
+        String code = codeRuleApi.nextCode(EngineeringModuleConfig.CODE_RULE_MATERIAL, Map.of("categoryPrefix", prefix), seqLength);
+        // 流水号超出位数（如 3 位流水已到 999）时不能生成更长的编码，否则会和其他特征组合混淆
+        if (seqLength != null && code.startsWith(prefix) && code.length() > prefix.length() + seqLength) {
+            throw BizException.of(EngineeringErrorCodes.CODE_SEQ_OVERFLOW, prefix, seqLength);
+        }
+        return code;
     }
 
     /** 选择类别后带出默认值（仅新建时，前端对未手工修改的字段同样处理） */
@@ -644,7 +659,7 @@ public class MaterialService {
                     d.getTracking(), d.getIssueRule(), d.getShelfLifeDays(), d.getMinRemainingLifePct(),
                     d.getIqcRequired(), d.getFqcRequired(), d.getOqcRequired(),
                     cost ? d.getStandardCost() : null, d.getSalesUom(), d.getPurchaseTaxRate(), d.getSalesTaxRate(),
-                    d.getVersion(), d.getCreatedBy(), userName.apply(d.getCreatedBy()), d.getCreatedAt(), d.getUpdatedAt(), uoms));
+                    d.getVersion(), d.getCreatedBy(), userName.apply(d.getCreatedBy()), d.getCreatedAt(), d.getUpdatedAt(), d.getCodeSegments(), uoms));
         }
         return result;
     }

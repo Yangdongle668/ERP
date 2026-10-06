@@ -41,6 +41,12 @@ public interface EngineeringErrorCodes {
     ErrorCode CATEGORY_CODE_LOCKED = new ErrorCode(1_005_002_007, "该类别已被物料使用，不能修改编码");
     ErrorCode CATEGORY_NAME_DUPLICATE = new ErrorCode(1_005_002_008, "同一上级下已有名称为「{}」的类别");
     ErrorCode CATEGORY_DISABLED = new ErrorCode(1_005_002_009, "物料类别「{}」已停用");
+    ErrorCode CODE_SEGMENT_NOT_LEAF = new ErrorCode(1_005_002_010, "编码段只能设置在末级类别上");
+    ErrorCode CODE_SEGMENT_LOCKED = new ErrorCode(1_005_002_011, "类别「{}」已有物料，编码段的名称以外不能修改，特征值只能新增或停用");
+    ErrorCode CODE_SEGMENT_INVALID = new ErrorCode(1_005_002_012, "{}");
+    ErrorCode CODE_VALUE_REQUIRED = new ErrorCode(1_005_002_013, "请选择编码段「{}」");
+    ErrorCode CODE_VALUE_INVALID = new ErrorCode(1_005_002_014, "编码段「{}」没有可用的特征值「{}」");
+    ErrorCode CODE_SEQ_OVERFLOW = new ErrorCode(1_005_002_015, "编码「{}」的流水号已用完（{} 位），请联系管理员调整类别的流水号位数");
 
     // ========== BOM 1_005_003_xxx ==========
     ErrorCode BOM_NOT_EXISTS = new ErrorCode(1_005_003_000, "BOM 不存在");

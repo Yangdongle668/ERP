@@ -30,6 +30,8 @@ public class MaterialDO extends BaseDO {
     private String spec;
     private MaterialType materialType;
     private Long categoryId;
+    /** 编码构成（按编码段生成时记录，如「线材型号 02 UL3302；颜色 1 红色」） */
+    private String codeSegments;
     private String baseUom;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String drawingNo;

@@ -6,6 +6,7 @@ import type { SearchField, TableColumn } from '@/components'
 import { ENABLE_STATUS } from '@/components'
 import { categoryApi, findCategory, type CategoryNode, type CategorySave } from '../api/category'
 import { MATERIAL_TYPE_OPTIONS, TRACKING_OPTIONS } from '../api/material'
+import CodeSchemeDialog from '../components/CodeSchemeDialog.vue'
 
 defineOptions({ name: 'EngineeringCategoryList' })
 
@@ -26,6 +27,7 @@ const columns: TableColumn<CategoryNode>[] = [
   { prop: 'name', label: '名称', minWidth: 240 },
   { prop: 'code', label: '编码', width: 110 },
   { prop: 'codePrefix', label: '编码前缀', width: 90 },
+  { prop: 'segmentCount', label: '编码段', width: 80, align: 'right', slot: true },
   { prop: 'defaultMaterialType', label: '默认类型', width: 90, type: 'enum', options: MATERIAL_TYPE_OPTIONS },
   { prop: 'defaultBaseUom', label: '默认单位', width: 80 },
   { prop: 'defaultTracking', label: '库存管理', width: 90, type: 'enum', options: TRACKING_OPTIONS },
@@ -70,7 +72,7 @@ const snapshot = ref('')
 const rules: FormRules = {
   code: [{ required: true, message: '请输入类别编码', trigger: 'blur' }, { pattern: /^[A-Z0-9]{1,16}$/, message: '类别编码为 1～16 位大写字母、数字', trigger: 'blur' }],
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
-  codePrefix: [{ required: true, message: '请输入编码前缀', trigger: 'blur' }, { pattern: /^[A-Z0-9]{1,8}$/, message: '编码前缀为 1～8 位大写字母、数字', trigger: 'blur' }],
+  codePrefix: [{ required: true, message: '请输入编码前缀', trigger: 'blur' }, { pattern: /^[A-Z0-9][A-Z0-9-]{0,7}$/, message: '编码前缀为 1～8 位大写字母、数字或 -，不能以 - 开头', trigger: 'blur' }],
   defaultMaterialType: [{ required: true, message: '请选择默认物料类型', trigger: 'change' }],
   defaultTracking: [{ required: true, message: '请选择默认库存管理方式', trigger: 'change' }],
   sort: [{ required: true, message: '请输入排序', trigger: 'blur' }]
@@ -89,7 +91,7 @@ async function open(opts: { parent?: CategoryNode; row?: CategoryNode }) {
   if (opts.row) {
     const r = opts.row
     form.value = {
-      parentId: r.parentId, code: r.code, name: r.name, codePrefix: r.codePrefix, defaultMaterialType: r.defaultMaterialType,
+      parentId: r.parentId, code: r.code, name: r.name, codePrefix: r.codePrefix, codeSeqLength: r.codeSeqLength, defaultMaterialType: r.defaultMaterialType,
       defaultBaseUom: r.defaultBaseUom, defaultTracking: r.defaultTracking, defaultIqcRequired: r.defaultIqcRequired,
       defaultShelfLifeDays: r.defaultShelfLifeDays, sort: r.sort, remark: r.remark, version: r.version
     }
@@ -114,7 +116,7 @@ function onCode(v: string) {
 
 function onPrefix(v: string) {
   prefixTouched.value = true
-  form.value.codePrefix = v.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  form.value.codePrefix = v.toUpperCase().replace(/[^A-Z0-9-]/g, '')
 }
 
 const prefixChanged = computed(() => !!editing.value && form.value.codePrefix !== editing.value.codePrefix)
@@ -159,6 +161,14 @@ async function remove(row: CategoryNode) {
 }
 
 const asCat = (r: unknown) => r as CategoryNode
+
+// ---------- 编码段 ----------
+const schemeVisible = ref(false)
+const schemeCategory = ref<string>()
+function openScheme(row: CategoryNode) {
+  schemeCategory.value = row.id
+  schemeVisible.value = true
+}
 const parentName = computed(() => findCategory(list.value, form.value.parentId)?.name)
 
 onMounted(load)
@@ -189,6 +199,12 @@ onMounted(load)
           <el-link v-if="asCat(row).materialCount" type="primary" underline="never" class="num"
                    @click="router.push({ path: '/engineering/material', query: { categoryId: asCat(row).id } })">{{ asCat(row).materialCount }}</el-link>
           <span v-else class="text-muted num">0</span>
+        </template>
+        <template #col-segmentCount="{ row }">
+          <el-link v-if="!asCat(row).children?.length" type="primary" underline="never" class="num" @click="openScheme(asCat(row))">
+            {{ asCat(row).segmentCount ? `${asCat(row).segmentCount} 段` : '设置' }}
+          </el-link>
+          <span v-else class="text-muted">-</span>
         </template>
         <template #actions="{ row }">
           <RowActions :actions="[
@@ -222,7 +238,13 @@ onMounted(load)
           <el-col :span="12">
             <el-form-item label="编码前缀" prop="codePrefix">
               <el-input :model-value="form.codePrefix" maxlength="8" @update:model-value="onPrefix" />
-              <div class="form-tip">{{ prefixChanged ? '只影响之后新建的物料，已有物料编码不变' : `物料编码示例：${form.codePrefix || 'XX'}00001` }}</div>
+              <div class="form-tip">{{ prefixChanged ? '只影响之后新建的物料，已有物料编码不变' : `物料编码示例：${form.codePrefix || 'XX'}${'0'.repeat((form.codeSeqLength ?? 5) - 1)}1` }}</div>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="流水号位数">
+              <el-input-number v-model="form.codeSeqLength" :min="1" :max="8" :precision="0" controls-position="right" class="w160" placeholder="5" />
+              <div class="form-tip">留空按编码规则（5 位）；编码段（特征值）在列表的「编码段」中维护</div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -253,5 +275,6 @@ onMounted(load)
         <el-button type="primary" :loading="saving" @click="save">保存</el-button>
       </template>
     </el-dialog>
+    <CodeSchemeDialog v-model="schemeVisible" :category-id="schemeCategory" @saved="load" />
   </ErpPage>
 </template>
