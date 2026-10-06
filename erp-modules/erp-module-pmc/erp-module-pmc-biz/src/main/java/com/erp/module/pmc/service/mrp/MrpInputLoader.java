@@ -13,6 +13,7 @@ import com.erp.module.pmc.dal.dataobject.PmcMpsDO;
 import com.erp.module.pmc.dal.dataobject.PmcMpsLineDO;
 import com.erp.module.pmc.dal.mapper.PmcMpsLineMapper;
 import com.erp.module.pmc.dal.mapper.PmcMpsMapper;
+import com.erp.module.pmc.service.LeadTimeService;
 import com.erp.module.pmc.service.PlanningData;
 import com.erp.module.pmc.config.PmcModuleConfig;
 import com.erp.module.pmc.service.PmcSupport;
@@ -61,8 +62,11 @@ public class MrpInputLoader {
     private final PmcMpsLineMapper mpsLineMapper;
     private final PlanningData data;
     private final PmcSupport support;
+    private final LeadTimeService leadTime;
 
-    public MrpInputLoader(DemandService demandService, PmcMpsMapper mpsMapper, PmcMpsLineMapper mpsLineMapper, PlanningData data, PmcSupport support) {
+    public MrpInputLoader(DemandService demandService, PmcMpsMapper mpsMapper, PmcMpsLineMapper mpsLineMapper, PlanningData data, PmcSupport support,
+                          LeadTimeService leadTime) {
+        this.leadTime = leadTime;
         this.demandService = demandService;
         this.mpsMapper = mpsMapper;
         this.mpsLineMapper = mpsLineMapper;
@@ -230,9 +234,17 @@ public class MrpInputLoader {
                 mats.put(id, new Mat(id, m.code(), m.baseUom(), support.precision(m.baseUom()), source, m.status() != MaterialStatus.DISABLED, lead,
                         pa == null ? null : pa.safetyStock(), pa == null || pa.orderPolicy() == null ? "LOT_FOR_LOT" : pa.orderPolicy().name(),
                         pa == null ? null : pa.fixedLotQty(), pa == null ? null : pa.periodDays(), moq, mpq, pa == null ? null : pa.plannerId(),
-                        pur == null ? null : pur.buyerId(), bomId, comps));
+                        pur == null ? null : pur.buyerId(), bomId, comps, null));
             }
         }
+        // 按工艺工时换算的生产提前期（参数开启时，只对自制件）
+        Map<Long, LeadTimeService.RoutingTime> times = leadTime.routingTimes(mats.values().stream().filter(x -> "MAKE".equals(x.sourceType()))
+                .map(Mat::id).toList());
+        times.forEach((id, t) -> {
+            Mat x = mats.get(id);
+            mats.put(id, new Mat(x.id(), x.code(), x.uom(), x.scale(), x.sourceType(), x.enabled(), x.leadTimeDays(), x.safetyStock(), x.orderPolicy(),
+                    x.fixedLotQty(), x.periodDays(), x.moq(), x.mpq(), x.plannerId(), x.buyerId(), x.bomId(), x.comps(), t));
+        });
         return mats;
     }
 }

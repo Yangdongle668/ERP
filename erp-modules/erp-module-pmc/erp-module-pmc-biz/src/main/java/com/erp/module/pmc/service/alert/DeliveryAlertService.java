@@ -21,6 +21,7 @@ import com.erp.module.pmc.controller.vo.AlertVOs.RecalcResult;
 import com.erp.module.pmc.controller.vo.AlertVOs.Summary;
 import com.erp.module.pmc.dal.dataobject.PmcDeliveryAlertDO;
 import com.erp.module.pmc.dal.mapper.PmcDeliveryAlertMapper;
+import com.erp.module.pmc.service.LeadTimeService;
 import com.erp.module.pmc.service.AlertStatus;
 import com.erp.module.pmc.service.PlanningData;
 import com.erp.module.pmc.service.PmcAction;
@@ -76,9 +77,11 @@ public class DeliveryAlertService {
     private final ShortageService shortageService;
     private final ScheduleService scheduleService;
     private final DomainEventPublisher eventPublisher;
+    private final LeadTimeService leadTime;
 
     public DeliveryAlertService(PmcDeliveryAlertMapper mapper, PlanningData data, PmcSupport support, SalesOrderQueryApi salesOrderQueryApi,
-                                ShortageService shortageService, ScheduleService scheduleService, DomainEventPublisher eventPublisher) {
+                                ShortageService shortageService, ScheduleService scheduleService, DomainEventPublisher eventPublisher, LeadTimeService leadTime) {
+        this.leadTime = leadTime;
         this.mapper = mapper;
         this.data = data;
         this.support = support;
@@ -153,7 +156,7 @@ public class DeliveryAlertService {
                         if (sr != null && sr.short_()) {
                             LocalDate kit = sr.eta != null ? sr.eta : today.plusDays(cumulative(o.materialId(), cumLead));
                             if (kit.isAfter(o.planStart())) {
-                                LocalDate f2 = kit.plusDays(lead);
+                                LocalDate f2 = kit.plusDays(leadTime.makeLeadDays(o.materialId(), o.remainingQty(), lead));
                                 if (f2.isAfter(finish)) {
                                     finish = f2;
                                     c = "MATERIAL_SHORTAGE";

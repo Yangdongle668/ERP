@@ -211,7 +211,7 @@ public final class MrpEngine {
         p.qty = q;
         p.net = net;
         p.requiredDate = day;
-        LocalDate release = day.minusDays(Math.max(0, m.leadTimeDays()));
+        LocalDate release = day.minusDays(m.leadDays(q));
         p.late = release.isBefore(in.today());
         p.releaseDate = p.late ? in.today() : release;
         planned.add(p);

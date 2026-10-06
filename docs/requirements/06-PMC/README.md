@@ -113,6 +113,8 @@ PMC_MPS、PMC_MRP_RUN、PMC_SHIPPING_PLAN。
   - 替代料（参数 `pmc.mrp.use-substitute`，运算弹窗可临时指定）：由默认 BOM 展开的相关需求（计划订单子件、按 BOM 分配的在制需求）在主料供应不足时，按优先级用替代料的期初可用库存抵扣（替代料数量 = 主料 × 比例）；替代料尚未计算时先为其自身已知需求（含安全库存）保留库存。替代料只用库存、不生成建议；抵扣在供需平衡中显示为“替代料”行。已有生产订单按用料清单分配的需求不做替代。
   - 以后台任务执行（任务中心可见），同一时间一个运算，超过 1 小时的 RUNNING 由 `PMC_MRP_STALE_CHECK` 置为失败；夜间全量运算 `PMC_MRP_NIGHTLY`（参数开启时）。
   - 每次运算保存建议、需求追溯、例外与供需平衡明细；新运算成功后旧的待处理建议置为“已过期”，并重新计算交期预警。
+  - 净变更（NET_CHANGE）：仍在内存中完整计算，再按物料比较本次与上次运算的结果指纹（`pmc_mrp_fingerprint`：建议、追溯、例外、供需平衡，不含下达日期），只有结果变化的物料生成新建议、例外与供需平衡；未变化物料的待处理建议（含计划员修改的数量、日期）、例外与供需平衡复制到本次运算，已忽略的建议不会重新出现。上次运算为指定订单运算、没有指纹或运算参数不同时按全量处理，原因记在运算参数 `netChange` 中（运算记录列表显示）。
+  - 生产提前期（参数 `pmc.lead-time.basis`）：MATERIAL 取物料提前期（天）；ROUTING 时有默认工艺路线的自制件按“Σ准备时间 + 数量 × Σ标准工时”逐道工序除以工作中心日产能（未维护按 8 小时）换算天数，向上取整、至少 1 天。用于 MRP 计划订单下达日期、建议改日期、转生产订单的计划开工、交期回复与交期预警的缺料顺延；累计提前期仍取物料提前期。
   - 转单：采购 → `PurchaseRequisitionApi.createFromMrp`（按计划员合并），生产 → `ProductionOrderApi.createFromMrp`（可同时 `release`），委外 → `OutsourcingApi.createFromMrp`。
 - **排产**：负荷 = 准备 + 剩余数量 × 标准工时；已计划订单按工艺路线，已下达订单按固化工序。锁定工序不移动；“应用到生产订单”调用 `ProductionOrderApi.updatePlanDates`。负荷分析对没有排产结果的订单按计划开工～完工在工作日均摊。
 - **缺料分析**：结果保存为快照（订单 + 用料行），保留 30 天（`PMC_SHORTAGE_CLEANUP`）；催料推送给物料的采购员，同一物料一天一次。`PmcQueryApi.getShortage` 实时计算。
@@ -120,7 +122,5 @@ PMC_MPS、PMC_MRP_RUN、PMC_SHIPPING_PLAN。
 - **出货计划**：发布后发布 `ShippingPlanPublishedEvent`；出货模块通过 `ShippingPlanApi.getPlanLines(week)` 取计划、`onNoticed(planLineId, delta)` 回写已通知数量。
 - **production-api 新增**：`ProductionQueryApi.getOpenOrders`、`ProductionOrderApi.release`、`ProductionOrderApi.updatePlanDates`。
 - **限制**：
-  - 净变更运算目前按全量计算。
-  - 生产提前期按物料提前期（天），暂不按工艺工时换算。
-  - 甘特图用点击调整代替拖拽。
+  - 甘特图：左右拖动工序块调整开始日期（按天吸附），上下拖到其他工作中心行改工作中心，点击打开调整 / 锁定弹窗；锁定工序不能拖动。
   - 出货计划的明细只能由“生成计划”带出（可调整、删除）。

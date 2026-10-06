@@ -25,6 +25,7 @@ const fields: SearchField[] = [
 const columns: TableColumn<RunRow>[] = [
   { prop: 'runNo', label: '运算号', width: 150, slot: true },
   { prop: 'runType', label: '类型', width: 90, formatter: (r) => labelOf(RUN_TYPE_OPTIONS, r.runType) },
+  { prop: 'params', label: '净变更', minWidth: 180, formatter: (r) => netChangeText(r) },
   { prop: 'runStatus', label: '状态', width: 90, slot: true },
   { prop: 'startedAt', label: '开始', width: 150, type: 'datetime' },
   { prop: 'finishedAt', label: '结束', width: 150, type: 'datetime' },
@@ -36,6 +37,19 @@ const columns: TableColumn<RunRow>[] = [
   { prop: 'errorMsg', label: '失败原因', minWidth: 200 }
 ]
 const asRow = (r: unknown) => r as RunRow
+
+/** 净变更运算说明：对比的上次运算与变化物料数，或按全量处理的原因 */
+function netChangeText(r: RunRow): string {
+  if (r.runType !== 'NET_CHANGE' || !r.params) return ''
+  try {
+    const nc = (JSON.parse(r.params) as { netChange?: { baseRunNo?: string; changedMaterials?: number; totalMaterials?: number; fallback?: string } }).netChange
+    if (!nc) return ''
+    if (nc.fallback) return nc.fallback
+    return `对比 ${nc.baseRunNo}：${nc.changedMaterials} / ${nc.totalMaterials} 个物料有变化`
+  } catch {
+    return ''
+  }
+}
 
 // ---------- 运算弹窗 ----------
 const dlg = ref(false)
@@ -117,7 +131,7 @@ onBeforeUnmount(() => window.clearTimeout(timer))
           </el-radio-group>
         </el-form-item>
       </el-form>
-      <p class="hint">净变更当前按全量计算；运算期间业务单据可正常操作，结果以开始时读取的数据为准。</p>
+      <p class="hint">净变更：只替换结果有变化的物料，未变化物料的待处理建议（含已修改的数量、日期）保留，已忽略的建议不会重新出现；运算参数与上次不同时按全量处理。运算期间业务单据可正常操作，结果以开始时读取的数据为准。</p>
       <template #footer>
         <el-button @click="dlg = false">取消</el-button>
         <el-button type="primary" :loading="starting" @click="start">开始运算</el-button>

@@ -2,14 +2,15 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
+import { useUserStore } from '@/stores/user'
 import { formatQty, today, toDateString } from '@/utils/format'
 import { capacityApi, scheduleApi, type ApplyRow, type ScheduleRow, type SimulateResult, type WorkCenterSimple } from '../api/pmc'
 
 defineOptions({ name: 'PmcSchedulePage' })
 
 /**
- * 排产（需求 06-05 4.3）：按工作中心的甘特图；点击工序块调整开始日期 / 工作中心、锁定；插单模拟；应用到生产订单。
- * 图例：蓝色按期、红色延期、虚线边框锁定。
+ * 排产（需求 06-05 4.3）：按工作中心的甘特图；拖动工序块调整开始日期（左右）与工作中心（上下拖到其他行），点击打开调整 / 锁定弹窗；
+ * 插单模拟；应用到生产订单。图例：蓝色按期、红色延期、虚线边框锁定（锁定的工序不能拖动）。
  */
 const router = useRouter()
 const addDays = (d: string, n: number) => {
@@ -97,6 +98,55 @@ async function toggleLock() {
   load()
 }
 
+// ---------- 拖动 ----------
+const me = useUserStore()
+const canAdjust = computed(() => me.hasPermission('pmc:schedule:adjust'))
+interface Drag { row: ScheduleRow; lane: string; target: string; startX: number; startY: number; dayPx: number; days: number; dy: number; moved: boolean }
+const drag = ref<Drag | null>(null)
+const draggable = (r: ScheduleRow) => canAdjust.value && !r.locked
+
+function onDown(e: PointerEvent, r: ScheduleRow, lane: string) {
+  if (e.button !== 0) return
+  const el = e.currentTarget as HTMLElement
+  const track = el.parentElement as HTMLElement
+  drag.value = { row: r, lane, target: lane, startX: e.clientX, startY: e.clientY, dayPx: track.clientWidth / Math.max(1, days.value.length), days: 0, dy: 0,
+    moved: false }
+  el.setPointerCapture(e.pointerId)
+}
+function onMove(e: PointerEvent) {
+  const d = drag.value
+  if (!d) return
+  const dx = e.clientX - d.startX
+  const dy = e.clientY - d.startY
+  if (!d.moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return
+  d.moved = true
+  if (!draggable(d.row)) return
+  d.days = Math.round(dx / d.dayPx)
+  d.dy = dy
+  const lane = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>('[data-lane]')?.dataset.lane
+  if (lane) d.target = lane
+}
+async function onUp() {
+  const d = drag.value
+  drag.value = null
+  if (!d) return
+  if (!d.moved) return open(d.row)
+  if (!draggable(d.row)) return
+  const changeWc = d.target !== d.lane && d.target !== '-'
+  if (d.days === 0 && !changeWc) return
+  const startDate = addDays(d.row.schedStart.slice(0, 10), d.days)
+  const workCenterId = changeWc ? d.target : d.row.workCenterId
+  await scheduleApi.adjust(d.row.id, { startDate, workCenterId })
+  const wcName = changeWc ? lanes.value.find((l) => l.id === d.target)?.name : undefined
+  ElMessage.success(`${d.row.prodOrderNo} 工序 ${d.row.operationSeq} 已调整到 ${startDate}${wcName ? `（${wcName}）` : ''}，后续工序顺延`)
+  load()
+}
+function dragStyle(r: ScheduleRow) {
+  const d = drag.value
+  if (!d || d.row.id !== r.id || !d.moved || !draggable(r)) return {}
+  return { transform: `translate(${d.days * d.dayPx}px, ${d.dy}px)` }
+}
+
 // ---------- 插单模拟 ----------
 const simVisible = ref(false)
 const sim = ref<{ prodOrderId?: string; priority: number }>({ priority: 1 })
@@ -158,13 +208,14 @@ async function apply() {
             <div v-for="d in days" :key="d" class="day" :class="{ sun: new Date(d).getDay() === 0, today: d === today() }">{{ d.slice(5) }}</div>
           </div>
         </div>
-        <div v-for="l in lanes" :key="l.id" class="row">
+        <div v-for="l in lanes" :key="l.id" class="row" :data-lane="l.id" :class="{ drop: drag?.moved && drag.target === l.id && drag.target !== drag.lane }">
           <div class="lane-name">{{ l.name }}</div>
           <div class="track">
             <div v-for="d in days" :key="d" class="day bg" :class="{ sun: new Date(d).getDay() === 0 }" />
-            <div v-for="r in l.items" :key="r.id" class="block" :class="{ late: r.late, locked: r.locked }" :style="style(r)"
-                 :title="`${r.prodOrderNo} ${r.materialCode} 工序 ${r.operationSeq} ${r.operation ?? ''}\n数量 ${formatQty(r.qty)}，负荷 ${r.loadHours}h\n${r.schedStart} ~ ${r.schedEnd}\n需求日期 ${r.dueDate ?? '-'}`"
-                 @click="open(r)">
+            <div v-for="r in l.items" :key="r.id" class="block" :class="{ late: r.late, locked: r.locked, movable: draggable(r), dragging: drag?.moved && drag.row.id === r.id }"
+                 :style="[style(r), dragStyle(r)]"
+                 :title="`${r.prodOrderNo} ${r.materialCode} 工序 ${r.operationSeq} ${r.operation ?? ''}\n数量 ${formatQty(r.qty)}，负荷 ${r.loadHours}h\n${r.schedStart} ~ ${r.schedEnd}\n需求日期 ${r.dueDate ?? '-'}${draggable(r) ? '\n拖动调整日期 / 工作中心，点击查看' : ''}`"
+                 @pointerdown="onDown($event, r, l.id)" @pointermove="onMove" @pointerup="onUp" @pointercancel="drag = null">
               {{ r.locked ? '锁 ' : '' }}{{ r.prodOrderNo }}({{ r.operationSeq }})
             </div>
           </div>
@@ -266,6 +317,9 @@ async function apply() {
 }
 .block.late { background: var(--erp-color-error-bg); border-color: var(--erp-color-error); }
 .block.locked { border-style: dashed; }
+.block.movable { cursor: grab; touch-action: none; }
+.block.dragging { z-index: 2; cursor: grabbing; opacity: 0.85; box-shadow: var(--erp-shadow-float); }
+.row.drop .track { background: var(--erp-color-primary-bg); }
 .adj { margin-top: var(--erp-space-4); }
 .hint { color: var(--erp-color-text-secondary); }
 </style>

@@ -27,6 +27,7 @@ import com.erp.module.pmc.dal.mapper.PmcMrpBalanceMapper;
 import com.erp.module.pmc.dal.mapper.PmcMrpExceptionMapper;
 import com.erp.module.pmc.dal.mapper.PmcMrpPeggingMapper;
 import com.erp.module.pmc.dal.mapper.PmcMrpResultMapper;
+import com.erp.module.pmc.service.LeadTimeService;
 import com.erp.module.pmc.service.PlanningData;
 import com.erp.module.pmc.service.PmcSupport;
 import com.erp.module.production.api.order.MrpSuggestion;
@@ -77,11 +78,13 @@ public class SuggestionService {
     private final OutsourcingApi outsourcingApi;
     private final ProductionOrderApi productionOrderApi;
     private final TransactionTemplate tx;
+    private final LeadTimeService leadTime;
 
     public SuggestionService(PmcMrpResultMapper resultMapper, PmcMrpPeggingMapper peggingMapper, PmcMrpExceptionMapper exceptionMapper,
                              PmcMrpBalanceMapper balanceMapper, MrpRunService runService, PmcSupport support, PlanningData data,
                              PurchaseRequisitionApi requisitionApi, OutsourcingApi outsourcingApi, ProductionOrderApi productionOrderApi,
-                             TransactionTemplate tx) {
+                             TransactionTemplate tx, LeadTimeService leadTime) {
+        this.leadTime = leadTime;
         this.resultMapper = resultMapper;
         this.peggingMapper = peggingMapper;
         this.exceptionMapper = exceptionMapper;
@@ -216,6 +219,7 @@ public class SuggestionService {
         if (req.requiredDate() != null && !req.requiredDate().equals(r.getRequiredDate())) {
             MaterialPlanAttr a = support.materialApi().getPlanAttr(r.getMaterialId());
             int lead = a == null ? 0 : a.leadTimeDays();
+            if ("MAKE".equals(r.getSuggestionType())) lead = leadTime.makeLeadDays(r.getMaterialId(), r.getQty(), lead);
             LocalDate release = req.requiredDate().minusDays(lead);
             r.setRequiredDate(req.requiredDate());
             r.setIsLate(release.isBefore(LocalDate.now()));
@@ -293,7 +297,7 @@ public class SuggestionService {
                     try {
                         tx.executeWithoutResult(s -> {
                             MaterialPlanAttr a = support.materialApi().getPlanAttr(r.getMaterialId());
-                            int lead = a == null ? 0 : a.leadTimeDays();
+                            int lead = leadTime.makeLeadDays(r.getMaterialId(), r.getQty(), a == null ? 0 : a.leadTimeDays());
                             LocalDate start = r.getRequiredDate().minusDays(lead);
                             if (start.isBefore(LocalDate.now())) start = LocalDate.now();
                             LocalDate end = r.getRequiredDate().isBefore(start) ? start : r.getRequiredDate();
