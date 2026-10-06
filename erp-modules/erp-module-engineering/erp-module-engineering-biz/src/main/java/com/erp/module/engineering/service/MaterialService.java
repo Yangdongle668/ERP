@@ -197,6 +197,11 @@ public class MaterialService {
         CodeSegmentService.Composed composed = segmentService.compose(category, req.codeValues(), !manual);
         String code = manual ? req.code().trim().toUpperCase() : generateCode(category, composed);
         assertCodeUnique(code, null);
+        if (manual) {
+            // 手工 / 导入的编码符合规则时推进流水号，之后自动生成的编码不会重复
+            codeRuleApi.observeManualCode(EngineeringModuleConfig.CODE_RULE_MATERIAL,
+                    Map.of("categoryPrefix", composed == null ? category.getCodePrefix() : composed.prefix()), category.getCodeSeqLength(), code);
+        }
 
         MaterialDO m = new MaterialDO();
         m.setCode(code);

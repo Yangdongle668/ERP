@@ -26,4 +26,8 @@ public interface CustomerMapper extends BaseMapperX<CustomerDO> {
     @Select("SELECT * FROM crm_customer ${ew.customSqlSegment}")
     @ResultMap("mybatis-plus_CustomerDO")
     List<CustomerDO> selectScopedList(@Param(Constants.WRAPPER) Wrapper<CustomerDO> queryWrapper);
+
+    /** 物理删除（导入回滚） */
+    @org.apache.ibatis.annotations.Delete("DELETE FROM crm_customer WHERE id = #{id}")
+    int hardDelete(@org.apache.ibatis.annotations.Param("id") Long id);
 }

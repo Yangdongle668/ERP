@@ -4,6 +4,8 @@ import com.erp.common.exception.BizException;
 import com.erp.framework.excel.ExcelColumn;
 import com.erp.framework.excel.ImportResult;
 import com.erp.framework.excel.ImportRow;
+import com.erp.module.crm.dal.dataobject.CrmImportBatchDO;
+import com.erp.module.crm.dal.mapper.CustomerMapper;
 import com.erp.module.crm.controller.vo.CustomerVOs.AddressSave;
 import com.erp.module.crm.controller.vo.CustomerVOs.ContactSave;
 import com.erp.module.crm.controller.vo.CustomerVOs.CustomerSave;
@@ -34,7 +36,7 @@ public class CustomerImportService {
             ExcelColumn.input("customerType", "客户类型", false, "终端客户/贸易商/代理商/品牌商，默认终端客户"),
             ExcelColumn.input("level", "等级", false, "A/B/C/D，默认 C"),
             ExcelColumn.input("country", "国家", true, "ISO 二位代码，如 CN、US"),
-            ExcelColumn.input("appDomain", "应用领域", false, "编码为空时必填：A 智能医疗 / B 智能穿戴 / C 消费电子 / D 低空设备 / E 物联网（填字母或名称）"),
+            ExcelColumn.input("appDomain", "应用领域", false, "编码为空时必填：A 智能医疗 / B 智能穿戴 / C 消费电子 / D 低空设备 / E 物联网 / G 电子产品 / O 枪械运动（填字母或名称）；填了编码时按编码中的字母"),
             ExcelColumn.input("taxNo", "税号", false, null),
             ExcelColumn.input("phone", "电话", false, null),
             ExcelColumn.input("email", "邮箱", false, null),
@@ -51,8 +53,13 @@ public class CustomerImportService {
     private final DictApi dictApi;
     private final UserApi userApi;
     private final CurrencyApi currencyApi;
+    private final CustomerImportBatchService batchService;
+    private final CustomerMapper customerMapper;
 
-    public CustomerImportService(CustomerService customerService, DictApi dictApi, UserApi userApi, CurrencyApi currencyApi) {
+    public CustomerImportService(CustomerService customerService, DictApi dictApi, UserApi userApi, CurrencyApi currencyApi,
+                                 CustomerImportBatchService batchService, CustomerMapper customerMapper) {
+        this.batchService = batchService;
+        this.customerMapper = customerMapper;
         this.customerService = customerService;
         this.dictApi = dictApi;
         this.userApi = userApi;
@@ -95,7 +102,7 @@ public class CustomerImportService {
     }
 
     /** 每个客户单独事务：失败的行不影响其他行 */
-    public ImportResult doImport(List<ImportRow> rows, Long paymentTermId) {
+    public ImportResult doImport(List<ImportRow> rows, Long paymentTermId, String fileName) {
         Map<String, String> types = typeByLabel();
         Map<String, String> domains = new HashMap<>();
         for (DictItemDTO d : dictApi.getItems("crm_app_domain")) {
@@ -105,6 +112,7 @@ public class CustomerImportService {
         }
         int ok = 0;
         List<ImportResult.Error> errors = new ArrayList<>();
+        CrmImportBatchDO batch = batchService.begin(fileName, rows.size());
         for (ImportRow r : rows) {
             try {
                 Long owner = r.get("owner") == null ? null : userApi.getByUsername(r.get("owner")).map(UserDTO::id).orElse(null);
@@ -116,17 +124,22 @@ public class CustomerImportService {
                 List<AddressSave> addresses = r.get("shipAddress") == null ? List.of()
                         : List.of(new AddressSave("SHIP_TO", company, r.get("contactName"), r.get("contactPhone"), country, null, null, null,
                         r.get("shipAddress"), true, null));
-                customerService.create(new CustomerSave(r.get("code"), r.get("name"), r.get("nameEn"), r.get("shortName"),
+                String code = r.get("code") == null ? null : r.get("code").trim().toUpperCase(Locale.ROOT);
+                String domainText = r.get("appDomain") == null ? null : r.get("appDomain").trim();
+                String domain = domainText != null ? domains.getOrDefault(domainText, domainText) : code == null ? null : CustomerService.domainOf(code);
+                Long id = customerService.create(new CustomerSave(r.get("code"), r.get("name"), r.get("nameEn"), r.get("shortName"),
                         r.get("customerType") == null ? null : types.get(r.get("customerType")),
                         r.get("level") == null ? null : r.get("level").toUpperCase(Locale.ROOT), country, null, null, null, r.get("address"), null,
-                        r.get("appDomain") == null ? null : domains.getOrDefault(r.get("appDomain").trim(), r.get("appDomain").trim()), null,
+                        domain, null,
                         null, r.get("phone"), r.get("email"), r.get("taxNo"), owner, r.get("currency"), paymentTermId, null, null, null, null,
-                        r.get("remark"), contacts, addresses, null, null, null));
+                        r.get("remark"), contacts, addresses, null, null, null)).id();
+                batchService.created(batch, id, customerMapper.selectById(id).getCode(), r.rowNo());
                 ok++;
             } catch (BizException e) {
                 errors.add(new ImportResult.Error(r.rowNo(), e.getMessage()));
             }
         }
+        batchService.finish(batch, ok);
         return new ImportResult(ok, errors.size(), errors);
     }
 }

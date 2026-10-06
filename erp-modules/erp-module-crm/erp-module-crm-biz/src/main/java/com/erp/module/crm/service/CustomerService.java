@@ -304,6 +304,31 @@ public class CustomerService implements CustomerApi {
                 c.getCurrency(), c.getPaymentTermId(), c.getTradeTerm(), c.getSalesTaxRate(), c.getOwnerId())).toList();
     }
 
+    /** 是否有跟进、商机、客户料号或其他模块的业务数据（删除、导入回滚前检查） */
+    boolean hasBusinessData(Long id) {
+        return followupMapper.selectCount(new LambdaQueryWrapper<FollowupDO>().eq(FollowupDO::getCustomerId, id)) > 0
+                || opportunityMapper.selectCount(new LambdaQueryWrapper<OpportunityDO>().eq(OpportunityDO::getCustomerId, id)) > 0
+                || partMapper.selectCount(new LambdaQueryWrapper<CustomerPartDO>().eq(CustomerPartDO::getCustomerId, id)) > 0
+                || referenceCheckers.stream().anyMatch(ch -> ch.hasBusinessData(id));
+    }
+
+    /** 导入回滚：物理删除客户及其联系人、地址、银行、信用、转移记录（编码可以重新使用） */
+    void hardDelete(Long id) {
+        contactMapper.deleteByParent(id);
+        addressMapper.deleteByParent(id);
+        bankMapper.deleteByParent(id);
+        creditMapper.hardDeleteByCustomer(id);
+        transferLogMapper.hardDeleteByCustomer(id);
+        mapper.hardDelete(id);
+        fileApi.deleteByBiz(BIZ_TYPE, id);
+    }
+
+    /** LD-B-0011 → B */
+    static String domainOf(String code) {
+        var m = java.util.regex.Pattern.compile("^LD-([A-Z])-\\d+$").matcher(code);
+        return m.matches() ? m.group(1) : null;
+    }
+
     // ==================== 新建 / 修改 ====================
 
     @Transactional(rollbackFor = Exception.class)
@@ -314,8 +339,12 @@ public class CustomerService implements CustomerApi {
         c.setCreditControl("DEFAULT");
         fill(c, req, true);
         // R11：客户编码 LD-应用领域-三位流水（《编码规则管理制度》5.1），手工编码时不要求领域
-        if (code != null && support.manualCodeAllowed(BIZ_TYPE)) c.setCode(code.toUpperCase(Locale.ROOT));
-        else if (c.getAppDomain() == null) throw new BizException(CrmErrorCodes.CUSTOMER_DOMAIN_REQUIRED);
+        if (code != null && support.manualCodeAllowed(BIZ_TYPE)) {
+            c.setCode(code.toUpperCase(Locale.ROOT));
+            // 手工 / 导入的编码符合 LD-领域-流水 时推进该领域的流水号，之后自动生成的编码不会重复
+            String d = c.getAppDomain() != null ? c.getAppDomain() : domainOf(c.getCode());
+            if (d != null) support.observeCode(BIZ_TYPE, Map.of("domain", d), c.getCode());
+        } else if (c.getAppDomain() == null) throw new BizException(CrmErrorCodes.CUSTOMER_DOMAIN_REQUIRED);
         else c.setCode(support.nextNo(BIZ_TYPE, Map.of("domain", c.getAppDomain())));
         List<String> warnings = new ArrayList<>(checkUnique(c));
         mapper.insert(c);
@@ -725,11 +754,7 @@ public class CustomerService implements CustomerApi {
     public void delete(Long id) {
         CustomerDO c = getVisible(id);
         requireStatus(c, "删除", PROSPECT);
-        boolean hasData = followupMapper.selectCount(new LambdaQueryWrapper<FollowupDO>().eq(FollowupDO::getCustomerId, id)) > 0
-                || opportunityMapper.selectCount(new LambdaQueryWrapper<OpportunityDO>().eq(OpportunityDO::getCustomerId, id)) > 0
-                || partMapper.selectCount(new LambdaQueryWrapper<CustomerPartDO>().eq(CustomerPartDO::getCustomerId, id)) > 0
-                || referenceCheckers.stream().anyMatch(ch -> ch.hasBusinessData(id));
-        if (hasData) throw new BizException(CrmErrorCodes.CUSTOMER_HAS_DATA);
+        if (hasBusinessData(id)) throw new BizException(CrmErrorCodes.CUSTOMER_HAS_DATA);
         contactMapper.deleteByParent(id);
         addressMapper.deleteByParent(id);
         bankMapper.deleteByParent(id);

@@ -100,6 +100,24 @@ public class CodeRuleService implements CodeRuleApi {
     }
 
     @Override
+    public void observeManualCode(String bizCode, Map<String, String> vars, Integer seqLengthOverride, String code) {
+        if (code == null) return;
+        CodeRuleDO rule = loadOrInitRule(bizCode);
+        if (rule.getDatePattern() != null && !rule.getDatePattern().isEmpty()) return;
+        String prefix;
+        try {
+            prefix = resolvePrefix(rule, vars);
+        } catch (BizException e) {
+            return;
+        }
+        int seqLength = seqLengthOverride != null && seqLengthOverride >= 1 && seqLengthOverride <= 12 ? seqLengthOverride : rule.getSeqLength();
+        String rest = code.startsWith(prefix) ? code.substring(prefix.length()) : null;
+        if (rest == null || rest.length() != seqLength || !rest.chars().allMatch(Character::isDigit)) return;
+        String resetKey = resetKey(rule.getResetCycle(), LocalDate.now(clock)) + (hasVars(rule.getPrefix()) ? "|" + prefix : "");
+        seqAllocator.advance(bizCode, resetKey, Long.parseLong(rest));
+    }
+
+    @Override
     public boolean isManualAllowed(String bizCode) {
         return Boolean.TRUE.equals(loadOrInitRule(bizCode).getAllowManual());
     }

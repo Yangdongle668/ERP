@@ -13,6 +13,7 @@ import com.erp.module.engineering.api.material.SourceType;
 import com.erp.module.engineering.api.material.Tracking;
 import com.erp.module.engineering.controller.vo.MaterialRespVO;
 import com.erp.module.engineering.controller.vo.MaterialSaveReqVO;
+import com.erp.module.engineering.dal.dataobject.ImportBatchDO;
 import com.erp.module.engineering.dal.dataobject.MaterialCategoryDO;
 import com.erp.module.engineering.dal.dataobject.MaterialDO;
 import com.erp.module.engineering.dal.mapper.MaterialCategoryMapper;
@@ -81,6 +82,7 @@ public class MaterialExcelService {
 
     private final MaterialService materialService;
     private final CodeSegmentService segmentService;
+    private final ImportBatchService batchService;
     private final MaterialMapper materialMapper;
     private final MaterialCategoryMapper categoryMapper;
     private final UomApi uomApi;
@@ -89,8 +91,9 @@ public class MaterialExcelService {
     private final TransactionTemplate tx;
 
     public MaterialExcelService(MaterialService materialService, MaterialMapper materialMapper, MaterialCategoryMapper categoryMapper, UomApi uomApi, UserApi userApi, ParamApi paramApi,
-                                PlatformTransactionManager transactionManager, CodeSegmentService segmentService) {
+                                PlatformTransactionManager transactionManager, CodeSegmentService segmentService, ImportBatchService batchService) {
         this.segmentService = segmentService;
+        this.batchService = batchService;
         this.materialService = materialService;
         this.materialMapper = materialMapper;
         this.categoryMapper = categoryMapper;
@@ -272,19 +275,23 @@ public class MaterialExcelService {
         return result;
     }
 
-    /** 执行导入：每行独立事务；enable 为 true 时导入后直接启用 */
-    public ImportResult doImport(List<ImportRow> rows, String mode, boolean enable) {
+    /** 执行导入：每行独立事务；enable 为 true 时导入后直接启用。记录为一个导入批次，可整批回滚 */
+    public ImportResult doImport(List<ImportRow> rows, String mode, boolean enable, String fileName) {
         Map<Integer, Parsed> parsed = parse(rows, mode, new HashMap<>());
         int ok = 0;
         List<ImportResult.Error> errors = new ArrayList<>();
+        ImportBatchDO batch = batchService.begin(ImportBatchService.MATERIAL, fileName, mode, rows.size());
         for (Map.Entry<Integer, Parsed> e : parsed.entrySet()) {
             try {
                 tx.executeWithoutResult(s -> {
                     Parsed p = e.getValue();
                     Long id;
-                    if (p.existing() == null) id = materialService.create(p.req());
-                    else {
+                    if (p.existing() == null) {
+                        id = materialService.create(p.req());
+                        batchService.created(batch, id, materialMapper.selectById(id).getCode(), e.getKey());
+                    } else {
                         id = p.existing().getId();
+                        batchService.beforeMaterialUpdate(batch, id, e.getKey());
                         materialService.update(id, p.req());
                     }
                     MaterialDO m = materialMapper.selectById(id);
@@ -295,6 +302,7 @@ public class MaterialExcelService {
                 errors.add(new ImportResult.Error(e.getKey(), ex.getMessage()));
             }
         }
+        batchService.finish(batch);
         return new ImportResult(ok, errors.size(), errors);
     }
 

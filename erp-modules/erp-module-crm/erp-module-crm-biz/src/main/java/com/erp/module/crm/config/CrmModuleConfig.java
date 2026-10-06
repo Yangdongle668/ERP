@@ -47,8 +47,8 @@ public class CrmModuleConfig {
 
     @Bean
     public CodeRuleDefinition crmCustomerCodeRule() {
-        // 《编码规则管理制度》5.1：LD-应用领域字母-三位流水，如 LD-A-001（各领域独立计数）
-        return CodeRuleDefinition.withVars(CUSTOMER, "客户编码", MODULE, "LD-{domain}-", "", "", 3, ResetCycle.NEVER, "domain").manual(true);
+        // 《编码规则管理制度》5.1：LD-应用领域字母-流水号；流水号 4 位与现有客户档案一致（LD-A-0001），各领域独立计数
+        return CodeRuleDefinition.withVars(CUSTOMER, "客户编码", MODULE, "LD-{domain}-", "", "", 4, ResetCycle.NEVER, "domain").manual(true);
     }
 
     @Bean
@@ -136,7 +136,9 @@ public class CrmModuleConfig {
                 .item("B", "智能穿戴（戒指、眼镜、手表、耳机等）", "Smart wearables")
                 .item("C", "消费电子", "Consumer electronics")
                 .item("D", "低空设备", "Low-altitude equipment")
-                .item("E", "物联网（智能家居等）", "IoT");
+                .item("E", "物联网（智能家居等）", "IoT")
+                .item("G", "电子产品", "Electronics")
+                .item("O", "枪械运动", "Shooting sports");
     }
 
     @Bean

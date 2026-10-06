@@ -25,4 +25,8 @@ public interface CustomerTransferLogMapper extends BaseMapperX<CustomerTransferL
     /** 物理删除（子表随主表保存整体替换） */
     @Delete("DELETE FROM crm_customer_transfer_log WHERE customer_id = #{parentId}")
     int deleteByParent(@Param("parentId") Long parentId);
+
+    /** 物理删除（导入回滚） */
+    @org.apache.ibatis.annotations.Delete("DELETE FROM crm_customer_transfer_log WHERE customer_id = #{id}")
+    int hardDeleteByCustomer(@org.apache.ibatis.annotations.Param("id") Long id);
 }

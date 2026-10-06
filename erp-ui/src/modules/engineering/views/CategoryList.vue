@@ -163,6 +163,7 @@ async function remove(row: CategoryNode) {
 const asCat = (r: unknown) => r as CategoryNode
 
 // ---------- 编码段 ----------
+const importRef = ref<{ open: () => void }>()
 const schemeVisible = ref(false)
 const schemeCategory = ref<string>()
 function openScheme(row: CategoryNode) {
@@ -194,6 +195,9 @@ onMounted(load)
         <template #toolbar>
           <el-button v-perm="'eng:category:create'" type="primary" icon="Plus" @click="open({})">新建一级类别</el-button>
           <el-button @click="toggleExpand">{{ expandAll ? '收起全部' : '展开全部' }}</el-button>
+        </template>
+        <template #toolbar-right>
+          <ErpIconButton icon="Upload" tooltip="导入" permission="eng:category:create" @click="importRef?.open()" />
         </template>
         <template #col-materialCount="{ row }">
           <el-link v-if="asCat(row).materialCount" type="primary" underline="never" class="num"
@@ -276,5 +280,6 @@ onMounted(load)
       </template>
     </el-dialog>
     <CodeSchemeDialog v-model="schemeVisible" :category-id="schemeCategory" @saved="load" />
+    <ImportDialog ref="importRef" title="导入物料类别" base="/engineering/categories" template-name="物料类别" allow-partial history @done="load" @rollback="load" />
   </ErpPage>
 </template>

@@ -25,6 +25,7 @@ import com.erp.module.crm.controller.vo.CustomerVOs.StatusResult;
 import com.erp.module.crm.controller.vo.CustomerVOs.TransferLogRow;
 import com.erp.module.crm.controller.vo.CustomerVOs.TransferReq;
 import com.erp.module.crm.service.CrmExportSupport;
+import com.erp.module.crm.service.CustomerImportBatchService;
 import com.erp.module.crm.service.CustomerImportService;
 import com.erp.module.crm.service.CustomerService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -75,9 +76,11 @@ public class CustomerController {
 
     private final CustomerService service;
     private final CustomerImportService importService;
+    private final CustomerImportBatchService importBatchService;
     private final CrmExportSupport exportSupport;
 
-    public CustomerController(CustomerService service, CustomerImportService importService, CrmExportSupport exportSupport) {
+    public CustomerController(CustomerService service, CustomerImportService importService, CrmExportSupport exportSupport, CustomerImportBatchService importBatchService) {
+        this.importBatchService = importBatchService;
         this.service = service;
         this.importService = importService;
         this.exportSupport = exportSupport;
@@ -221,6 +224,21 @@ public class CustomerController {
         importService.check(rows);
         long errors = rows.stream().filter(ImportRow::hasError).count();
         if (errors > 0 && !partial) throw BizException.of(GlobalErrorCodes.IMPORT_HAS_ERRORS, errors);
-        return CommonResult.success(importService.doImport(rows.stream().filter(r -> !r.hasError()).toList(), paymentTermId));
+        return CommonResult.success(importService.doImport(rows.stream().filter(r -> !r.hasError()).toList(), paymentTermId, file.getOriginalFilename()));
+    }
+
+    @Operation(summary = "导入记录")
+    @GetMapping("/customers/import/batches")
+    @PreAuthorize("@ss.has('crm:customer:import')")
+    public CommonResult<List<CustomerImportBatchService.BatchRow>> importBatches() {
+        return CommonResult.success(importBatchService.list());
+    }
+
+    @Operation(summary = "回滚导入批次：删除本批新增、且没有业务数据的客户")
+    @PostMapping("/customers/import/batches/{batchId}/rollback")
+    @PreAuthorize("@ss.has('crm:customer:import')")
+    public CommonResult<Void> rollbackImport(@PathVariable Long batchId) {
+        importBatchService.rollback(batchId);
+        return CommonResult.success();
     }
 }

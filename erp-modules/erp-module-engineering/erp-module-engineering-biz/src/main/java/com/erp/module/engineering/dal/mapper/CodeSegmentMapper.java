@@ -20,4 +20,7 @@ public interface CodeSegmentMapper extends BaseMapperX<CodeSegmentDO> {
         if (categoryIds.isEmpty()) return List.of();
         return selectList(new LambdaQueryWrapper<CodeSegmentDO>().in(CodeSegmentDO::getCategoryId, categoryIds));
     }
+
+    @org.apache.ibatis.annotations.Delete("DELETE FROM eng_code_segment WHERE category_id = #{categoryId}")
+    int hardDeleteByCategory(@org.apache.ibatis.annotations.Param("categoryId") Long categoryId);
 }

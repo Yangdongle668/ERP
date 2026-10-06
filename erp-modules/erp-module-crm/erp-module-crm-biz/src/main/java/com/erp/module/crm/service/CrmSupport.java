@@ -80,6 +80,10 @@ public class CrmSupport {
         return codeRuleApi.nextCode(rule);
     }
 
+    public void observeCode(String rule, Map<String, String> vars, String code) {
+        codeRuleApi.observeManualCode(rule, vars, null, code);
+    }
+
     public String nextNo(String rule, Map<String, String> vars) {
         return codeRuleApi.nextCode(rule, vars);
     }

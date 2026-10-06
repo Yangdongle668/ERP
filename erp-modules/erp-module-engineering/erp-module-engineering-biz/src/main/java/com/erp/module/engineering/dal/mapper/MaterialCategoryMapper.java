@@ -33,4 +33,8 @@ public interface MaterialCategoryMapper extends BaseMapperX<MaterialCategoryDO> 
             + "WHERE path LIKE CONCAT(#{oldPath}, '%') AND path <> #{oldPath} AND deleted = 0")
     int updateDescendantPaths(@Param("oldPath") String oldPath, @Param("oldLen") int oldLen, @Param("newPath") String newPath,
                               @Param("levelDelta") int levelDelta);
+
+    /** 物理删除（导入回滚：释放编码，可以重新导入） */
+    @org.apache.ibatis.annotations.Delete("DELETE FROM eng_material_category WHERE id = #{id}")
+    int hardDelete(@Param("id") Long id);
 }

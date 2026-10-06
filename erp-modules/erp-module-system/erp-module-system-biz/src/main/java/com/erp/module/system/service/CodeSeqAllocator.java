@@ -22,6 +22,20 @@ public class CodeSeqAllocator {
         this.codeSeqMapper = codeSeqMapper;
     }
 
+    /** 把流水号推进到不小于 value（只调大） */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void advance(String bizCode, String resetKey, long value) {
+        if (codeSeqMapper.selectCurrent(bizCode, resetKey) == null) {
+            try {
+                codeSeqMapper.insertValue(bizCode, resetKey, value);
+                return;
+            } catch (DuplicateKeyException e) {
+                // 并发下另一个事务已插入，改为调大
+            }
+        }
+        codeSeqMapper.adjust(bizCode, resetKey, value);
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public long next(String bizCode, String resetKey) {
         if (codeSeqMapper.increment(bizCode, resetKey) == 0) {
