@@ -107,8 +107,10 @@ class FileIntegrationTest extends SystemTestSupport {
         String t1 = login(u1, PASSWORD);
         String t2 = login(u2, PASSWORD);
 
-        // 没有 FileAccessChecker 的业务类型：只有上传人和管理员能看、能删
-        String id = ok(upload(t1, "c.pdf", PDF, Map.of("bizType", "IT_DOC", "bizId", "3001"))).at("/id").asText();
+        // 没有 FileAccessChecker 的业务类型：只有管理员能直接上传到单据；只有上传人和管理员能看、能删
+        assertError(upload(t1, "c.pdf", PDF, Map.of("bizType", "IT_DOC", "bizId", "3001")), "没有权限访问该附件");
+        String id = ok(upload(t1, "c.pdf", PDF, Map.of())).at("/id").asText();
+        fileApi.bind(List.of(Long.valueOf(id)), "IT_DOC", 3001L);
         assertThat(ok(doGet("/api/system/files?bizType=IT_DOC&bizId=3001", t2))).isEmpty();
         assertThat(ok(doGet("/api/system/files?bizType=IT_DOC&bizId=3001", admin))).hasSize(1);
         assertError(read(mockMvc.perform(get("/api/system/files/" + id + "/download").header("Authorization", t2))
@@ -120,6 +122,32 @@ class FileIntegrationTest extends SystemTestSupport {
         // 有 FileAccessChecker 的业务类型按 checker 判断
         assertError(upload(admin, "d.pdf", PDF, Map.of("bizType", ItFileAccessChecker.LOCKED, "bizId", "1")), "没有权限访问该附件");
         assertError(doGet("/api/system/files?bizType=" + ItFileAccessChecker.LOCKED + "&bizId=1", admin), "没有权限访问该附件");
+    }
+
+    @Test
+    void moduleCheckerByPermission_R04() throws Exception {
+        String dept = createDept(HQ, "附件权限" + uniq());
+        String viewer = createRole("SELF", List.of("eng:bom:query"));
+        String editor = createRole("SELF", List.of("eng:bom:query", "eng:bom:update"));
+        String none = createRole("SELF", List.of());
+        String uv = "fv" + uniq();
+        String ue = "fe" + uniq();
+        String un = "fn" + uniq();
+        createUser(uv, dept, List.of(viewer), false);
+        createUser(ue, dept, List.of(editor), false);
+        createUser(un, dept, List.of(none), false);
+        String tv = login(uv, PASSWORD);
+        String te = login(ue, PASSWORD);
+        String tn = login(un, PASSWORD);
+
+        // 业务模块按权限判断：只有编辑权限能上传、删除；有查看权限能看到他人上传的附件
+        assertError(upload(tn, "e.pdf", PDF, Map.of("bizType", "ENG_BOM", "bizId", "4001")), "没有权限访问该附件");
+        assertError(upload(tv, "e.pdf", PDF, Map.of("bizType", "ENG_BOM", "bizId", "4001")), "没有权限访问该附件");
+        String id = ok(upload(te, "e.pdf", PDF, Map.of("bizType", "ENG_BOM", "bizId", "4001"))).at("/id").asText();
+        assertThat(ok(doGet("/api/system/files?bizType=ENG_BOM&bizId=4001", tv))).hasSize(1);
+        assertError(doGet("/api/system/files?bizType=ENG_BOM&bizId=4001", tn), "没有权限访问该附件");
+        assertError(doDelete("/api/system/files/" + id, tv), "没有权限访问该附件");
+        ok(doDelete("/api/system/files/" + id, te));
     }
 
     @Test

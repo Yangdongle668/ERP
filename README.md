@@ -140,7 +140,7 @@ cd erp-ui && npm run build
 cd erp-ui && npm run e2e
 ```
 
-接口文档：<http://localhost:8080/swagger-ui.html>；健康检查：`/actuator/health`。
+接口文档：<http://localhost:8080/swagger-ui.html>（`h2` profile 默认开启；`mysql` profile 默认关闭，设置 `ERP_API_DOCS_ENABLED=true` 开启）；健康检查：`/actuator/health`。
 
 ## 配置项
 
@@ -157,6 +157,7 @@ cd erp-ui && npm run e2e
 | `ERP_FILE_STORAGE` / `ERP_FILE_PATH` | `local` / `./data/files` | 附件存储（`local` / `s3`） |
 | `ERP_S3_ENDPOINT` / `ERP_S3_REGION` / `ERP_S3_BUCKET` / `ERP_S3_ACCESS_KEY` / `ERP_S3_SECRET_KEY` / `ERP_S3_PATH_STYLE` / `ERP_S3_PREFIX` | 空 / 空 / 空 / 空 / 空 / `true` / `erp/` | 对象存储（`ERP_FILE_STORAGE=s3` 时） |
 | `ERP_METRICS_TOKEN` | 空 | Prometheus 指标端点令牌，为空时端点关闭 |
+| `ERP_API_DOCS_ENABLED` | `false`（`mysql` profile） | 是否开放接口文档 `/v3/api-docs`、`/swagger-ui.html` |
 | `ERP_AI_API_KEY` / `ERP_AI_BASE_URL` | 空 | AI 分析的 API Key / 接口地址（也可在“系统参数”页面配置） |
 | `SPRING_MAIL_HOST` 等 | 空 | 邮件通知（工作台参数 `wb.email.enabled` 开启后生效），Docker 部署时写在 `docker-compose.override.yml` |
 

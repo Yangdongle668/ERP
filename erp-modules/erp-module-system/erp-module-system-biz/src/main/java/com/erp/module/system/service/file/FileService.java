@@ -194,15 +194,17 @@ public class FileService implements FileApi {
         return f;
     }
 
-    /** 编辑权限：有 checker 按 checker；没有时已有文件只允许上传人和管理员删除，上传到单据不限制 */
+    /**
+     * 编辑权限：有 checker 按 checker；没有时已有文件只允许上传人和管理员删除，
+     * 直接上传到单据只允许管理员（新单据先上传不绑定，保存时由业务模块 FileApi.bind 绑定，不受此限制）
+     */
     private void checkEdit(String bizType, Long bizId, FileDO existing) {
         Optional<FileAccessChecker> checker = checkerOf(bizType);
         boolean ok;
         if (checker.isPresent()) ok = checker.get().canEdit(bizType, bizId);
-        else if (existing == null) ok = true;
         else {
             LoginUser me = SecurityUtils.getLoginUser();
-            ok = me.id().equals(existing.getCreatedBy()) || isAdmin(me);
+            ok = isAdmin(me) || (existing != null && me.id().equals(existing.getCreatedBy()));
         }
         if (!ok) throw BizException.of(SystemErrorCodes.FILE_ACCESS_DENIED);
     }
