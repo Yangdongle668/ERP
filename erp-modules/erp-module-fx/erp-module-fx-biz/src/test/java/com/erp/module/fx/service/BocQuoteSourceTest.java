@@ -24,18 +24,25 @@ class BocQuoteSourceTest {
                   <td class="pjrq">2026.10.06</td><td class="pjrq">10:30:00</td>
                 </tr>
                 <tr><td>美元</td><td>712.34</td><td>712.34</td><td>715.33</td><td>715.33</td><td>711.0</td><td class="pjrq">2026.10.06</td><td class="pjrq">10:29:45</td></tr>
+                <tr><td>日元</td><td>4.7612</td><td>4.6133</td><td>4.7962</td><td>4.7962</td><td>4.75</td><td class="pjrq">2026.10.06</td><td class="pjrq">10:30:00</td></tr>
+                <tr><td>韩国元</td><td>0.5131</td><td>0.4951</td><td>0.5173</td><td>0.5363</td><td>0.51</td><td class="pjrq">2026.10.06</td><td class="pjrq">10:30:00</td></tr>
+                <tr><td>澳大利亚元</td><td>465.12</td><td>450.66</td><td>468.55</td><td>470.62</td><td>464.0</td><td class="pjrq">2026.10.06</td><td class="pjrq">10:30:00</td></tr>
                 </table>""";
         Map<String, FxQuoteSource.Quote> q = BocQuoteSource.parse(html, NOW);
         assertThat(q.get("USD").rate()).isEqualByComparingTo("7.1234");
         assertThat(q.get("EUR").rate()).isEqualByComparingTo("7.8012");
         assertThat(q.get("USD").publishTime()).isEqualTo(LocalDateTime.of(2026, 10, 6, 10, 29, 45));
+        assertThat(q.get("JPY").rate()).isEqualByComparingTo("0.047612");
+        assertThat(q.get("KRW").rate()).isEqualByComparingTo("0.005131");
+        assertThat(q.get("AUD").rate()).isEqualByComparingTo("4.6512");
     }
 
     /** 日期时间同一格（2026-10-06 10:30:00）；缺少欧元时报错 */
     @Test
     void parseCombinedAndMissing() {
         String html = "<tr><th>货币名称</th><th>现汇买入价</th></tr><tr><td>美元</td><td>712.34</td><td>2026-10-06 10:30:00</td></tr>"
-                + "<tr><td>欧元</td><td>780.00</td><td>2026-10-06 10:30:00</td></tr>";
+                + "<tr><td>欧元</td><td>780.00</td><td>2026-10-06 10:30:00</td></tr><tr><td>日元</td><td>4.76</td><td>2026-10-06 10:30:00</td></tr>"
+                + "<tr><td>韩元</td><td>0.51</td><td>2026-10-06 10:30:00</td></tr><tr><td>澳元</td><td>465.00</td><td>2026-10-06 10:30:00</td></tr>";
         assertThat(BocQuoteSource.parse(html, NOW).get("EUR").publishTime()).isEqualTo(LocalDateTime.of(2026, 10, 6, 10, 30));
         assertThatThrownBy(() -> BocQuoteSource.parse("<tr><td>美元</td><td>712.34</td></tr>", NOW)).hasMessageContaining("EUR");
     }

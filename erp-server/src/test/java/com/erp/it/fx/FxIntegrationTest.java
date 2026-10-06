@@ -41,7 +41,14 @@ class FxIntegrationTest extends AbstractIntegrationTest {
     }
 
     private static void quote(String usd, String eur, LocalDateTime t) {
-        ItFxConfig.NEXT.set(Map.of("USD", new Quote("USD", new BigDecimal(usd), t), "EUR", new Quote("EUR", new BigDecimal(eur), t)));
+        ItFxConfig.NEXT.set(Map.of("USD", new Quote("USD", new BigDecimal(usd), t), "EUR", new Quote("EUR", new BigDecimal(eur), t),
+                "JPY", new Quote("JPY", new BigDecimal("0.047612"), t), "KRW", new Quote("KRW", new BigDecimal("0.005131"), t),
+                "AUD", new Quote("AUD", new BigDecimal("4.651200"), t)));
+    }
+
+    private long rateCount(String currency, LocalDate date) {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM sys_exchange_rate WHERE currency = ? AND effective_date = ? AND deleted = 0",
+                Long.class, currency, date);
     }
 
     private BigDecimal sysRate(String currency, String type, LocalDate date) {
@@ -49,7 +56,7 @@ class FxIntegrationTest extends AbstractIntegrationTest {
                 BigDecimal.class, currency, type, date);
     }
 
-    /** T01 取得报价、交叉汇率、当日平均、推送日汇率（来源 AUTO）；同一发布时间不重复计入；15 分钟缓存 */
+    /** T01 取得报价（5 个外币对人民币）；只有美元保存、计算当日平均并推送日汇率（来源 AUTO）；同一发布时间不重复计入；15 分钟缓存 */
     @Test
     void refreshAndDailyAverage() throws Exception {
         LocalDate d = LocalDate.of(1999, 3, 8);
@@ -57,7 +64,8 @@ class FxIntegrationTest extends AbstractIntegrationTest {
         JsonNode st = ok(doPost("/api/fx/refresh", admin, null));
         assertThat(st.at("/quotes/0/pair").asText()).isEqualTo("USD_CNY");
         assertThat(st.at("/quotes/0/rate").decimalValue()).isEqualByComparingTo("7.1");
-        assertThat(st.at("/quotes/2/rate").decimalValue()).isEqualByComparingTo("1.1");
+        assertThat(st.at("/quotes").findValuesAsText("pair")).containsExactly("USD_CNY", "EUR_CNY", "JPY_CNY", "KRW_CNY", "AUD_CNY");
+        assertThat(st.at("/quotes/3/rate").decimalValue()).isEqualByComparingTo("0.005131");
         assertThat(st.at("/pushTarget").asText()).isEqualTo("CNY");
 
         quote("7.200000", "7.830000", d.atTime(10, 30));
@@ -68,11 +76,18 @@ class FxIntegrationTest extends AbstractIntegrationTest {
         assertThat(daily.at("/0/sampleCount").asInt()).isEqualTo(2);
         assertThat(daily.at("/0/finalized").asBoolean()).isFalse();
         assertThat(sysRate("USD", "DAILY", d)).isEqualByComparingTo("7.15");
-        assertThat(sysRate("EUR", "DAILY", d)).isEqualByComparingTo("7.82");
         assertThat(jdbc.queryForObject("SELECT source FROM sys_exchange_rate WHERE currency = 'USD' AND rate_type = 'DAILY' AND effective_date = ?",
                 String.class, d)).isEqualTo("AUTO");
-        // EUR_USD 不推送系统汇率表，只在本模块
-        assertThat(ok(doGet("/api/fx/daily?pair=EUR_USD&from=1999-03-08&to=1999-03-08", admin)).size()).isEqualTo(1);
+        // 其他币别只有实时报价：不入库、不推送
+        assertThat(rateCount("EUR", d)).isZero();
+        assertThat(rateCount("JPY", d)).isZero();
+        assertThat(ok(doGet("/api/fx/daily?pair=EUR_CNY&from=1999-03-08&to=1999-03-08", admin)).size()).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM fx_quote WHERE pair <> 'USD_CNY'", Long.class)).isZero();
+        JsonNode st2 = ok(doGet("/api/fx/status", admin));
+        assertThat(st2.at("/quotes/1/rate").decimalValue()).isEqualByComparingTo("7.83");
+        assertThat(st2.at("/quotes/1/persisted").asBoolean()).isFalse();
+        JsonNode todayAvg = st2.at("/quotes/0/todayAverage"); // 1999 年的报价，不是今天
+        assertThat(todayAvg.isMissingNode() || todayAvg.isNull()).isTrue();
 
         // 缓存 15 分钟内不重复取数
         quote("9.000000", "9.000000", d.atTime(11, 0));
@@ -83,7 +98,7 @@ class FxIntegrationTest extends AbstractIntegrationTest {
     @Test
     void failureAndManualRate() throws Exception {
         LocalDate d = LocalDate.of(1999, 4, 6);
-        ok(doPost("/api/system/exchange-rates", admin, Map.of("currency", "EUR", "rateType", "DAILY", "effectiveDate", d.toString(), "rate", "8.888")));
+        ok(doPost("/api/system/exchange-rates", admin, Map.of("currency", "USD", "rateType", "DAILY", "effectiveDate", d.toString(), "rate", "8.888")));
         ItFxConfig.FAIL.set("连接超时");
         assertError(doPost("/api/fx/refresh", admin, null), "获取中国银行汇率失败：连接超时");
         JsonNode st = ok(doGet("/api/fx/status", admin));
@@ -94,8 +109,8 @@ class FxIntegrationTest extends AbstractIntegrationTest {
         quote("7.000000", "7.700000", d.atTime(9, 0));
         ok(doPost("/api/fx/refresh", admin, null));
         assertThat(ok(doGet("/api/fx/status", admin)).at("/consecutiveFailures").asInt()).isZero();
-        assertThat(sysRate("USD", "DAILY", d)).isEqualByComparingTo("7");
-        assertThat(sysRate("EUR", "DAILY", d)).isEqualByComparingTo("8.888");
+        assertThat(sysRate("USD", "DAILY", d)).isEqualByComparingTo("8.888");
+        assertThat(ok(doGet("/api/fx/daily?pair=USD_CNY&from=1999-04-06&to=1999-04-06", admin)).at("/0/avgRate").decimalValue()).isEqualByComparingTo("7");
     }
 
     /** T03 日结算、月平均（推送月末汇率）、保留 3 年 */

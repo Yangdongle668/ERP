@@ -11,8 +11,9 @@ public final class FxVOs {
     private FxVOs() {
     }
 
+    /** persisted：保存历史并推送系统汇率表（仅美元）；其他币别只有实时报价 */
     public record QuoteRow(String pair, String label, BigDecimal rate, LocalDateTime publishTime, LocalDateTime fetchedAt, boolean stale,
-                           BigDecimal todayAverage) {
+                           BigDecimal todayAverage, boolean persisted) {
     }
 
     /**

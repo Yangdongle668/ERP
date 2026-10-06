@@ -51,10 +51,10 @@ import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 实时汇率（需求 16-实时汇率）：取得中国银行现汇买入价（USD_CNY、EUR_CNY，EUR_USD 为交叉汇率），内存缓存 15 分钟；
- * 当天报价的平均值为日平均汇率（当天结束后结算），当月日平均汇率的平均值为月平均汇率（月份结束后结算）；
- * 本位币为人民币时把 USD、EUR 的日平均 / 月平均汇率写入系统汇率表（日汇率 / 月末汇率，来源“自动”），并发布 {@link FxRateUpdatedEvent}。
- * 报价、日平均、月平均数据保存 3 年。
+ * 实时汇率（需求 16-实时汇率）：取得中国银行现汇买入价（美元、欧元、日元、韩元、澳元对人民币），内存缓存 15 分钟。
+ * 只有美元保存历史（{@link FxPair#persisted()}）：当天报价的平均值为日平均汇率（当天结束后结算），当月日平均汇率的平均值为月平均汇率
+ * （月份结束后结算）；本位币为人民币时写入系统汇率表（日汇率 / 月末汇率，来源“自动”），数据保存 3 年。其他币别只提供实时报价。
+ * 每次取得报价、日 / 月平均更新时发布 {@link FxRateUpdatedEvent}。
  */
 @Slf4j
 @Service
@@ -103,6 +103,7 @@ public class FxService implements FxRateApi {
     public synchronized void loadCache() {
         cache.clear();
         for (FxPair p : FxPair.values()) {
+            if (!p.persisted()) continue;
             FxQuoteDO q = quoteMapper.selectLatest(p.name());
             if (q != null) cache.put(p, new FxQuoteDTO(p, q.getRate(), q.getPublishTime(), q.getFetchedAt(), false));
         }
@@ -174,21 +175,28 @@ public class FxService implements FxRateApi {
         }
     }
 
-    /** USD、EUR 对人民币；EUR_USD = EUR_CNY ÷ USD_CNY（R01） */
+    /** 各外币对人民币（R01）：缺少任一币别时视为取数失败（退避重试） */
     static Map<FxPair, Quote> toPairs(Map<String, Quote> quotes) {
-        Quote usd = quotes.get("USD");
-        Quote eur = quotes.get("EUR");
-        if (usd == null || eur == null) throw new IllegalStateException("缺少 USD 或 EUR 报价");
         Map<FxPair, Quote> map = new EnumMap<>(FxPair.class);
-        map.put(FxPair.USD_CNY, usd);
-        map.put(FxPair.EUR_CNY, eur);
-        LocalDateTime t = usd.publishTime().isAfter(eur.publishTime()) ? usd.publishTime() : eur.publishTime();
-        map.put(FxPair.EUR_USD, new Quote("EUR", eur.rate().divide(usd.rate(), Decimals.PRICE_SCALE, RoundingMode.HALF_UP), t));
+        List<String> missing = new ArrayList<>();
+        for (FxPair p : FxPair.values()) {
+            Quote q = quotes.get(p.from());
+            if (q == null || q.rate() == null || q.rate().signum() <= 0) missing.add(p.from());
+            else map.put(p, q);
+        }
+        if (!missing.isEmpty()) throw new IllegalStateException("缺少 " + String.join("、", missing) + " 的报价");
         return map;
     }
 
-    /** 同一发布时间的报价只记一次；更新当天的日平均汇率（未结算），推送日汇率 */
+    /** 同一发布时间的报价只记一次；更新当天的日平均汇率（未结算），推送日汇率。非美元只发布实时报价事件，不入库 */
     private void save(FxPair pair, Quote q, LocalDateTime now, List<FxRateUpdatedEvent> events) {
+        if (!pair.persisted()) {
+            FxQuoteDTO old = cache.get(pair);
+            if (old == null || !q.publishTime().equals(old.publishTime())) {
+                events.add(new FxRateUpdatedEvent(pair, Kind.QUOTE, q.publishTime().toLocalDate(), Decimals.price(q.rate()), false));
+            }
+            return;
+        }
         if (quoteMapper.exists(pair.name(), q.publishTime())) return;
         FxQuoteDO d = new FxQuoteDO();
         d.setId(IdWorker.getId());
@@ -239,9 +247,9 @@ public class FxService implements FxRateApi {
         return d;
     }
 
-    /** USD_CNY / EUR_CNY 且本位币为人民币时写入系统汇率表（R05） */
+    /** 本位币为人民币时写入系统汇率表（R05）；系统中没有该币别或已停用时忽略 */
     private void push(FxPair pair, RateType type, LocalDate date, BigDecimal rate, String remark) {
-        if (!CNY.equals(pair.to()) || !CNY.equals(currencyApi.getBaseCurrency())) return;
+        if (!CNY.equals(currencyApi.getBaseCurrency())) return;
         currencyApi.saveAutoRate(pair.from(), type, date, rate, remark.length() > 128 ? remark.substring(0, 128) : remark);
     }
 
@@ -277,6 +285,7 @@ public class FxService implements FxRateApi {
             YearMonth current = YearMonth.from(today);
             for (YearMonth m : List.of(current.minusMonths(2), current.minusMonths(1))) {
                 for (FxPair pair : FxPair.values()) {
+                    if (!pair.persisted()) continue;
                     if (monthlyMapper.selectByKey(pair.name(), m.toString()) != null) continue;
                     FxMonthlyRateDO mr = computeMonthly(pair, m);
                     if (mr != null) {
@@ -315,9 +324,9 @@ public class FxService implements FxRateApi {
         List<QuoteRow> rows = new ArrayList<>();
         for (FxPair p : FxPair.values()) {
             FxQuoteDTO q = latest(p).orElse(null);
-            BigDecimal avg = dailyAverage(p, today).orElse(null);
+            BigDecimal avg = p.persisted() ? dailyAverage(p, today).orElse(null) : null;
             rows.add(new QuoteRow(p.name(), p.label(), q == null ? null : q.rate(), q == null ? null : q.publishTime(),
-                    q == null ? null : q.fetchedAt(), q == null || q.stale(), avg));
+                    q == null ? null : q.fetchedAt(), q == null || q.stale(), avg, p.persisted()));
         }
         String base = currencyApi.getBaseCurrency();
         return new FxStatus(paramApi.getBool(FxModuleConfig.P_ENABLED), polling, lastSuccessAt, lastAttemptAt, lastError, consecutiveFailures,
