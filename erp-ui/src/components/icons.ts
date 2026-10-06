@@ -1,7 +1,7 @@
 import type { App, Component } from 'vue'
 import {
   ArrowDown, ArrowDownToLine, ArrowLeft, ArrowRight, ArrowUp, ArrowUpToLine, Ban, Bell, Boxes, Building2, CalendarDays, ChartColumn,
-  Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleAlert, CircleCheck, CircleX, Clock, CloudUpload, Columns3, Copy, DatabaseBackup,
+  Check, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CircleAlert, CircleCheck, CircleX, Clock, CloudUpload, Columns3, Copy, DatabaseBackup, Archive,
   Download, Ellipsis, Eye, Factory, FileSpreadsheet, FileText, Files, Folder, FolderX, History, House, Inbox, Info, KeyRound,
   Languages, LayoutGrid, Lightbulb, Link, ListFilter, LoaderCircle, Lock, LogOut, Package, PanelLeftClose, PanelLeftOpen,
   Paperclip, Pencil, Play, Plus, Printer, Receipt, RefreshCw, RotateCcw, Save, Search, Send, Settings, Settings2, ShoppingCart,
@@ -33,7 +33,7 @@ export const ICONS: Record<string, Component> = {
   // 组织与业务对象
   OfficeBuilding: Building2, Folder, HomeFilled: House, House, Box: Package, Goods: Boxes, Warehouse, Van: Truck,
   ShoppingCart, Sell: Tag, Money: Wallet, Tickets: Receipt, SetUp: Factory, Calendar: CalendarDays, Opportunity: Lightbulb,
-  DataAnalysis: ChartColumn, Grid: LayoutGrid, Backup: DatabaseBackup
+  DataAnalysis: ChartColumn, Grid: LayoutGrid, Backup: DatabaseBackup, Asset: Archive
 }
 
 export function registerIcons(app: App) {
