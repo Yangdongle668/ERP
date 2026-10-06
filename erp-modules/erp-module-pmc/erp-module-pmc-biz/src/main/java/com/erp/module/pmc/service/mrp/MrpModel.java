@@ -1,5 +1,6 @@
 package com.erp.module.pmc.service.mrp;
 
+import com.erp.module.pmc.service.LeadTimeService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -23,12 +24,19 @@ public final class MrpModel {
     public record Sub(Long materialId, BigDecimal ratio) {
     }
 
-    /** 物料计划信息；sourceType：PURCHASE / MAKE / OUTSOURCE */
+    /**
+     * 物料计划信息；sourceType：PURCHASE / MAKE / OUTSOURCE。routing 为按工艺工时换算的生产提前期（参数开启且有工艺路线的自制件，否则为空）。
+     */
     public record Mat(Long id, String code, String uom, int scale, String sourceType, boolean enabled, int leadTimeDays, BigDecimal safetyStock, String orderPolicy,
                       BigDecimal fixedLotQty, Integer periodDays, BigDecimal moq, BigDecimal mpq, Long plannerId, Long buyerId, Long bomId,
-                      List<Comp> comps) {
+                      List<Comp> comps, LeadTimeService.RoutingTime routing) {
         public boolean make() {
             return "MAKE".equals(sourceType) || "OUTSOURCE".equals(sourceType);
+        }
+
+        /** 计划订单数量为 qty 时的提前期（天） */
+        public int leadDays(BigDecimal qty) {
+            return routing != null ? routing.days(qty) : Math.max(0, leadTimeDays);
         }
     }
 

@@ -1,5 +1,7 @@
 package com.erp.module.system.service.job;
 
+import com.erp.framework.maintenance.MaintenanceMode;
+import com.erp.framework.maintenance.DataRestoredEvent;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.erp.common.exception.BizException;
@@ -84,7 +86,7 @@ public class JobService {
 
     // ==================== 启动同步 ====================
 
-    @EventListener(ApplicationReadyEvent.class)
+    @EventListener({ApplicationReadyEvent.class, DataRestoredEvent.class})
     public void syncAndSchedule() {
         Map<String, JobDO> existing = jobMapper.selectList(new LambdaQueryWrapper<>()).stream()
                 .collect(Collectors.toMap(JobDO::getCode, j -> j));
@@ -137,6 +139,10 @@ public class JobService {
     // ==================== 执行 ====================
 
     private void runScheduled(String code) {
+        if (MaintenanceMode.active()) {
+            log.info("[定时任务] 系统维护中，{} 本次跳过", code);
+            return;
+        }
         LocalDateTime now = LocalDateTime.now();
         if (jobMapper.tryLock(code, node.value(), now, now.plus(lockDuration)) == 0) {
             log.debug("[定时任务] {} 正在其他实例执行，本次跳过", code);

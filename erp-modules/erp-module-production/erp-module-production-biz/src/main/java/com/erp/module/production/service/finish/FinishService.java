@@ -32,6 +32,7 @@ import com.erp.module.production.service.MfgStateMachines;
 import com.erp.module.production.service.MfgSupport;
 import com.erp.module.production.service.ProdStatus;
 import com.erp.module.production.service.order.OrderProgressService;
+import com.erp.module.production.service.order.ProdOrderService;
 import com.erp.module.system.api.user.UserDTO;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -107,6 +108,7 @@ public class FinishService implements ProductionFinishApi {
         ProdStatus s = OrderProgressService.status(o);
         if (s == ProdStatus.SUSPENDED) throw new BizException(ProductionErrorCodes.ORDER_SUSPENDED);
         if (!ProdStatus.ACTIVE.contains(s)) throw BizException.of(ProductionErrorCodes.ORDER_NOT_RUNNING, s.label());
+        if (ProdOrderService.DISASSEMBLY.equals(o.getOrderType())) throw new BizException(ProductionErrorCodes.FINISH_DISASSEMBLY);
         BigDecimal available = MfgSupport.max0(o.getCompletedQty().subtract(o.getFinishedRequestQty()));
         if (req.qty() == null || req.qty().signum() <= 0 || req.qty().compareTo(available) > 0) {
             throw BizException.of(ProductionErrorCodes.FINISH_OVER, MfgSupport.plain(available));

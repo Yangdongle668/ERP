@@ -26,7 +26,7 @@ cd erp-ui && npm run build                     # 前端类型检查 + 构建
 2. `-api` 模块只放接口、DTO（record）、枚举、事件、错误码，只依赖 `erp-common`。
 3. 数据库变更只能新增 Flyway 脚本：`erp-module-<code>-biz/src/main/resources/db/migration/<code>/V<n>__xxx.sql`，已合并脚本禁止修改。表名使用模块前缀。SQL 需兼容 MySQL 8 和 H2（MySQL 模式）。
 4. 所有实体继承 `BaseDO`（单据头继承 `BaseDocDO`）；Mapper 继承 `BaseMapperX` 并加 `@Mapper`；更新用 `updateByIdOrFail` 做乐观锁校验。
-5. 状态变更必须通过 `StateMachine.fire()`，不要直接 set 状态。
+5. 状态变更必须通过 `StateMachine.fire()`，不要直接 set 状态。例外：新建时赋初始状态（如 DRAFT）、主数据启用 / 停用（`EnableStatus`）、把 `fire()` 算出的结果写回实体。
 6. 业务错误抛 `BizException`，错误码定义在本模块 `XxxErrorCodes`，使用本模块号段。
 7. 数量、金额使用 `BigDecimal` + `Decimals` 工具，禁止 double/float。
 8. Controller 方法必须声明 `@PreAuthorize("@ss.has('...')")`，权限标识与需求文档一致。

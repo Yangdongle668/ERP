@@ -51,12 +51,12 @@ export const OP_STATUS: StatusMap = {
   DONE: { label: '完成', type: 'success' }
 }
 export const ORDER_TYPE_OPTIONS: Option[] = [
-  { value: 'STANDARD', label: '标准' }, { value: 'REWORK', label: '返工' }, { value: 'SAMPLE', label: '样品' }
+  { value: 'NORMAL', label: '标准' }, { value: 'REWORK', label: '返工' }, { value: 'DISASSEMBLY', label: '拆解' }, { value: 'SAMPLE', label: '样品' }
 ]
 export const ISSUE_TYPE_OPTIONS: Option[] = [
   { value: 'NORMAL', label: '正常领料' }, { value: 'OVER', label: '超领' }, { value: 'BACKFLUSH', label: '倒冲' }
 ]
-export const RETURN_TYPE_OPTIONS: Option[] = [{ value: 'GOOD', label: '良品退料' }, { value: 'DEFECT', label: '不良退料' }]
+export const RETURN_TYPE_OPTIONS: Option[] = [{ value: 'GOOD', label: '良品退料' }, { value: 'DEFECT', label: '不良退料' }, { value: 'OUTPUT', label: '拆解入库' }]
 export const ISSUE_METHOD_OPTIONS: Option[] = [{ value: 'PICK', label: '领料' }, { value: 'BACKFLUSH', label: '倒冲' }]
 export const REPORT_KIND_OPTIONS: Option[] = [{ value: 'NORMAL', label: '报工' }, { value: 'REPAIR', label: '返修' }, { value: 'SCRAP', label: '不良报废' }]
 
@@ -114,6 +114,10 @@ export interface Preview {
   routings: { id: string; label: string; isDefault: boolean }[]; defaultDeptId?: string; leadTimeDays: number; materials: MaterialPreview[]
   operations: OperationPreview[]
 }
+/** 拆解订单产出 */
+export interface OutputResp {
+  id: string; lineNo: number; componentId: string; code: string; name: string; spec?: string; uom: string; qtyPer: string; expectedQty: string; receivedQty: string
+}
 export interface MaterialResp {
   id: string; lineNo: number; componentId: string; code: string; name: string; spec?: string; uom: string; qtyPer: string; scrapRate?: string
   requiredQty: string; issueMethod: string; operationSeq?: number; issuedQty: string; overIssuedQty: string; returnedQty: string; returnedGoodQty: string
@@ -134,7 +138,7 @@ export interface ProdOrderDetail {
   salesOrderLineId?: string; salesOrderId?: string; salesOrderNo?: string; sourceType?: string; sourceId?: string; sourceNo?: string; completedQty: string
   scrappedQty: string; finishedRequestQty: string; stockedQty: string; qualifiedStockedQty: string; fqcRejectedQty: string; finishableQty: string
   pendingDefectQty: string; fqcRequired: boolean; deptId?: string; deptName?: string; ownerId?: string; ownerName?: string; closeReason?: string
-  remark?: string; createdAt: string; version: number; materials: MaterialResp[]; operations: OperationResp[]; related: RelatedDoc[]
+  remark?: string; createdAt: string; version: number; materials: MaterialResp[]; operations: OperationResp[]; outputs: OutputResp[]; related: RelatedDoc[]
 }
 export interface MaterialSave { componentId: string; qtyPer: string; scrapRate?: string; issueMethod?: string; operationSeq?: number; remark?: string }
 export interface ProdOrderSave {

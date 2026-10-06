@@ -192,18 +192,19 @@ public class InspectionService {
 
         QcStandardDO std = standardService.match(m.id(), c.type(), c.operation());
         List<QcStandardItemDO> stdItems = List.of();
+        boolean tightened = c.type() == InspectType.IQC && samplingService.scarTightened(c.supplierId(), m.id());
         SamplingResult sampling;
         if (std != null) {
             d.setStandardId(std.getId());
             d.setStandardCode(std.getCode());
             d.setStandardVersion(std.getStdVersion());
-            sampling = SamplingService.compute(samplingService.get(std.getSamplingPlanId()), d.getLotQty());
+            sampling = samplingService.compute(samplingService.get(std.getSamplingPlanId()), d.getLotQty(), tightened);
             stdItems = standardService.items(std.getId());
         } else {
             QcSamplingPlanDO full = new QcSamplingPlanDO();
             full.setPlanType(SamplingService.FULL);
             full.setName("全检（无检验标准）");
-            sampling = SamplingService.compute(full, d.getLotQty());
+            sampling = samplingService.compute(full, d.getLotQty());
         }
         d.setSampleQty(sampling.sampleQty());
         d.setSamplingSnapshot(support.toJson(sampling));
@@ -224,12 +225,13 @@ public class InspectionService {
             it.setLowerLimit(si.getLowerLimit());
             it.setDefectLevel(si.getDefectLevel());
             it.setIsKey(Boolean.TRUE.equals(si.getIsKey()));
-            it.setSampleQty(SamplingService.itemSampleQty(overrides.get(si.getSamplingPlanId()), d.getLotQty(), sampling.sampleQty()));
+            it.setSampleQty(samplingService.itemSampleQty(overrides.get(si.getSamplingPlanId()), d.getLotQty(), sampling.sampleQty(), tightened));
             it.setNgCount(0);
             itemMapper.insert(it);
         }
+        String note = (c.upstreamNo() == null ? "" : "来源 " + c.upstreamNo()) + (tightened ? (c.upstreamNo() == null ? "" : "；") + "SCAR 验证期间加严抽样" : "");
         support.log(QualityModuleConfig.INSPECTION, d.getId(), d.getDocNo(), QcAction.CREATE.name(), QcAction.CREATE.label(), null, d.getInspStatus(),
-                c.upstreamNo() == null ? null : "来源 " + c.upstreamNo());
+                note.isEmpty() ? null : note);
         eventPublisher.publish(new InspectionCreatedEvent(d.getId(), d.getDocNo(), d.getInspectType(), d.getMaterialId(), d.getBatchNo(), d.getLotQty(),
                 d.getUpstreamType(), d.getUpstreamId(), d.getUpstreamNo()));
         if (exempt(c.type(), m.id()) || SamplingService.EXEMPT.equals(sampling.planType())) {

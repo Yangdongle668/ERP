@@ -38,6 +38,7 @@ public class QualityModuleConfig {
     public static final String P_CAPA_REPEAT = "qc.capa.trigger-repeat";
     public static final String P_COMPLAINT_REPLY_DAYS = "qc.complaint.reply-days";
     public static final String P_SCAR_REPLY_DAYS = "qc.scar.reply-days";
+    public static final String P_SCAR_TIGHTENED = "qc.scar.tightened-iqc";
     public static final String P_MANAGERS = "qc.managers";
     public static final String P_EXECUTIVES = "qc.complaint.executives";
 
@@ -251,7 +252,9 @@ public class QualityModuleConfig {
                 ParamDefinition.integer(P_CAPA_REPEAT, MODULE, "CAPA", "触发 CAPA 的重复次数", 3, 1, 100, "同物料同缺陷 30 天内 NCR 次数").sort(10),
                 ParamDefinition.integer(P_COMPLAINT_REPLY_DAYS, MODULE, "客诉", "客诉回复期限（天）", 3, 1, 60, "初步回复（D3 围堵）期限").sort(10),
                 ParamDefinition.userList(P_EXECUTIVES, MODULE, "客诉", "致命客诉通知的管理层", "", "如总经理").sort(20),
-                ParamDefinition.integer(P_SCAR_REPLY_DAYS, MODULE, "SCAR", "供应商回复期限（天）", 7, 1, 90, "").sort(10));
+                ParamDefinition.integer(P_SCAR_REPLY_DAYS, MODULE, "SCAR", "供应商回复期限（天）", 7, 1, 90, "").sort(10),
+                ParamDefinition.bool(P_SCAR_TIGHTENED, MODULE, "SCAR", "验证期间 IQC 加严抽样", true,
+                        "SCAR 验证中时，该供应商该物料的后续 IQC 检验水平提高一级（QC-SCAR-R04）").sort(20));
     }
 
     // ==================== 审批 ====================

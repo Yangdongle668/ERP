@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { RowAction, SearchField, TableColumn } from '@/components'
 import { useListPage } from '@/composables/useListPage'
+import AqlTablePanel from '../components/AqlTablePanel.vue'
 import {
   AQLS, ENABLE, INSPECT_TYPE, INSPECTION_LEVELS, ITEM_TYPE, LEVELS, PLAN_TYPE, STD_STATUS, basicApi, joinList, labelOf, optionsOf, standardApi,
   type DefectCodeRow, type ItemLibRow, type SamplingResult, type SamplingRow, type StandardRow
@@ -199,6 +200,8 @@ const statusOptions = optionsOf(ENABLE)
           </ErpTable>
           <ErpPagination v-model:page-no="plans.query.pageNo" v-model:page-size="plans.query.pageSize" :total="plans.total.value" @change="plans.load" />
         </el-tab-pane>
+
+        <el-tab-pane label="AQL 抽样表" name="aql" lazy><AqlTablePanel /></el-tab-pane>
 
         <el-tab-pane label="缺陷代码" name="defects">
           <ErpTable :columns="defectColumns" :data="defects.list.value" :loading="defects.loading.value" storage-key="qc.defect-code" :actions-width="100" @refresh="defects.load">

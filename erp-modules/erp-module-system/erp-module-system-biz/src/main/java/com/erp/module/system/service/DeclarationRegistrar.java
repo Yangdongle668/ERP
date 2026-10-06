@@ -1,5 +1,7 @@
 package com.erp.module.system.service;
 
+import org.springframework.context.event.EventListener;
+import com.erp.framework.maintenance.DataRestoredEvent;
 import com.erp.module.system.api.dict.DictDefinition;
 import com.erp.module.system.api.param.ParamDefinition;
 import com.erp.module.system.api.param.ParamDefinitions;
@@ -55,6 +57,12 @@ public class DeclarationRegistrar implements SmartInitializingSingleton {
         this.wfDefinitionService = wfDefinitionService;
         this.prints = prints;
         this.printService = printService;
+    }
+
+    /** 系统数据恢复后重新同步，备份中缺少的声明（如较早版本的数据）立即补齐 */
+    @EventListener(DataRestoredEvent.class)
+    public void onRestored() {
+        afterSingletonsInstantiated();
     }
 
     @Override

@@ -8,6 +8,7 @@ import BiLineChart from '../components/BiLineChart.vue'
 import BiBarChart from '../components/BiBarChart.vue'
 import BiDonut from '../components/BiDonut.vue'
 import { fmtMetric } from '../components/biFormat'
+import { exportElementPdf } from '../components/exportPdf'
 
 /** 经营驾驶舱（需求 13-02）：KPI 行、12 个月趋势、客户 Top10、交付、品类占比、质量、库存结构；点击下钻到专题页并带入期间 */
 const router = useRouter()
@@ -48,16 +49,26 @@ function onTrend(i: number) {
 const qualityLabels = computed(() => data.value?.quality.map((q) => q.month.slice(2)) ?? [])
 const onTimeRate = computed(() => Number(data.value?.delivery.onTimeRate ?? 0))
 
-function exportPdf() {
-  window.print()
+/** BI-DSH-R04：以当前页面生成 A4 横向 PDF（期间筛选 + 全部卡片） */
+const sheet = ref<HTMLElement>()
+const exporting = ref(false)
+async function exportPdf() {
+  if (!sheet.value || exporting.value) return
+  exporting.value = true
+  try {
+    await exportElementPdf(sheet.value, `经营驾驶舱_${data.value?.from ?? ''}_${data.value?.to ?? ''}.pdf`)
+  } finally {
+    exporting.value = false
+  }
 }
 </script>
 
 <template>
   <ErpPage description="管理层一屏查看经营全貌；点击卡片或图表下钻到专题分析">
     <template #actions>
-      <el-button icon="Printer" @click="exportPdf">导出 PDF</el-button>
+      <el-button icon="Download" :loading="exporting" :disabled="!data" @click="exportPdf">导出 PDF</el-button>
     </template>
+    <div ref="sheet" class="bi-sheet">
     <ErpPanel>
       <PeriodFilter v-model:period="period" v-model:compare="compare" v-model:custom="custom" :updated-at="data?.dataUpdatedAt" @change="load" />
     </ErpPanel>
@@ -118,6 +129,7 @@ function exportPdf() {
         </ErpPanel>
       </div>
     </div>
+    </div>
   </ErpPage>
 </template>
 
@@ -135,5 +147,6 @@ function exportPdf() {
 .bi-mini { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--erp-space-3); cursor: pointer; }
 .bi-mini__title { color: var(--erp-color-text-secondary); font-size: var(--erp-font-size-caption); }
 .bi-note { color: var(--erp-color-text-secondary); font-size: var(--erp-font-size-secondary); }
+.bi-sheet { display: flex; flex-direction: column; gap: var(--erp-section-gap); background: var(--erp-color-bg); }
 @media print { .bi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

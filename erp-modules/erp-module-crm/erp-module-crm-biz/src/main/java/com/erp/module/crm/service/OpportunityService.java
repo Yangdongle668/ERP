@@ -292,7 +292,7 @@ public class OpportunityService implements OpportunityApi {
         requireNotClosed(o);
         followupMapper.selectList(new LambdaQueryWrapper<FollowupDO>().eq(FollowupDO::getOpportunityId, id)).forEach(f -> {
             f.setOpportunityId(null);
-            followupMapper.updateById(f);
+            followupMapper.updateByIdOrFail(f);
         });
         mapper.deleteById(id);
     }

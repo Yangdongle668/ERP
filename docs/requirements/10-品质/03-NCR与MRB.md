@@ -28,7 +28,7 @@ NCR（不合格品报告）记录任何环节发现的不合格：描述、数�
 | 挑选 | SORT | 检验单进入“挑选”：录入挑选良品/不良数量后判定 |
 | 返工 | REWORK | 判定不合格 → 不良品仓；提示生产主管创建返工生产订单（可一键生成草稿） |
 | 报废 | SCRAP | 判定不合格 → 不良品仓；提示仓库创建报废出库（可一键生成草稿） |
-| 降级使用 | DOWNGRADE（P2） | — |
+| 降级使用 | DOWNGRADE | 选择降级后的物料；判定不合格 → 不良品仓；[生成降级转换] 生成不良品仓其他出库 + 降级后物料其他入库草稿 |
 
 一张 NCR 可以对数量拆分多种处置（如 80 特采、20 退货），合计 = NCR 数量。
 
@@ -61,7 +61,8 @@ NCR（不合格品报告）记录任何环节发现的不合格：描述、数�
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
 | ncr_id | id | 是 | |
-| disposition | enum(RETURN/CONCESSION/SORT/REWORK/SCRAP) | 是 | |
+| disposition | enum(RETURN/CONCESSION/SORT/REWORK/SCRAP/DOWNGRADE) | 是 | |
+| target_material_id | id | 条件 | 降级使用时必填：降级后的物料 |
 | qty | qty | 是 | |
 | remark | str(512) | 否 | 如特采条件“仅用于 FG1 订单” |
 | follow_doc_no | str(64) | 否 | 后续单据（退货单、返工订单、报废出库单） |

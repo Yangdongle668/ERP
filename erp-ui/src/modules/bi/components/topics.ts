@@ -71,7 +71,7 @@ export const TOPICS: Record<string, TopicDef> = {
   },
   production: {
     code: 'production',
-    kpis: ['production_output', 'plan_achievement_rate', 'fpy', 'yield_rate', 'work_hours', 'delayed_order_count'],
+    kpis: ['production_output', 'plan_achievement_rate', 'fpy', 'yield_rate', 'production_efficiency', 'work_hours', 'delayed_order_count'],
     charts: [
       { type: 'line', title: '月度产量趋势', metrics: ['production_output', 'plan_qty'], months: 12 },
       { type: 'bar', title: '车间良率对比', metric: 'yield_rate', dim: 'dept', limit: 10, color: 2 },
@@ -82,7 +82,7 @@ export const TOPICS: Record<string, TopicDef> = {
     pivot: {
       dims: ['dept', 'category', 'material'],
       drill: { dept: 'material', category: 'material' },
-      metrics: ['production_output', 'yield_rate', 'fpy', 'work_hours']
+      metrics: ['production_output', 'yield_rate', 'fpy', 'work_hours', 'std_hours', 'production_efficiency']
     }
   },
   quality: {

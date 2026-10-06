@@ -31,9 +31,11 @@ import com.erp.module.production.controller.vo.MaterialDocVOs.ReturnRow;
 import com.erp.module.production.controller.vo.MaterialDocVOs.ReturnSave;
 import com.erp.module.production.dal.dataobject.MfgProdOrderDO;
 import com.erp.module.production.dal.dataobject.MfgProdOrderMaterialDO;
+import com.erp.module.production.dal.dataobject.MfgProdOrderOutputDO;
 import com.erp.module.production.dal.dataobject.MfgReturnDO;
 import com.erp.module.production.dal.dataobject.MfgReturnLineDO;
 import com.erp.module.production.dal.dataobject.MfgTraceDO;
+import com.erp.module.production.dal.mapper.MfgProdOrderOutputMapper;
 import com.erp.module.production.dal.mapper.MfgProdOrderMapper;
 import com.erp.module.production.dal.mapper.MfgProdOrderMaterialMapper;
 import com.erp.module.production.dal.mapper.MfgReturnLineMapper;
@@ -42,6 +44,7 @@ import com.erp.module.production.dal.mapper.MfgTraceMapper;
 import com.erp.module.production.service.MfgAction;
 import com.erp.module.production.service.MfgStateMachines;
 import com.erp.module.production.service.MfgSupport;
+import com.erp.module.production.service.order.ProdOrderService;
 import com.erp.module.production.service.order.MaterialPlanner;
 import com.erp.module.production.service.order.OrderProgressService;
 import com.erp.module.production.service.trace.TraceRecorder;
@@ -64,19 +67,22 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 退料单（需求 09-03）：良品退料（余料）/ 不良退料（来料不良、制程损坏）。
- * 提交后生成仓库“生产退料入库单”，入库确认回写已退数量、追溯（负数），不良退料发布事件供品质开 NCR。
+ * 退料单（需求 09-03）：良品退料（余料）/ 不良退料（来料不良、制程损坏）/ 拆解入库（拆解订单的子件产出，需求 09-01 1.1）。
+ * 提交后生成仓库“生产退料入库单”，入库确认回写已退数量、追溯（负数），不良退料发布事件供品质开 NCR；拆解入库回写产出已入库数量。
  */
 @Service("mfgReturnService")
 public class ReturnService {
 
     public static final String BIZ_TYPE = ProductionModuleConfig.RETURN;
     public static final String SOURCE_TYPE = "MFG_RETURN";
+    /** 拆解入库：明细的 materialLineId 指向拆解产出（mfg_prod_order_output） */
+    public static final String OUTPUT = "OUTPUT";
 
     private final MfgReturnMapper mapper;
     private final MfgReturnLineMapper lineMapper;
     private final MfgProdOrderMapper orderMapper;
     private final MfgProdOrderMaterialMapper materialMapper;
+    private final MfgProdOrderOutputMapper outputMapper;
     private final MfgTraceMapper traceMapper;
     private final OrderProgressService progress;
     private final MaterialPlanner planner;
@@ -86,12 +92,13 @@ public class ReturnService {
     private final DomainEventPublisher eventPublisher;
 
     public ReturnService(MfgReturnMapper mapper, MfgReturnLineMapper lineMapper, MfgProdOrderMapper orderMapper, MfgProdOrderMaterialMapper materialMapper,
-                         MfgTraceMapper traceMapper, OrderProgressService progress, MaterialPlanner planner, MfgSupport support,
+                         MfgProdOrderOutputMapper outputMapper, MfgTraceMapper traceMapper, OrderProgressService progress, MaterialPlanner planner, MfgSupport support,
                          InventoryDocApi inventoryDocApi, TraceRecorder trace, DomainEventPublisher eventPublisher) {
         this.mapper = mapper;
         this.lineMapper = lineMapper;
         this.orderMapper = orderMapper;
         this.materialMapper = materialMapper;
+        this.outputMapper = outputMapper;
         this.traceMapper = traceMapper;
         this.progress = progress;
         this.planner = planner;
@@ -174,6 +181,7 @@ public class ReturnService {
      */
     public List<ReturnCandidate> candidates(Long prodOrderId, String returnType, Long excludeReturnId) {
         MfgProdOrderDO o = progress.getOrThrow(prodOrderId);
+        if (OUTPUT.equals(returnType)) return outputCandidates(o, excludeReturnId);
         boolean defect = "DEFECT".equals(returnType);
         List<MfgProdOrderMaterialDO> mats = materialMapper.selectByParent(prodOrderId);
         Map<Long, BigDecimal> pending = pendingReturns(prodOrderId, excludeReturnId);
@@ -191,6 +199,29 @@ public class ReturnService {
             out.add(new ReturnCandidate(m.getId(), m.getComponentId(), c == null ? null : c.code(), c == null ? null : c.name(), c == null ? null : c.spec(),
                     c == null ? null : c.baseUom(), m.getIssuedQty(), m.getReturnedQty(), theo, returnable, wh == null ? null : wh.id(),
                     wh == null ? null : wh.name(), batches.getOrDefault(m.getComponentId(), List.of())));
+        }
+        return out;
+    }
+
+    /**
+     * 拆解入库可入数量：按已拆解（产品净领用）折算 = 产品净领用 × 单位产出 − 已入库 − 其他未入库单据占用，不超过预计产出。
+     */
+    private List<ReturnCandidate> outputCandidates(MfgProdOrderDO o, Long excludeReturnId) {
+        if (!ProdOrderService.DISASSEMBLY.equals(o.getOrderType())) return List.of();
+        BigDecimal disassembled = MfgSupport.sum(materialMapper.selectByParent(o.getId()).stream()
+                .filter(m -> Objects.equals(m.getComponentId(), o.getMaterialId())).map(MaterialPlanner::netQty).toList());
+        List<MfgProdOrderOutputDO> outputs = outputMapper.selectByParent(o.getId());
+        Map<Long, BigDecimal> pending = pendingReturns(o.getId(), excludeReturnId);
+        Map<Long, MaterialDTO> ms = support.materials(outputs.stream().map(MfgProdOrderOutputDO::getComponentId).toList());
+        List<ReturnCandidate> out = new ArrayList<>();
+        for (MfgProdOrderOutputDO x : outputs) {
+            MaterialDTO c = ms.get(x.getComponentId());
+            BigDecimal allowed = support.round(disassembled.multiply(x.getQtyPer()), c == null ? null : c.baseUom()).min(x.getExpectedQty());
+            BigDecimal receivable = MfgSupport.max0(allowed.subtract(MfgSupport.nz(x.getReceivedQty())).subtract(pending.getOrDefault(x.getId(), BigDecimal.ZERO)));
+            WarehouseDTO wh = defaultWarehouse(x.getComponentId(), false);
+            out.add(new ReturnCandidate(x.getId(), x.getComponentId(), c == null ? null : c.code(), c == null ? null : c.name(), c == null ? null : c.spec(),
+                    c == null ? null : c.baseUom(), x.getExpectedQty(), x.getReceivedQty(), BigDecimal.ZERO, receivable, wh == null ? null : wh.id(),
+                    wh == null ? null : wh.name(), List.of()));
         }
         return out;
     }
@@ -234,17 +265,18 @@ public class ReturnService {
         MfgProdOrderDO o = progress.getOrThrow(req.prodOrderId());
         DataScopes.check(o.getOrgId(), o.getDeptId(), o.getOwnerId(), "生产订单");
         OrderProgressService.requireActive(o);
-        String type = "DEFECT".equals(req.returnType()) ? "DEFECT" : "GOOD";
+        String type = "DEFECT".equals(req.returnType()) ? "DEFECT" : OUTPUT.equals(req.returnType()) ? OUTPUT : "GOOD";
+        if (OUTPUT.equals(type) && !ProdOrderService.DISASSEMBLY.equals(o.getOrderType())) throw new BizException(ProductionErrorCodes.RETURN_OUTPUT_NOT_DISASSEMBLY);
         List<ReturnLineSave> lines = validLines(req);
-        Map<Long, MfgProdOrderMaterialDO> mats = materials(o.getId());
+        Map<Long, Long> mats = lineComponents(o.getId(), type);
         Map<Long, List<ReturnLineSave>> byWarehouse = new LinkedHashMap<>();
         int no = 0;
         for (ReturnLineSave l : lines) {
             no++;
-            MfgProdOrderMaterialDO m = mats.get(l.materialLineId());
-            if (m == null) throw BizException.of(ProductionErrorCodes.ISSUE_LINE_INVALID, no);
+            Long componentId = mats.get(l.materialLineId());
+            if (componentId == null) throw BizException.of(ProductionErrorCodes.ISSUE_LINE_INVALID, no);
             Long wh = req.warehouseId() != null ? req.warehouseId()
-                    : support.warehouseApi().getDefaultWarehouse(m.getComponentId(), "DEFECT".equals(type) ? WarehouseType.NG : null).id();
+                    : support.warehouseApi().getDefaultWarehouse(componentId, "DEFECT".equals(type) ? WarehouseType.NG : null).id();
             byWarehouse.computeIfAbsent(wh, k -> new ArrayList<>()).add(l);
         }
         List<Long> ids = new ArrayList<>();
@@ -282,7 +314,7 @@ public class ReturnService {
         mapper.updateByIdOrFail(r);
         List<ReturnLineSave> lines = validLines(req);
         lineMapper.deleteByParent(id);
-        saveLines(r, lines, materials(r.getProdOrderId()));
+        saveLines(r, lines, lineComponents(r.getProdOrderId(), r.getReturnType()));
     }
 
     private static List<ReturnLineSave> validLines(ReturnSave req) {
@@ -291,21 +323,25 @@ public class ReturnService {
         return lines;
     }
 
-    private Map<Long, MfgProdOrderMaterialDO> materials(Long orderId) {
-        return materialMapper.selectByParent(orderId).stream().collect(Collectors.toMap(MfgProdOrderMaterialDO::getId, Function.identity()));
+    /** 可退明细：行 ID → 物料。良品 / 不良退料为订单用料，拆解入库为拆解产出 */
+    private Map<Long, Long> lineComponents(Long orderId, String returnType) {
+        if (OUTPUT.equals(returnType)) {
+            return outputMapper.selectByParent(orderId).stream().collect(Collectors.toMap(MfgProdOrderOutputDO::getId, MfgProdOrderOutputDO::getComponentId));
+        }
+        return materialMapper.selectByParent(orderId).stream().collect(Collectors.toMap(MfgProdOrderMaterialDO::getId, MfgProdOrderMaterialDO::getComponentId));
     }
 
-    private void saveLines(MfgReturnDO r, List<ReturnLineSave> lines, Map<Long, MfgProdOrderMaterialDO> mats) {
+    private void saveLines(MfgReturnDO r, List<ReturnLineSave> lines, Map<Long, Long> mats) {
         int no = 0;
         for (ReturnLineSave l : lines) {
             no++;
-            MfgProdOrderMaterialDO m = mats.get(l.materialLineId());
-            if (m == null) throw BizException.of(ProductionErrorCodes.ISSUE_LINE_INVALID, no);
+            Long componentId = mats.get(l.materialLineId());
+            if (componentId == null) throw BizException.of(ProductionErrorCodes.ISSUE_LINE_INVALID, no);
             MfgReturnLineDO line = new MfgReturnLineDO();
             line.setReturnId(r.getId());
             line.setLineNo(no);
-            line.setMaterialLineId(m.getId());
-            line.setMaterialId(m.getComponentId());
+            line.setMaterialLineId(l.materialLineId());
+            line.setMaterialId(componentId);
             line.setQty(l.qty());
             line.setBatchNo(MfgSupport.trim(l.batchNo()));
             line.setDefectDesc(MfgSupport.trim(l.defectDesc()));
@@ -388,12 +424,19 @@ public class ReturnService {
         MfgProdOrderDO o = progress.getOrThrow(r.getProdOrderId());
         Map<Long, MfgReturnLineDO> lines = lineMapper.selectByParent(r.getId()).stream().collect(Collectors.toMap(MfgReturnLineDO::getId, Function.identity()));
         Map<Long, MfgProdOrderMaterialDO> mats = new HashMap<>();
+        Map<Long, MfgProdOrderOutputDO> outputs = new HashMap<>();
         List<DefectMaterialReturnedEvent.Line> defects = new ArrayList<>();
         boolean good = "GOOD".equals(r.getReturnType());
+        boolean output = OUTPUT.equals(r.getReturnType());
         for (StockInConfirmedEvent.Line l : e.getLines()) {
             MfgReturnLineDO rl = lines.get(l.sourceLineId());
             if (rl == null) continue;
             rl.setReceivedQty(rl.getReceivedQty().add(l.baseQty()));
+            if (output) {
+                MfgProdOrderOutputDO x = outputs.computeIfAbsent(rl.getMaterialLineId(), outputMapper::selectById);
+                if (x != null) x.setReceivedQty(MfgSupport.nz(x.getReceivedQty()).add(l.baseQty()));
+                continue;
+            }
             MfgProdOrderMaterialDO m = mats.computeIfAbsent(rl.getMaterialLineId(), materialMapper::selectById);
             if (m != null) {
                 m.setReturnedQty(MfgSupport.nz(m.getReturnedQty()).add(l.baseQty()));
@@ -404,6 +447,7 @@ public class ReturnService {
         }
         lines.values().forEach(lineMapper::updateByIdOrFail);
         mats.values().stream().filter(Objects::nonNull).forEach(materialMapper::updateByIdOrFail);
+        outputs.values().stream().filter(Objects::nonNull).forEach(outputMapper::updateByIdOrFail);
         r.setStockInNos(IssueService.append(r.getStockInNos(), e.getStockInNo()));
         support.fire(MfgStateMachines.MATERIAL_DOC, mapper, r, BIZ_TYPE, MfgAction.COMPLETE, e.getStockInNo());
         if (!defects.isEmpty()) eventPublisher.publish(new DefectMaterialReturnedEvent(r.getId(), r.getDocNo(), o.getId(), o.getDocNo(), defects));
@@ -416,8 +460,14 @@ public class ReturnService {
         if (r == null) return;
         if (e.getKind() == StockDocEvent.Kind.IN_REVERSED && r.getStatus() == DocStatus.COMPLETED) {
             boolean good = "GOOD".equals(r.getReturnType());
+            boolean output = OUTPUT.equals(r.getReturnType());
             for (MfgReturnLineDO rl : lineMapper.selectByParent(r.getId())) {
-                MfgProdOrderMaterialDO m = materialMapper.selectById(rl.getMaterialLineId());
+                MfgProdOrderOutputDO x = output ? outputMapper.selectById(rl.getMaterialLineId()) : null;
+                if (x != null) {
+                    x.setReceivedQty(MfgSupport.nz(x.getReceivedQty()).subtract(rl.getReceivedQty()));
+                    outputMapper.updateByIdOrFail(x);
+                }
+                MfgProdOrderMaterialDO m = output ? null : materialMapper.selectById(rl.getMaterialLineId());
                 if (m != null) {
                     m.setReturnedQty(MfgSupport.nz(m.getReturnedQty()).subtract(rl.getReceivedQty()));
                     if (good) m.setReturnedGoodQty(MfgSupport.nz(m.getReturnedGoodQty()).subtract(rl.getReceivedQty()));
@@ -441,7 +491,7 @@ public class ReturnService {
         ReturnDetail d = detail(id);
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("docNo", d.docNo());
-        data.put("returnTypeName", "DEFECT".equals(d.returnType()) ? "不良退料" : "良品退料");
+        data.put("returnTypeName", "DEFECT".equals(d.returnType()) ? "不良退料" : OUTPUT.equals(d.returnType()) ? "拆解入库" : "良品退料");
         data.put("docDate", d.docDate());
         data.put("prodOrderNo", d.prodOrderNo());
         data.put("productCode", d.productCode());

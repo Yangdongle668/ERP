@@ -7,3 +7,10 @@ spring:
     hikari:
       maximum-pool-size: 30
       minimum-idle: 5
+
+# 生产环境默认关闭接口文档（/v3/api-docs、/swagger-ui），需要时设置 ERP_API_DOCS_ENABLED=true
+springdoc:
+  api-docs:
+    enabled: ${ERP_API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${ERP_API_DOCS_ENABLED:false}

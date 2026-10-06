@@ -42,8 +42,9 @@ public final class NcrVOs {
                          LocalDate docDate, LocalDateTime createdAt) {
     }
 
+    /** @param targetMaterialId 降级使用（DOWNGRADE）时必填：降级后的物料 */
     public record DispositionSave(@NotBlank(message = "请选择处置方式") String disposition, @NotNull(message = "请填写处置数量") BigDecimal qty,
-                                  @Size(max = 512) String remark) {
+                                  @Size(max = 512) String remark, Long targetMaterialId) {
     }
 
     public record NcrSave(String source, Long materialId, @Size(max = 64) String batchNo, BigDecimal ncrQty, Long supplierId, Long customerId,
@@ -53,7 +54,8 @@ public final class NcrVOs {
                           @Valid List<DispositionSave> dispositions, @Size(max = 64) String sourceNo, Integer version) {
     }
 
-    public record DispositionRow(Long id, int seq, String disposition, BigDecimal qty, String remark, String followDocNo, boolean done, LocalDateTime doneAt) {
+    public record DispositionRow(Long id, int seq, String disposition, BigDecimal qty, String remark, String followDocNo, boolean done, LocalDateTime doneAt,
+                                 Long targetMaterialId, String targetMaterialCode, String targetMaterialName) {
     }
 
     public record NcrDetail(Long id, String docNo, LocalDate docDate, String source, String sourceNo, Long inspectionId, String inspectionNo,

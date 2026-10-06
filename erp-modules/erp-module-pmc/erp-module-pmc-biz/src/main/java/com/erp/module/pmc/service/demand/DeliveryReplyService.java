@@ -15,6 +15,7 @@ import com.erp.module.pmc.controller.vo.DemandVOs.ReplyLine;
 import com.erp.module.pmc.controller.vo.DemandVOs.ReplyRow;
 import com.erp.module.pmc.dal.dataobject.PmcDemandDO;
 import com.erp.module.pmc.dal.mapper.PmcDemandMapper;
+import com.erp.module.pmc.service.LeadTimeService;
 import com.erp.module.pmc.service.PlanningData;
 import com.erp.module.pmc.service.PlanningData.Supply;
 import com.erp.module.pmc.service.PmcSupport;
@@ -42,8 +43,10 @@ public class DeliveryReplyService {
     private final PmcSupport support;
     private final PlanningData data;
     private final SalesOrderApi salesOrderApi;
+    private final LeadTimeService leadTime;
 
-    public DeliveryReplyService(PmcDemandMapper mapper, PmcSupport support, PlanningData data, SalesOrderApi salesOrderApi) {
+    public DeliveryReplyService(PmcDemandMapper mapper, PmcSupport support, PlanningData data, SalesOrderApi salesOrderApi, LeadTimeService leadTime) {
+        this.leadTime = leadTime;
         this.mapper = mapper;
         this.support = support;
         this.data = data;
@@ -113,7 +116,7 @@ public class DeliveryReplyService {
     public KitResult kit(Long materialId, BigDecimal qty) {
         LocalDate today = LocalDate.now();
         MaterialPlanAttr pa = support.materialApi().getPlanAttr(materialId);
-        int lead = pa == null ? 0 : pa.leadTimeDays();
+        int lead = leadTime.makeLeadDays(materialId, qty, pa == null ? 0 : pa.leadTimeDays());
         List<KitLine> lines = new ArrayList<>();
         LocalDate kitDate = today;
         BomDTO bom = data.bomApi().getDefaultBom(materialId, today).orElse(null);

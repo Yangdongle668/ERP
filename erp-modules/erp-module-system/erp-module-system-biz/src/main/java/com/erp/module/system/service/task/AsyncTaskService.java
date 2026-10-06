@@ -1,5 +1,6 @@
 package com.erp.module.system.service.task;
 
+import com.erp.framework.maintenance.DataRestoredEvent;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -93,7 +94,7 @@ public class AsyncTaskService implements AsyncTaskApi {
     }
 
     /** R02：本实例重启前未完成的任务标记为失败 */
-    @EventListener(ApplicationReadyEvent.class)
+    @EventListener({ApplicationReadyEvent.class, DataRestoredEvent.class})
     public void markInterrupted() {
         int n = taskMapper.update(null, new LambdaUpdateWrapper<AsyncTaskDO>()
                 .in(AsyncTaskDO::getStatus, AsyncTaskDO.WAITING, AsyncTaskDO.RUNNING).eq(AsyncTaskDO::getNode, node.value())

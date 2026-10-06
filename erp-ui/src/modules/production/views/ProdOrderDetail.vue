@@ -94,8 +94,12 @@ const actions = computed<DocAction[]>(() => [
     handler: () => router.push({ path: '/production/issue/new', query: { prodOrderId: id.value } }) },
   { key: 'report', label: '报工', permission: 'mfg:report:create', visible: () => running.value,
     handler: () => router.push({ path: '/production/report/new', query: { prodOrderId: id.value } }) },
-  { key: 'finish', label: '完工入库', type: 'primary', permission: 'mfg:finish:create', visible: () => active.value && num(d.value?.finishableQty) > 0, handler: openFinish }
+  { key: 'finish', label: '完工入库', type: 'primary', permission: 'mfg:finish:create',
+    visible: () => active.value && !disassembly.value && num(d.value?.finishableQty) > 0, handler: openFinish },
+  { key: 'output', label: '拆解入库', type: 'primary', permission: 'mfg:return:create', visible: () => active.value && disassembly.value,
+    handler: () => router.push({ path: '/production/return/new', query: { prodOrderId: id.value, returnType: 'OUTPUT' } }) }
 ])
+const disassembly = computed(() => d.value?.orderType === 'DISASSEMBLY')
 
 const steps = [
   { status: 'DRAFT', label: '草稿' }, { status: 'PLANNED', label: '已计划' }, { status: 'RELEASED', label: '已下达' },
@@ -251,7 +255,7 @@ onMounted(load)
     <template #header>
       <DocPageHeader :title="d?.docNo ?? '生产订单'" :status="d?.prodStatus" :status-map="PROD_STATUS" :actions="actions" @back="router.push('/production/prod-order')">
         <template #extra>
-          <ErpBadge v-if="d && d.orderType !== 'STANDARD'" type="primary" :dot="false">{{ labelOf(ORDER_TYPE_OPTIONS, d.orderType) }}</ErpBadge>
+          <ErpBadge v-if="d && d.orderType !== 'NORMAL'" type="primary" :dot="false">{{ labelOf(ORDER_TYPE_OPTIONS, d.orderType) }}</ErpBadge>
           <ErpBadge v-if="d && num(d.pendingDefectQty) > 0" type="warning">待处理不良 {{ formatQty(d.pendingDefectQty) }}</ErpBadge>
         </template>
         <template #actions-prefix>
@@ -317,6 +321,18 @@ onMounted(load)
                 <el-button v-if="asMat(row).issueMethod === 'PICK'" v-perm="'mfg:issue:over'" link type="primary" @click="openOver(asMat(row))">超领</el-button>
               </template>
             </ErpTable>
+          </el-tab-pane>
+          <el-tab-pane v-if="disassembly" :label="`拆解产出(${d.outputs.length})`" name="outputs">
+            <el-table :data="d.outputs">
+              <el-table-column prop="lineNo" label="行" width="50" />
+              <el-table-column label="子件" min-width="220"><template #default="{ row }">{{ row.code }} {{ row.name }}</template></el-table-column>
+              <el-table-column prop="spec" label="规格" width="140" show-overflow-tooltip />
+              <el-table-column label="单位产出" width="110" align="right"><template #default="{ row }">{{ formatQty(row.qtyPer, 6) }}</template></el-table-column>
+              <el-table-column label="预计产出" width="110" align="right"><template #default="{ row }">{{ formatQty(row.expectedQty) }}</template></el-table-column>
+              <el-table-column label="已入库" width="110" align="right"><template #default="{ row }">{{ formatQty(row.receivedQty) }}</template></el-table-column>
+              <el-table-column prop="uom" label="单位" width="60" />
+              <template #empty><ErpEmpty compact description="下达后按 BOM 生成拆解产出" /></template>
+            </el-table>
           </el-tab-pane>
           <el-tab-pane :label="`工序(${d.operations.length})`" name="ops">
             <ErpTable :columns="opColumns" :data="d.operations" storage-key="mfg.prod-order-ops" empty-text="没有工艺路线：按末道报工">

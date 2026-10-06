@@ -10,3 +10,6 @@ erp:
     local-path: ${java.io.tmpdir}/erp-it-files
   security:
     force-default-password-change: false
+  backup:
+    path: ${java.io.tmpdir}/erp-it-backups
+    settle-millis: 0

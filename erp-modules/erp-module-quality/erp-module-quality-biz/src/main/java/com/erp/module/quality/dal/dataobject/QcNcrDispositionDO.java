@@ -18,9 +18,12 @@ public class QcNcrDispositionDO extends BaseDO {
 
     private Long ncrId;
     private Integer seq;
-    /** RETURN/CONCESSION/SORT/REWORK/SCRAP */
+    /** RETURN/CONCESSION/SORT/REWORK/SCRAP/DOWNGRADE */
     private String disposition;
     private BigDecimal qty;
+    /** 降级使用：降级后的物料 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Long targetMaterialId;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String remark;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)

@@ -23,8 +23,8 @@
 |---|---|---|
 | 系统管理 | `system` | 组织、用户、角色与数据权限、字典、单位、币别汇率、付款条件、系统参数、编码规则、审批流、定时任务与任务中心、附件、打印模板、操作日志 |
 | 工作台 | `workbench` | 首页看板卡片、待办（审批 / 任务）、消息、公告、预警 |
-| CRM | `crm` | 客户档案、联系人与地址、客户料号、商机、报价、信用额度 |
-| 销售 | `sales` | 销售订单（变更、关闭）、退货、销售预测、订单交期与出货回写 |
+| CRM | `crm` | 客户档案、联系人与地址、客户料号、信用额度、跟进记录、商机 |
+| 销售 | `sales` | RFQ、报价单、销售订单（变更、关闭）、退货、销售预测、价格表、回款跟踪、订单交期与出货回写、销售报表 |
 | 研发工程 | `engineering` | 物料与类别、BOM（版本、审批、展开 / 反查 / 比较）、工艺路线、ECN |
 | PMC | `pmc` | 需求池与交期回复、MPS、MRP 运算与建议、排产与产能、缺料分析、交期预警、出货计划 |
 | 资材 | `purchase` | 供应商、价格、请购、采购订单、到货与退货、委外、询比价、对账、供应商评估 |
@@ -34,6 +34,7 @@
 | 出货 | `shipping` | 出货通知、拣货、装箱与箱唛、OQC、出货单、装箱单 / 发票 / 报关资料、物流 |
 | 财务 | `finance` | 应收应付、收付款与核销、发票、凭证、成本核算、月结、损益与分析报表 |
 | BI / AI | `bi` | 指标库与汇总数据层、经营驾驶舱、销售 / 采购 / 库存 / 生产 / 品质 / 财务专题分析、AI 问数、异常解读、经营周报 |
+| 系统备份 | `backup` | 超级管理员全量备份（数据库 + 附件）、下载 / 上传备份、一键恢复、自动备份与保留份数 |
 
 每个模块的需求与实现说明见 [docs/requirements/](docs/requirements/)（各模块目录下的 `README.md`）。
 
@@ -140,7 +141,7 @@ cd erp-ui && npm run build
 cd erp-ui && npm run e2e
 ```
 
-接口文档：<http://localhost:8080/swagger-ui.html>；健康检查：`/actuator/health`。
+接口文档：<http://localhost:8080/swagger-ui.html>（`h2` profile 默认开启；`mysql` profile 默认关闭，设置 `ERP_API_DOCS_ENABLED=true` 开启）；健康检查：`/actuator/health`。
 
 ## 配置项
 
@@ -157,6 +158,7 @@ cd erp-ui && npm run e2e
 | `ERP_FILE_STORAGE` / `ERP_FILE_PATH` | `local` / `./data/files` | 附件存储（`local` / `s3`） |
 | `ERP_S3_ENDPOINT` / `ERP_S3_REGION` / `ERP_S3_BUCKET` / `ERP_S3_ACCESS_KEY` / `ERP_S3_SECRET_KEY` / `ERP_S3_PATH_STYLE` / `ERP_S3_PREFIX` | 空 / 空 / 空 / 空 / 空 / `true` / `erp/` | 对象存储（`ERP_FILE_STORAGE=s3` 时） |
 | `ERP_METRICS_TOKEN` | 空 | Prometheus 指标端点令牌，为空时端点关闭 |
+| `ERP_API_DOCS_ENABLED` | `false`（`mysql` profile） | 是否开放接口文档 `/v3/api-docs`、`/swagger-ui.html` |
 | `ERP_AI_API_KEY` / `ERP_AI_BASE_URL` | 空 | AI 分析的 API Key / 接口地址（也可在“系统参数”页面配置） |
 | `SPRING_MAIL_HOST` 等 | 空 | 邮件通知（工作台参数 `wb.email.enabled` 开启后生效），Docker 部署时写在 `docker-compose.override.yml` |
 

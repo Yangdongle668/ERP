@@ -15,11 +15,13 @@ import com.erp.module.pmc.controller.vo.MrpVOs.RunReq;
 import com.erp.module.pmc.controller.vo.MrpVOs.RunRow;
 import com.erp.module.pmc.dal.dataobject.PmcMrpBalanceDO;
 import com.erp.module.pmc.dal.dataobject.PmcMrpExceptionDO;
+import com.erp.module.pmc.dal.dataobject.PmcMrpFingerprintDO;
 import com.erp.module.pmc.dal.dataobject.PmcMrpPeggingDO;
 import com.erp.module.pmc.dal.dataobject.PmcMrpResultDO;
 import com.erp.module.pmc.dal.dataobject.PmcMrpRunDO;
 import com.erp.module.pmc.dal.mapper.PmcMrpBalanceMapper;
 import com.erp.module.pmc.dal.mapper.PmcMrpExceptionMapper;
+import com.erp.module.pmc.dal.mapper.PmcMrpFingerprintMapper;
 import com.erp.module.pmc.dal.mapper.PmcMrpPeggingMapper;
 import com.erp.module.pmc.dal.mapper.PmcMrpResultMapper;
 import com.erp.module.pmc.dal.mapper.PmcMrpRunMapper;
@@ -45,6 +47,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -59,6 +62,10 @@ import java.util.Set;
 /**
  * MRP 运算控制（需求 06-03 第 3.3 节）：同一时间只允许一个运算；后台任务执行；成功后上一次运算的待处理建议置为“被替代”；
  * 失败记录原因且不影响上一次的建议；运行超过 1 小时的运算视为中断。
+ *
+ * <p>净变更（NET_CHANGE）：仍在内存中完整计算，再按物料比较本次与上一次运算的结果指纹，只有结果变化的物料生成新建议、例外和供需平衡；
+ * 未变化物料的待处理建议（含计划员的修改）、例外和供需平衡复制到本次运算，已忽略的建议不会重新出现。
+ * 上一次运算为指定订单运算、没有指纹或运算参数不同时按全量处理（运算参数中记录原因）。
  */
 @Service("pmcMrpRunService")
 public class MrpRunService {
@@ -74,6 +81,7 @@ public class MrpRunService {
     private final PmcMrpPeggingMapper peggingMapper;
     private final PmcMrpExceptionMapper exceptionMapper;
     private final PmcMrpBalanceMapper balanceMapper;
+    private final PmcMrpFingerprintMapper fingerprintMapper;
     private final MrpInputLoader loader;
     private final PmcSupport support;
     private final PlanningData data;
@@ -83,7 +91,8 @@ public class MrpRunService {
     private final ObjectMapper objectMapper;
 
     public MrpRunService(PmcMrpRunMapper runMapper, PmcMrpResultMapper resultMapper, PmcMrpPeggingMapper peggingMapper,
-                         PmcMrpExceptionMapper exceptionMapper, PmcMrpBalanceMapper balanceMapper, MrpInputLoader loader, PmcSupport support,
+                         PmcMrpExceptionMapper exceptionMapper, PmcMrpBalanceMapper balanceMapper, PmcMrpFingerprintMapper fingerprintMapper,
+                         MrpInputLoader loader, PmcSupport support,
                          PlanningData data, AsyncTaskApi asyncTaskApi, DomainEventPublisher eventPublisher, TransactionTemplate tx,
                          ObjectMapper objectMapper) {
         this.runMapper = runMapper;
@@ -91,6 +100,7 @@ public class MrpRunService {
         this.peggingMapper = peggingMapper;
         this.exceptionMapper = exceptionMapper;
         this.balanceMapper = balanceMapper;
+        this.fingerprintMapper = fingerprintMapper;
         this.loader = loader;
         this.support = support;
         this.data = data;
@@ -195,7 +205,7 @@ public class MrpRunService {
             progress.report(30);
             Output out = MrpEngine.run(in);
             progress.report(60);
-            tx.executeWithoutResult(s -> persist(runId, in, out));
+            tx.executeWithoutResult(s -> persist(runId, in, out, o));
             progress.report(100);
         } catch (RuntimeException ex) {
             LOG.warn("MRP 运算失败：{}", ex.getMessage(), ex);
@@ -214,10 +224,109 @@ public class MrpRunService {
         eventPublisher.publish(new MrpRunCompletedEvent(r.getId(), r.getRunNo(), FAILED, 0, 0, r.getOperatorId()));
     }
 
-    private void persist(Long runId, MrpModel.Input in, Output out) {
+    /** 净变更比较结果：base 为空表示按全量处理（reason 为原因） */
+    private record NetChange(PmcMrpRunDO base, Set<Long> changed, String reason) {
+    }
+
+    private NetChange netChange(Long runId, Map<Long, String> fingerprints) {
+        PmcMrpRunDO base = runMapper.selectOne(new LambdaQueryWrapper<PmcMrpRunDO>().eq(PmcMrpRunDO::getRunStatus, SUCCESS).ne(PmcMrpRunDO::getId, runId)
+                .orderByDesc(PmcMrpRunDO::getStartedAt).orderByDesc(PmcMrpRunDO::getId).last("LIMIT 1"));
+        if (base == null) return new NetChange(null, Set.of(), "没有可比较的上次运算，按全量处理");
+        if ("ORDER".equals(base.getRunType())) return new NetChange(null, Set.of(), "上次为指定订单运算，按全量处理");
+        if (!paramsOf(base.getParams()).equals(paramsOf(runMapper.selectById(runId).getParams()))) {
+            return new NetChange(null, Set.of(), "运算参数与上次（" + base.getRunNo() + "）不同，按全量处理");
+        }
+        Map<Long, String> old = new HashMap<>();
+        for (PmcMrpFingerprintDO f : fingerprintMapper.selectList(new LambdaQueryWrapper<PmcMrpFingerprintDO>().eq(PmcMrpFingerprintDO::getRunId, base.getId()))) {
+            old.put(f.getMaterialId(), f.getFingerprint());
+        }
+        if (old.isEmpty()) return new NetChange(null, Set.of(), "上次运算（" + base.getRunNo() + "）没有结果指纹，按全量处理");
+        Set<Long> changed = new HashSet<>();
+        Set<Long> keys = new HashSet<>(old.keySet());
+        keys.addAll(fingerprints.keySet());
+        for (Long id : keys) if (!java.util.Objects.equals(old.get(id), fingerprints.get(id))) changed.add(id);
+        return new NetChange(base, changed, null);
+    }
+
+    /** 运算参数（不含净变更信息） */
+    private Map<String, Object> paramsOf(String json) {
+        if (json == null) return Map.of();
+        try {
+            Map<String, Object> m = new LinkedHashMap<>(objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {
+            }));
+            m.remove("netChange");
+            return m;
+        } catch (JsonProcessingException e) {
+            return Map.of();
+        }
+    }
+
+    /** 复制上次运算中未变化物料的待处理建议（含追溯）、例外与供需平衡；返回“物料|需求日期|数量”→ 新建议 ID（用于子件追溯关联父件） */
+    private Map<String, Long> copyUnchanged(Long runId, PmcMrpRunDO base, Set<Long> changed) {
+        LocalDate today = LocalDate.now();
+        Map<Long, Long> idMap = new HashMap<>();
+        Map<String, Long> keys = new HashMap<>();
+        for (PmcMrpResultDO r : resultMapper.selectList(new LambdaQueryWrapper<PmcMrpResultDO>().eq(PmcMrpResultDO::getRunId, base.getId())
+                .eq(PmcMrpResultDO::getSuggestionStatus, SuggestionService.PENDING).orderByAsc(PmcMrpResultDO::getId))) {
+            if (changed.contains(r.getMaterialId())) continue;
+            Long old = r.getId();
+            fresh(r);
+            r.setRunId(runId);
+            if (r.getReleaseDate() != null && r.getReleaseDate().isBefore(today)) {
+                r.setIsLate(true);
+                r.setReleaseDate(today);
+            }
+            resultMapper.insert(r);
+            idMap.put(old, r.getId());
+            keys.put(key(r.getMaterialId(), r.getOriginalRequiredDate(), r.getOriginalQty()), r.getId());
+        }
+        if (!idMap.isEmpty()) {
+            for (PmcMrpPeggingDO g : peggingMapper.selectList(new LambdaQueryWrapper<PmcMrpPeggingDO>().in(PmcMrpPeggingDO::getResultId, idMap.keySet()))) {
+                fresh(g);
+                g.setRunId(runId);
+                g.setResultId(idMap.get(g.getResultId()));
+                g.setParentResultId(g.getParentResultId() == null ? null : idMap.get(g.getParentResultId()));
+                peggingMapper.insert(g);
+            }
+        }
+        for (PmcMrpExceptionDO e : exceptionMapper.selectList(new LambdaQueryWrapper<PmcMrpExceptionDO>().eq(PmcMrpExceptionDO::getRunId, base.getId()))) {
+            if (changed.contains(e.getMaterialId())) continue;
+            fresh(e);
+            e.setRunId(runId);
+            exceptionMapper.insert(e);
+        }
+        for (PmcMrpBalanceDO b : balanceMapper.selectList(new LambdaQueryWrapper<PmcMrpBalanceDO>().eq(PmcMrpBalanceDO::getRunId, base.getId()))) {
+            if (changed.contains(b.getMaterialId())) continue;
+            fresh(b);
+            b.setRunId(runId);
+            balanceMapper.insert(b);
+        }
+        return keys;
+    }
+
+    private static void fresh(com.erp.framework.mybatis.BaseDO d) {
+        d.setId(null);
+        d.setVersion(0);
+        d.setCreatedAt(null);
+        d.setCreatedBy(null);
+        d.setUpdatedAt(null);
+        d.setUpdatedBy(null);
+    }
+
+    private static String key(Long materialId, LocalDate date, BigDecimal qty) {
+        return materialId + "|" + date + "|" + (qty == null ? "" : qty.stripTrailingZeros().toPlainString());
+    }
+
+    private void persist(Long runId, MrpModel.Input in, Output out, MrpInputLoader.Options o) {
         Map<Long, Mat> mats = in.mats();
         Map<Long, Long> suppliers = new HashMap<>();
+        Map<Long, String> fingerprints = MrpFingerprints.of(out, mats.keySet());
+        NetChange nc = "NET_CHANGE".equals(o.runType()) ? netChange(runId, fingerprints) : null;
+        boolean partial = nc != null && nc.base() != null;
+        Set<Long> changed = partial ? nc.changed() : Set.of();
+        Map<String, Long> copied = partial ? copyUnchanged(runId, nc.base(), changed) : Map.of();
         for (Planned p : out.planned()) {
+            if (partial && !changed.contains(p.materialId)) continue;
             Mat m = mats.get(p.materialId);
             PmcMrpResultDO r = new PmcMrpResultDO();
             r.setRunId(runId);
@@ -242,6 +351,7 @@ public class MrpRunService {
             p.resultId = r.getId();
         }
         for (Planned p : out.planned()) {
+            if (p.resultId == null) continue;
             for (Peg g : p.pegs) {
                 PmcMrpPeggingDO d = new PmcMrpPeggingDO();
                 d.setRunId(runId);
@@ -250,13 +360,15 @@ public class MrpRunService {
                 d.setSourceId(g.sourceId());
                 d.setSourceNo(g.sourceNo());
                 d.setParentMaterialId(g.parentMaterialId());
-                d.setParentResultId(g.parent() == null ? null : g.parent().resultId);
+                d.setParentResultId(g.parent() == null ? null : g.parent().resultId != null ? g.parent().resultId
+                        : copied.get(key(g.parent().materialId, g.parent().requiredDate, g.parent().qty)));
                 d.setQty(g.qty());
                 d.setRequiredDate(g.date());
                 peggingMapper.insert(d);
             }
         }
         for (MrpModel.Exception e : out.exceptions()) {
+            if (partial && !changed.contains(e.materialId())) continue;
             Mat m = mats.get(e.materialId());
             PmcMrpExceptionDO d = new PmcMrpExceptionDO();
             d.setRunId(runId);
@@ -276,7 +388,10 @@ public class MrpRunService {
             exceptionMapper.insert(d);
         }
         Map<Long, List<Balance>> byMat = new LinkedHashMap<>();
-        for (Balance b : out.balances()) byMat.computeIfAbsent(b.materialId(), k -> new ArrayList<>()).add(b);
+        for (Balance b : out.balances()) {
+            if (partial && !changed.contains(b.materialId())) continue;
+            byMat.computeIfAbsent(b.materialId(), k -> new ArrayList<>()).add(b);
+        }
         for (Map.Entry<Long, List<Balance>> e : byMat.entrySet()) {
             Mat m = mats.get(e.getKey());
             List<Balance> list = e.getValue();
@@ -304,13 +419,34 @@ public class MrpRunService {
         // 新运算成功：上一次运算中待处理的建议被替代
         resultMapper.update(null, new LambdaUpdateWrapper<PmcMrpResultDO>().set(PmcMrpResultDO::getSuggestionStatus, SuggestionService.SUPERSEDED)
                 .ne(PmcMrpResultDO::getRunId, runId).eq(PmcMrpResultDO::getSuggestionStatus, SuggestionService.PENDING));
+        for (Map.Entry<Long, String> f : fingerprints.entrySet()) {
+            PmcMrpFingerprintDO d = new PmcMrpFingerprintDO();
+            d.setRunId(runId);
+            d.setMaterialId(f.getKey());
+            d.setFingerprint(f.getValue());
+            fingerprintMapper.insert(d);
+        }
+        fingerprintMapper.deleteOtherRuns(runId);
         PmcMrpRunDO r = runMapper.selectById(runId);
         r.setRunStatus(SUCCESS);
         r.setFinishedAt(LocalDateTime.now());
         r.setProgress(100);
-        r.setMaterialCount(out.materialCount());
-        r.setSuggestionCount(out.planned().size());
-        r.setExceptionCount(out.exceptions().size());
+        r.setMaterialCount(partial ? changed.size() : out.materialCount());
+        r.setSuggestionCount(Math.toIntExact(resultMapper.selectCount(new LambdaQueryWrapper<PmcMrpResultDO>().eq(PmcMrpResultDO::getRunId, runId))));
+        r.setExceptionCount(Math.toIntExact(exceptionMapper.selectCount(new LambdaQueryWrapper<PmcMrpExceptionDO>().eq(PmcMrpExceptionDO::getRunId, runId))));
+        if (nc != null) {
+            Map<String, Object> params = new LinkedHashMap<>(paramsOf(r.getParams()));
+            Map<String, Object> info = new LinkedHashMap<>();
+            if (partial) {
+                info.put("baseRunNo", nc.base().getRunNo());
+                info.put("changedMaterials", changed.size());
+                info.put("totalMaterials", out.materialCount());
+            } else {
+                info.put("fallback", nc.reason());
+            }
+            params.put("netChange", info);
+            r.setParams(json(params));
+        }
         runMapper.updateByIdOrFail(r);
         eventPublisher.publish(new MrpRunCompletedEvent(r.getId(), r.getRunNo(), SUCCESS, r.getMaterialCount(), r.getSuggestionCount(), r.getOperatorId()));
         if (r.getOperatorId() != null) {

@@ -29,7 +29,7 @@ interface Form {
   orderType: string; materialId?: string; qty?: string; bomId?: string; routingId?: string; planStart?: string; planEnd?: string; deptId?: string
   priority: number; batchNo?: string; salesOrderLineId?: string; remark?: string; materials: (MaterialSave & { key: number })[]
 }
-const form = ref<Form>({ orderType: 'STANDARD', priority: 5, planStart: today(), materials: [] })
+const form = ref<Form>({ orderType: 'NORMAL', priority: 5, planStart: today(), materials: [] })
 const guard = useLeaveGuard(() => form.value)
 const baseUom = ref<string>()
 let seq = 0
@@ -41,6 +41,7 @@ const rules: FormRules = {
   planEnd: [{ required: true, message: '请选择计划完工日期', trigger: 'change' }]
 }
 const isRework = computed(() => form.value.orderType === 'REWORK')
+const isDisassembly = computed(() => form.value.orderType === 'DISASSEMBLY')
 
 async function loadPreview(resetVersions = false) {
   const f = form.value
@@ -230,6 +231,18 @@ const title = computed(() => (detail.value ? `编辑生产订单 ${detail.value.
           <template #default="{ $index }"><el-button link type="danger" @click="form.materials.splice($index, 1)">删除</el-button></template>
         </el-table-column>
         <template #empty><ErpEmpty compact description="点击“添加物料”录入返工需要的物料" /></template>
+      </el-table>
+    </ErpPanel>
+
+    <ErpPanel v-else-if="isDisassembly" title="拆解产出预览"
+      :description="preview?.bomNo ? `投入产品本身；按 BOM ${preview.bomNo} V${preview.bomVersion} 拆出子件，下达时固化，子件通过“拆解入库”退料单入库` : '选择产品后显示'">
+      <el-table v-loading="previewing" :data="preview?.materials ?? []" max-height="420">
+        <el-table-column prop="lineNo" label="行" width="50" />
+        <el-table-column label="子件" min-width="220"><template #default="{ row }">{{ row.code }} {{ row.name }}</template></el-table-column>
+        <el-table-column prop="spec" label="规格" width="140" show-overflow-tooltip />
+        <el-table-column label="单位产出" width="110" align="right"><template #default="{ row }">{{ formatQty(row.qtyPer, 6) }}</template></el-table-column>
+        <el-table-column prop="uom" label="单位" width="60" />
+        <template #empty><ErpEmpty compact description="选择产品后显示 BOM 子件" /></template>
       </el-table>
     </ErpPanel>
 

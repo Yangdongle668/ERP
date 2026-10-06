@@ -10,13 +10,17 @@ import com.erp.module.quality.controller.vo.BasicVOs.SamplingQuery;
 import com.erp.module.quality.controller.vo.BasicVOs.SamplingResult;
 import com.erp.module.quality.controller.vo.BasicVOs.SamplingRow;
 import com.erp.module.quality.controller.vo.BasicVOs.SamplingSave;
+import com.erp.module.quality.config.QualityModuleConfig;
 import com.erp.module.quality.dal.dataobject.QcSamplingPlanDO;
+import com.erp.module.quality.dal.dataobject.QcScarDO;
 import com.erp.module.quality.dal.dataobject.QcStandardDO;
 import com.erp.module.quality.dal.dataobject.QcStandardItemDO;
 import com.erp.module.quality.dal.mapper.QcSamplingPlanMapper;
+import com.erp.module.quality.dal.mapper.QcScarMapper;
 import com.erp.module.quality.dal.mapper.QcStandardItemMapper;
 import com.erp.module.quality.dal.mapper.QcStandardMapper;
 import com.erp.module.quality.service.QcSupport;
+import com.erp.module.quality.service.ScarStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -45,8 +49,15 @@ public class SamplingService {
     private final QcSamplingPlanMapper mapper;
     private final QcStandardMapper standardMapper;
     private final QcStandardItemMapper standardItemMapper;
+    private final AqlTableService aqlTable;
+    private final QcScarMapper scarMapper;
+    private final QcSupport support;
 
-    public SamplingService(QcSamplingPlanMapper mapper, QcStandardMapper standardMapper, QcStandardItemMapper standardItemMapper) {
+    public SamplingService(QcSamplingPlanMapper mapper, QcStandardMapper standardMapper, QcStandardItemMapper standardItemMapper,
+                           AqlTableService aqlTable, QcScarMapper scarMapper, QcSupport support) {
+        this.aqlTable = aqlTable;
+        this.scarMapper = scarMapper;
+        this.support = support;
         this.mapper = mapper;
         this.standardMapper = standardMapper;
         this.standardItemMapper = standardItemMapper;
@@ -121,14 +132,14 @@ public class SamplingService {
     }
 
     /** QC-STD-R04 */
-    static void validate(String planType, String level, String cr, String ma, String mi, Integer fixedQty) {
+    void validate(String planType, String level, String cr, String ma, String mi, Integer fixedQty) {
         if (planType == null || !PLAN_TYPES.contains(planType)) throw BizException.of(QualityErrorCodes.NOT_EXISTS, "方案类型 " + planType);
         if (GB2828.equals(planType)) {
-            if (level == null || !AqlTable.LEVELS.contains(level) || (!StringUtils.hasText(cr) && !StringUtils.hasText(ma) && !StringUtils.hasText(mi))) {
+            if (level == null || !AqlTableService.LEVELS.contains(level) || (!StringUtils.hasText(cr) && !StringUtils.hasText(ma) && !StringUtils.hasText(mi))) {
                 throw new BizException(QualityErrorCodes.SAMPLING_AQL_REQUIRED);
             }
             for (String a : new String[]{cr, ma, mi}) {
-                if (StringUtils.hasText(a) && !AqlTable.validAql(a)) throw BizException.of(QualityErrorCodes.SAMPLING_AQL_INVALID, a);
+                if (StringUtils.hasText(a) && !aqlTable.validAql(a)) throw BizException.of(QualityErrorCodes.SAMPLING_AQL_INVALID, a);
             }
         }
         if (FIXED.equals(planType) && (fixedQty == null || fixedQty < 1)) throw new BizException(QualityErrorCodes.SAMPLING_FIXED_QTY);
@@ -166,7 +177,13 @@ public class SamplingService {
     /**
      * 样本量取各等级 n 的最大值，样本量 ≥ 批量时全检（n = 批量）；全检 / 固定数量方案按零缺陷判定（Ac0 / Re1）；免检样本量为 0。
      */
-    public static SamplingResult compute(QcSamplingPlanDO p, BigDecimal lotQty) {
+    public SamplingResult compute(QcSamplingPlanDO p, BigDecimal lotQty) {
+        return compute(p, lotQty, false);
+    }
+
+    /** @param tightened 加严检验（QC-SCAR-R04）：GB2828 方案的检验水平提高一级 */
+    public SamplingResult compute(QcSamplingPlanDO p, BigDecimal lotQty, boolean tightened) {
+        String level = tightened ? AqlTableService.tighten(p.getInspectionLevel()) : p.getInspectionLevel();
         long lot = Math.max(1, lotQty.setScale(0, RoundingMode.CEILING).longValue());
         List<LevelPlan> levels = new ArrayList<>();
         String letter = null;
@@ -182,12 +199,12 @@ public class SamplingService {
                 for (String lv : List.of("CR", "MA", "MI")) levels.add(new LevelPlan(lv, "0", n, 0, 1));
             }
             default -> {
-                letter = String.valueOf(AqlTable.codeLetter(lot, p.getInspectionLevel()));
+                letter = aqlTable.codeLetter(lot, level);
                 int max = 0;
                 String[][] aqls = {{"CR", p.getAqlCr()}, {"MA", p.getAqlMa()}, {"MI", p.getAqlMi()}};
                 for (String[] a : aqls) {
                     if (!StringUtils.hasText(a[1])) continue;
-                    AqlTable.Plan plan = AqlTable.lookup(lot, p.getInspectionLevel(), a[1]);
+                    AqlTableService.Plan plan = aqlTable.lookup(lot, level, a[1]);
                     int ln = (int) Math.min(plan.n(), lot);
                     levels.add(new LevelPlan(a[0], a[1], ln, plan.ac(), plan.re()));
                     max = Math.max(max, ln);
@@ -196,16 +213,17 @@ public class SamplingService {
             }
         }
         boolean full = n > 0 && n >= lot;
-        return new SamplingResult(p.getId(), p.getCode(), p.getName(), p.getPlanType(), p.getInspectionLevel(), letter, lotQty, n, full, levels, text(p, levels, n, full));
+        return new SamplingResult(p.getId(), p.getCode(), p.getName(), p.getPlanType(), level, letter, lotQty, n, full, levels,
+                text(p, level, levels, n, full) + (tightened && GB2828.equals(p.getPlanType()) ? "（加严）" : ""));
     }
 
-    private static String text(QcSamplingPlanDO p, List<LevelPlan> levels, int n, boolean full) {
+    private static String text(QcSamplingPlanDO p, String level, List<LevelPlan> levels, int n, boolean full) {
         return switch (p.getPlanType()) {
             case EXEMPT -> "免检";
             case FULL -> "全检 " + n;
             case FIXED -> "固定抽样 " + n + (full ? "（全检）" : "");
             default -> {
-                StringBuilder sb = new StringBuilder(p.getInspectionLevel() + " 级");
+                StringBuilder sb = new StringBuilder(level + " 级");
                 for (LevelPlan l : levels) {
                     sb.append("，").append(l.level()).append(" ").append(l.aql());
                     sb.append(" Ac").append(l.ac()).append("/Re").append(l.re());
@@ -217,8 +235,15 @@ public class SamplingService {
     }
 
     /** 项目级抽样：覆盖方案的样本量（不超过批量） */
-    public static int itemSampleQty(QcSamplingPlanDO override, BigDecimal lotQty, int defaultQty) {
+    public int itemSampleQty(QcSamplingPlanDO override, BigDecimal lotQty, int defaultQty, boolean tightened) {
         if (override == null) return defaultQty;
-        return compute(override, lotQty).sampleQty();
+        return compute(override, lotQty, tightened).sampleQty();
+    }
+
+    /** QC-SCAR-R04：该供应商该物料有验证中的 SCAR 且参数开启时，IQC 加严抽样 */
+    public boolean scarTightened(Long supplierId, Long materialId) {
+        if (supplierId == null || materialId == null || !support.params().getBool(QualityModuleConfig.P_SCAR_TIGHTENED)) return false;
+        return scarMapper.selectCount(new LambdaQueryWrapper<QcScarDO>().eq(QcScarDO::getSupplierId, supplierId).eq(QcScarDO::getMaterialId, materialId)
+                .eq(QcScarDO::getScarStatus, ScarStatus.VERIFYING.name())) > 0;
     }
 }

@@ -54,11 +54,11 @@ export const SEVERITY: StatusMap = {
   MAJOR: { label: '严重', type: 'warning' },
   MINOR: { label: '轻微', type: 'info' }
 }
-export const DISPOSITION: Record<string, string> = { RETURN: '退供应商', CONCESSION: '特采', SORT: '挑选', REWORK: '返工', SCRAP: '报废' }
+export const DISPOSITION: Record<string, string> = { RETURN: '退供应商', CONCESSION: '特采', SORT: '挑选', REWORK: '返工', SCRAP: '报废', DOWNGRADE: '降级使用' }
 /** QC-NCR-R02：检验来源的可选处置 */
 export function allowedDispositions(source?: string): string[] {
-  if (source === 'IQC' || source === 'RECHECK') return ['RETURN', 'CONCESSION', 'SORT', 'SCRAP']
-  if (source === 'FQC' || source === 'RETURN') return ['CONCESSION', 'REWORK', 'SCRAP']
+  if (source === 'IQC' || source === 'RECHECK') return ['RETURN', 'CONCESSION', 'SORT', 'SCRAP', 'DOWNGRADE']
+  if (source === 'FQC' || source === 'RETURN') return ['CONCESSION', 'REWORK', 'SCRAP', 'DOWNGRADE']
   if (source === 'OQC') return ['REWORK', 'SORT', 'CONCESSION']
   return Object.keys(DISPOSITION)
 }
@@ -116,7 +116,15 @@ export interface StandardItem {
 }
 export interface StandardDetail extends StandardRow { fileId?: string; remark?: string; effectiveAt?: string; version: number; items: StandardItem[]; versions: StandardRow[] }
 
+/** AQL 抽样表 */
+export interface AqlCodeRow { id: string; lotMin: number; lotMax?: number; inspectionLevel: string; codeLetter: string; version: number }
+export interface AqlRow { id: string; codeLetter: string; aql: string; sampleLetter: string; sampleSize: number; ac: number; re: number; version: number }
+export interface AqlTableView { levels: string[]; letters: string[]; aqls: string[]; codes: AqlCodeRow[]; rows: AqlRow[] }
+
 export const basicApi = {
+  aqlTable: () => http.get<AqlTableView>('/quality/aql-table'),
+  saveAqlCode: (id: string, d: object) => http.put<void>(`/quality/aql-table/codes/${id}`, d),
+  saveAqlRow: (id: string, d: object) => http.put<void>(`/quality/aql-table/rows/${id}`, d),
   items: (q: PageParam & Record<string, unknown>) => http.get<PageResult<ItemLibRow>>('/quality/inspection-items', q),
   saveItem: (id: string | undefined, d: object) => (id ? http.put<void>(`/quality/inspection-items/${id}`, d) : http.post<string>('/quality/inspection-items', d)),
   deleteItem: (id: string) => http.delete<void>(`/quality/inspection-items/${id}`),
@@ -186,7 +194,11 @@ export interface NcrRow {
   responsibility: string; dispositionSummary?: string; supplierName?: string; customerName?: string; capaRequired: boolean; scarRequired: boolean; status: string
   ownerName?: string; docDate: string
 }
-export interface DispositionRow { id?: string; seq?: number; disposition: string; qty: string; remark?: string; followDocNo?: string; done?: boolean; doneAt?: string }
+export interface DispositionRow {
+  id?: string; seq?: number; disposition: string; qty: string; remark?: string; followDocNo?: string; done?: boolean; doneAt?: string
+  /** 降级使用：降级后的物料 */
+  targetMaterialId?: string; targetMaterialCode?: string; targetMaterialName?: string
+}
 export interface NcrDetail {
   id: string; docNo: string; docDate: string; source: string; sourceNo?: string; inspectionId?: string; inspectionNo?: string; inspectionResult?: string
   materialId: string; materialCode: string; materialName: string; materialSpec?: string; baseUom?: string; batchNo?: string; ncrQty: string; supplierId?: string
@@ -205,6 +217,7 @@ export const ncrApi = {
   purchaseReturn: (id: string) => http.post<string>(`/quality/ncrs/${id}/create-purchase-return`),
   reworkOrder: (id: string) => http.post<string>(`/quality/ncrs/${id}/create-rework-order`),
   scrapOut: (id: string) => http.post<string>(`/quality/ncrs/${id}/create-scrap-out`),
+  downgrade: (id: string) => http.post<string>(`/quality/ncrs/${id}/create-downgrade`),
   createCapa: (id: string) => http.post<string>(`/quality/ncrs/${id}/create-capa`),
   createScar: (id: string) => http.post<string>(`/quality/ncrs/${id}/create-scar`),
   close: (id: string, unfreeze: boolean) => http.post<void>(`/quality/ncrs/${id}/close`, { unfreeze }),

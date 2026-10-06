@@ -147,7 +147,7 @@ public class InventoryModuleConfig {
     public DictDefinition otherOutReasonDict() {
         return DictDefinition.of("inv_other_out_reason", "其他出库原因", MODULE)
                 .builtin("SCRAP", "报废", "Scrap").builtin("SAMPLE", "样品", "Sample").builtin("RD_USE", "研发领用", "R&D use")
-                .builtin("DEPT_USE", "部门领用", "Department use").builtin("OTHER", "其他", "Other");
+                .builtin("DEPT_USE", "部门领用", "Department use").builtin("DOWNGRADE", "降级转换", "Downgrade").builtin("OTHER", "其他", "Other");
     }
 
     @Bean

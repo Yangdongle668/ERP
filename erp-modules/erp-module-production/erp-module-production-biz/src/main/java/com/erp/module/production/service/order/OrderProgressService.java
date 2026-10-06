@@ -88,11 +88,12 @@ public class OrderProgressService {
 
     /**
      * 完工判断（MFG-FN-R06）：合格入库 + 报废 ≥ 计划数量 → 已完工，发布完工事件（样品订单回调样品单）；
-     * 冲销后不再满足时已完工 → 生产中。调用方负责先保存数量字段。
+     * 拆解订单没有产品入库，按末道报工（完成 + 报废）判断。冲销后不再满足时已完工 → 生产中。调用方负责先保存数量字段。
      */
     public void checkCompletion(MfgProdOrderDO o) {
         ProdStatus s = status(o);
-        boolean done = MfgSupport.nz(o.getQualifiedStockedQty()).add(MfgSupport.nz(o.getScrappedQty())).compareTo(o.getQty()) >= 0;
+        BigDecimal output = ProdOrderService.DISASSEMBLY.equals(o.getOrderType()) ? o.getCompletedQty() : o.getQualifiedStockedQty();
+        boolean done = MfgSupport.nz(output).add(MfgSupport.nz(o.getScrappedQty())).compareTo(o.getQty()) >= 0;
         if (done && (s == ProdStatus.RELEASED || s == ProdStatus.IN_PROGRESS)) {
             o.setActualEnd(LocalDateTime.now());
             fire(o, MfgAction.COMPLETE, null);

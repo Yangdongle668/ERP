@@ -139,6 +139,10 @@ public final class MetricRegistry {
                 Source.PRODUCTION, "SUM(good_qty)", "SUM(good_qty + defect_qty + scrap_qty)", PRODUCTION_DIMS, mfgPerm, false);
         add("work_hours", "工时", mfg, Unit.QTY, "期间内报工工时（小时）",
                 Source.PRODUCTION, "SUM(work_hours)", null, PRODUCTION_DIMS, mfgPerm, false);
+        add("std_hours", "标准工时", mfg, Unit.QTY, "期间内报工合格数量 × 工序标准工时（生产订单下达时固化的工艺路线标准秒/件）÷ 3600",
+                Source.PRODUCTION, "SUM(std_hours)", null, PRODUCTION_DIMS, mfgPerm, false);
+        add("production_efficiency", "效率", mfg, Unit.PERCENT, "标准工时 ÷ 实际报工工时；没有工艺路线标准工时的工序标准工时为 0",
+                Source.PRODUCTION, "SUM(std_hours)", "SUM(work_hours)", PRODUCTION_DIMS, mfgPerm, false);
         add("delayed_order_count", "延期订单数", mfg, Unit.COUNT, "计划完工日在期间内、到期未完工或实际完工晚于计划的生产订单数",
                 Source.PRODUCTION, "SUM(delayed_order_count)", null, pick(PRODUCTION_DIMS, "date", "dept", "category", "material"), mfgPerm, false);
 

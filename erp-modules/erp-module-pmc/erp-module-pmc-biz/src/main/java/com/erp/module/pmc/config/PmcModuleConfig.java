@@ -30,6 +30,7 @@ public class PmcModuleConfig {
     public static final String P_INCLUDE_SAFETY = "pmc.mrp.include-safety-stock";
     public static final String P_USE_SUBSTITUTE = "pmc.mrp.use-substitute";
     public static final String P_PO_DATE_BASIS = "pmc.mrp.po-date-basis";
+    public static final String P_LEAD_TIME_BASIS = "pmc.lead-time.basis";
     public static final String P_NIGHTLY = "pmc.mrp.nightly";
     public static final String P_TOLERANCE = "pmc.mrp.reschedule-tolerance-days";
     public static final String P_ALERT_LEVELS = "pmc.alert.levels";
@@ -153,6 +154,9 @@ public class PmcModuleConfig {
                 ParamDefinition.enumOf(P_PO_DATE_BASIS, MODULE, "MRP", "在途采购到货日期依据", "CONFIRMED",
                         List.of(new ParamDefinition.Option("CONFIRMED", "优先确认交期"), new ParamDefinition.Option("REQUIRED", "要求日期")), "").sort(60),
                 ParamDefinition.bool(P_NIGHTLY, MODULE, "MRP", "夜间自动全量运算", false, "定时任务 02:30").sort(70),
+                ParamDefinition.enumOf(P_LEAD_TIME_BASIS, MODULE, "MRP", "生产提前期依据", "MATERIAL",
+                        List.of(new ParamDefinition.Option("MATERIAL", "物料提前期（天）"), new ParamDefinition.Option("ROUTING", "按工艺工时换算")),
+                        "按工艺：准备时间 + 数量 × 标准工时，按工作中心日产能换算天数；没有工艺路线时仍取物料提前期").sort(65),
                 ParamDefinition.integer(P_TOLERANCE, MODULE, "MRP", "例外信息容差（天）", 3, 0, 60,
                         "供应日期与需求日期相差超过 N 天才产生提前/推迟建议").sort(80),
                 ParamDefinition.string(P_ALERT_LEVELS, MODULE, "预警", "交期预警阈值（天）", "2,7", "延期 ≤2 天提示、3～7 天警告、>7 天严重").sort(10),

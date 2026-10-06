@@ -6,17 +6,21 @@ import com.erp.module.bi.api.fact.BiFactProvider;
 import com.erp.module.bi.api.fact.BiFacts.ProductionFact;
 import com.erp.module.production.dal.dataobject.MfgFinishDO;
 import com.erp.module.production.dal.dataobject.MfgProdOrderDO;
+import com.erp.module.production.dal.dataobject.MfgProdOrderOperationDO;
 import com.erp.module.production.dal.dataobject.MfgReportDO;
 import com.erp.module.production.dal.mapper.MfgFinishMapper;
 import com.erp.module.production.dal.mapper.MfgProdOrderMapper;
+import com.erp.module.production.dal.mapper.MfgProdOrderOperationMapper;
 import com.erp.module.production.dal.mapper.MfgReportMapper;
 import com.erp.module.production.service.ProdStatus;
 import com.erp.module.production.service.report.ReportService;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -25,22 +29,27 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * BI 生产事实（需求 13-01）：报工（已审核，报工日期：合格 / 不良 / 报废 / 工时，正常报工（非维修、报废报工）的合格数计一次合格）、
+ * BI 生产事实（需求 13-01）：报工（已审核，报工日期：合格 / 不良 / 报废 / 工时，正常报工（非维修、报废报工）的合格数计一次合格；
+ * 标准工时 = 合格 × 工序标准秒 ÷ 3600，取生产订单下达时固化的工序标准工时，与生产报表同口径）、
  * 合格完工入库数量（完工单日期）、计划数量与延期订单（计划完工日；到期未完工或实际完工晚于计划为延期）。车间取生产订单部门。
  */
 @Component
 public class ProductionBiFactProvider implements BiFactProvider {
 
+    private static final BigDecimal SECONDS_PER_HOUR = BigDecimal.valueOf(3600);
     static final Set<String> NOT_PLANNED = Set.of(ProdStatus.DRAFT.name(), ProdStatus.PENDING.name(), ProdStatus.VOIDED.name());
 
     private final MfgProdOrderMapper orderMapper;
     private final MfgReportMapper reportMapper;
     private final MfgFinishMapper finishMapper;
+    private final MfgProdOrderOperationMapper operationMapper;
 
-    public ProductionBiFactProvider(MfgProdOrderMapper orderMapper, MfgReportMapper reportMapper, MfgFinishMapper finishMapper) {
+    public ProductionBiFactProvider(MfgProdOrderMapper orderMapper, MfgReportMapper reportMapper, MfgFinishMapper finishMapper,
+                                    MfgProdOrderOperationMapper operationMapper) {
         this.orderMapper = orderMapper;
         this.reportMapper = reportMapper;
         this.finishMapper = finishMapper;
+        this.operationMapper = operationMapper;
     }
 
     @Override
@@ -57,13 +66,20 @@ public class ProductionBiFactProvider implements BiFactProvider {
         finishes.forEach(f -> orderIds.add(f.getProdOrderId()));
         Map<Long, MfgProdOrderDO> orders = orderIds.isEmpty() ? Map.of() : orderMapper.selectBatchIds(orderIds).stream()
                 .collect(Collectors.toMap(MfgProdOrderDO::getId, Function.identity()));
+        Map<String, BigDecimal> stdSeconds = new HashMap<>();
+        Set<Long> reportOrders = reports.stream().map(MfgReportDO::getProdOrderId).collect(Collectors.toSet());
+        for (MfgProdOrderOperationDO op : operationMapper.selectByParents(reportOrders)) {
+            stdSeconds.putIfAbsent(op.getProdOrderId() + "#" + op.getSeq(), nz(op.getStdRunSeconds()));
+        }
         for (MfgReportDO r : reports) {
             MfgProdOrderDO o = orders.get(r.getProdOrderId());
             if (o == null) continue;
             BigDecimal good = nz(r.getGoodQty());
             boolean rework = !ReportService.NORMAL.equals(r.getReportKind());
+            BigDecimal std = good.multiply(stdSeconds.getOrDefault(r.getProdOrderId() + "#" + r.getOperationSeq(), BigDecimal.ZERO))
+                    .divide(SECONDS_PER_HOUR, 4, RoundingMode.HALF_UP);
             facts.add(new ProductionFact(r.getReportDate(), r.getDeptId() != null ? r.getDeptId() : o.getDeptId(), o.getMaterialId(), BigDecimal.ZERO, good,
-                    nz(r.getDefectQty()), nz(r.getScrapQty()), nz(r.getWorkHours()), BigDecimal.ZERO, BigDecimal.ZERO, rework ? BigDecimal.ZERO : good, 0));
+                    nz(r.getDefectQty()), nz(r.getScrapQty()), nz(r.getWorkHours()), std, BigDecimal.ZERO, rework ? BigDecimal.ZERO : good, 0));
         }
         for (MfgFinishDO f : finishes) {
             MfgProdOrderDO o = orders.get(f.getProdOrderId());

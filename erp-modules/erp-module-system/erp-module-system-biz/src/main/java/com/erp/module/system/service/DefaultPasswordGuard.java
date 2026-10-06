@@ -1,5 +1,6 @@
 package com.erp.module.system.service;
 
+import com.erp.framework.maintenance.DataRestoredEvent;
 import com.erp.module.system.dal.dataobject.UserDO;
 import com.erp.module.system.dal.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +32,7 @@ public class DefaultPasswordGuard {
         this.enabled = enabled;
     }
 
-    @EventListener(ApplicationReadyEvent.class)
+    @EventListener({ApplicationReadyEvent.class, DataRestoredEvent.class})
     public void onReady() {
         if (enabled) check();
     }
