@@ -1,5 +1,7 @@
 package com.erp.module.system.config;
 
+import com.erp.module.system.api.coderule.CodeRuleDefinition;
+import com.erp.module.system.api.coderule.CodeRuleDefinition.ResetCycle;
 import com.erp.module.system.api.dict.DictDefinition;
 import com.erp.module.system.api.param.ParamDefinition;
 import com.erp.module.system.api.param.ParamDefinition.Option;
@@ -18,6 +20,23 @@ import java.util.List;
 public class SystemDeclarations {
 
     private static final String M = "system";
+
+    /** 员工工号编码规则（《编码规则管理制度》5.3）：工厂代码-四位流水，如 11-0001，各工厂独立计数 */
+    public static final String CODE_EMPLOYEE_NO = "SYS_EMPLOYEE_NO";
+    /** 工厂代码字典：工号前两位；固定资产编码 LD 后一位取末位（1 广东蓝电、0 东莞蓝电） */
+    public static final String DICT_FACTORY = "sys_factory";
+
+    @Bean
+    public CodeRuleDefinition employeeNoCodeRule() {
+        return CodeRuleDefinition.withVars(CODE_EMPLOYEE_NO, "员工工号", M, "{factory}-", "", "", 4, ResetCycle.NEVER, "factory").manual(true);
+    }
+
+    @Bean
+    public DictDefinition factoryDict() {
+        return DictDefinition.of(DICT_FACTORY, "工厂代码", M)
+                .item("11", "广东蓝电锂能有限公司", "Guangdong LanDazzle Technology Co., Ltd")
+                .item("10", "东莞市蓝电新能源科技有限公司", "Dongguan LanDazzle New Energy Technology Co., Ltd");
+    }
 
     // ==================== 权限点 ====================
 

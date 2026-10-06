@@ -47,7 +47,8 @@ public class CrmModuleConfig {
 
     @Bean
     public CodeRuleDefinition crmCustomerCodeRule() {
-        return CodeRuleDefinition.of(CUSTOMER, "客户编码", MODULE, "C", "", "", 5, ResetCycle.NEVER).manual(true);
+        // 《编码规则管理制度》5.1：LD-应用领域字母-三位流水，如 LD-A-001（各领域独立计数）
+        return CodeRuleDefinition.withVars(CUSTOMER, "客户编码", MODULE, "LD-{domain}-", "", "", 3, ResetCycle.NEVER, "domain").manual(true);
     }
 
     @Bean
@@ -125,6 +126,17 @@ public class CrmModuleConfig {
                 .add(new Item("B", "B 级", "B", TagType.PRIMARY, true, false))
                 .add(new Item("C", "C 级", "C", TagType.WARNING, true, true))
                 .add(new Item("D", "D 级风险客户", "D", TagType.DANGER, true, false));
+    }
+
+    /** 应用领域：字典值即客户编码中的领域字母，后续领域按字母依次新增 */
+    @Bean
+    public DictDefinition crmAppDomainDict() {
+        return DictDefinition.of("crm_app_domain", "应用领域", MODULE)
+                .item("A", "智能医疗", "Smart medical")
+                .item("B", "智能穿戴（戒指、眼镜、手表、耳机等）", "Smart wearables")
+                .item("C", "消费电子", "Consumer electronics")
+                .item("D", "低空设备", "Low-altitude equipment")
+                .item("E", "物联网（智能家居等）", "IoT");
     }
 
     @Bean

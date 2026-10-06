@@ -22,6 +22,36 @@ class UserRoleIntegrationTest extends SystemTestSupport {
                 "用户名「" + name + "」已存在");
     }
 
+    /** R12：工号为空且选择工厂时按《编码规则管理制度》5.3 生成：工厂代码-四位流水，各工厂独立计数；修改时保留 */
+    @Test
+    void employeeNoByFactory_USR_R12() throws Exception {
+        String dept = createDept(HQ, "部门" + uniq());
+        String role = createRole("SELF", List.of());
+        var gd = userBody("gd" + uniq(), dept, List.of(role), false);
+        gd.put("factoryCode", "11");
+        String a = ok(doPost("/api/system/users", admin, gd)).at("/id").asText();
+        String noA = ok(doGet("/api/system/users/" + a, admin)).at("/employeeNo").asText();
+        assertThat(noA).matches("11-\\d{4}");
+        var gd2 = userBody("gd" + uniq(), dept, List.of(role), false);
+        gd2.put("factoryCode", "11");
+        String b = ok(doPost("/api/system/users", admin, gd2)).at("/id").asText();
+        JsonNode bd = ok(doGet("/api/system/users/" + b, admin));
+        assertThat(Integer.parseInt(bd.at("/employeeNo").asText().substring(3))).isEqualTo(Integer.parseInt(noA.substring(3)) + 1);
+        var dg = userBody("dg" + uniq(), dept, List.of(role), false);
+        dg.put("factoryCode", "10");
+        String c = ok(doPost("/api/system/users", admin, dg)).at("/id").asText();
+        assertThat(ok(doGet("/api/system/users/" + c, admin)).at("/employeeNo").asText()).matches("10-\\d{4}");
+        // 修改时工号为空、仍选工厂：保留原工号
+        var upd = userBody(bd.at("/username").asText(), dept, List.of(role), false);
+        upd.put("factoryCode", "11");
+        upd.put("version", bd.at("/version").asInt());
+        ok(doPut("/api/system/users/" + b, admin, upd));
+        assertThat(ok(doGet("/api/system/users/" + b, admin)).at("/employeeNo").asText()).isEqualTo(bd.at("/employeeNo").asText());
+        var bad = userBody("xx" + uniq(), dept, List.of(role), false);
+        bad.put("factoryCode", "99");
+        assertThat(doPost("/api/system/users", admin, bad).at("/code").asInt()).isNotZero();
+    }
+
     @Test
     void superiorCycle_USR_T03() throws Exception {
         String dept = createDept(HQ, "部门" + uniq());

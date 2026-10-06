@@ -211,6 +211,7 @@ abstract class PmcTestSupport extends AbstractIntegrationTest {
         String full = "PMC客户 " + uniq();
         c.put("name", full);
         c.put("country", "CN");
+        c.put("appDomain", "C");
         c.put("paymentTermId", TERM);
         c.put("taxNo", "91440300" + uniq());
         c.put("contacts", List.of(Map.of("name", "John", "email", "john@example.com", "isPrimary", true)));

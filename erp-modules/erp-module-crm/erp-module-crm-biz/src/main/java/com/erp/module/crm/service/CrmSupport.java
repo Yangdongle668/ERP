@@ -80,6 +80,10 @@ public class CrmSupport {
         return codeRuleApi.nextCode(rule);
     }
 
+    public String nextNo(String rule, Map<String, String> vars) {
+        return codeRuleApi.nextCode(rule, vars);
+    }
+
     public boolean manualCodeAllowed(String rule) {
         return codeRuleApi.isManualAllowed(rule);
     }

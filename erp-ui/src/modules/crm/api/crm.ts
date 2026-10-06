@@ -124,6 +124,8 @@ export interface CustomerDetail {
   city?: string
   address?: string
   industry?: string
+  /** 应用领域（字典 crm_app_domain），客户编码 LD-领域-流水 */
+  appDomain?: string
   source?: string
   website?: string
   phone?: string
@@ -165,6 +167,8 @@ export interface CustomerSave {
   city?: string
   address?: string
   industry?: string
+  /** 应用领域（字典 crm_app_domain），客户编码 LD-领域-流水 */
+  appDomain?: string
   source?: string
   website?: string
   phone?: string

@@ -25,6 +25,7 @@ public interface CrmErrorCodes {
     ErrorCode CUSTOMER_OWNER_FORBIDDEN = new ErrorCode(1_003_001_013, "没有客户转移权限，负责人只能是自己");
     ErrorCode TRANSFER_REASON_REQUIRED = new ErrorCode(1_003_001_014, "请填写转移原因");
     ErrorCode CUSTOMER_FIELD_INVALID = new ErrorCode(1_003_001_015, "{}");
+    ErrorCode CUSTOMER_DOMAIN_REQUIRED = new ErrorCode(1_003_001_016, "请选择应用领域（客户编码按领域生成：LD-领域-流水号）");
 
     // ========== 客户料号 1_003_002_xxx ==========
     ErrorCode PART_NOT_EXISTS = new ErrorCode(1_003_002_000, "客户料号对照不存在");

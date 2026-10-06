@@ -44,6 +44,8 @@ public class CustomerDO extends BaseDO {
     private String address;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String industry;
+    /** 应用领域（客户编码 LD-领域-流水） */
+    private String appDomain;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String source;
     @TableField(updateStrategy = FieldStrategy.ALWAYS)

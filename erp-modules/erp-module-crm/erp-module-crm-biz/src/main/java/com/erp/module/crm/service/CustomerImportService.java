@@ -34,6 +34,7 @@ public class CustomerImportService {
             ExcelColumn.input("customerType", "客户类型", false, "终端客户/贸易商/代理商/品牌商，默认终端客户"),
             ExcelColumn.input("level", "等级", false, "A/B/C/D，默认 C"),
             ExcelColumn.input("country", "国家", true, "ISO 二位代码，如 CN、US"),
+            ExcelColumn.input("appDomain", "应用领域", false, "编码为空时必填：A 智能医疗 / B 智能穿戴 / C 消费电子 / D 低空设备 / E 物联网（填字母或名称）"),
             ExcelColumn.input("taxNo", "税号", false, null),
             ExcelColumn.input("phone", "电话", false, null),
             ExcelColumn.input("email", "邮箱", false, null),
@@ -96,6 +97,12 @@ public class CustomerImportService {
     /** 每个客户单独事务：失败的行不影响其他行 */
     public ImportResult doImport(List<ImportRow> rows, Long paymentTermId) {
         Map<String, String> types = typeByLabel();
+        Map<String, String> domains = new HashMap<>();
+        for (DictItemDTO d : dictApi.getItems("crm_app_domain")) {
+            domains.put(d.label(), d.value());
+            domains.put(d.value(), d.value());
+            domains.put(d.label().replaceAll("（.*", ""), d.value());
+        }
         int ok = 0;
         List<ImportResult.Error> errors = new ArrayList<>();
         for (ImportRow r : rows) {
@@ -111,7 +118,8 @@ public class CustomerImportService {
                         r.get("shipAddress"), true, null));
                 customerService.create(new CustomerSave(r.get("code"), r.get("name"), r.get("nameEn"), r.get("shortName"),
                         r.get("customerType") == null ? null : types.get(r.get("customerType")),
-                        r.get("level") == null ? null : r.get("level").toUpperCase(Locale.ROOT), country, null, null, null, r.get("address"), null, null,
+                        r.get("level") == null ? null : r.get("level").toUpperCase(Locale.ROOT), country, null, null, null, r.get("address"), null,
+                        r.get("appDomain") == null ? null : domains.getOrDefault(r.get("appDomain").trim(), r.get("appDomain").trim()), null,
                         null, r.get("phone"), r.get("email"), r.get("taxNo"), owner, r.get("currency"), paymentTermId, null, null, null, null,
                         r.get("remark"), contacts, addresses, null, null, null));
                 ok++;

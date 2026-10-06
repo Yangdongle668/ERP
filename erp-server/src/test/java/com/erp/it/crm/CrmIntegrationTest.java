@@ -57,6 +57,7 @@ class CrmIntegrationTest extends AbstractIntegrationTest {
         c.put("name", name);
         c.put("nameEn", "CN".equals(country) ? null : name);
         c.put("country", country);
+        c.put("appDomain", "C");
         return c;
     }
 
@@ -111,7 +112,15 @@ class CrmIntegrationTest extends AbstractIntegrationTest {
         assertThat(d.at("/isForeign").asBoolean()).isTrue();
         assertThat(d.at("/currency").asText()).isEqualTo("USD");
         assertThat(d.at("/salesTaxRate").decimalValue()).isEqualByComparingTo("0");
-        assertThat(d.at("/code").asText()).matches("C\\d{5}");
+        // R11：客户编码 LD-应用领域-三位流水（《编码规则管理制度》5.1）
+        assertThat(d.at("/code").asText()).matches("LD-C-\\d{3}");
+        assertThat(d.at("/appDomain").asText()).isEqualTo("C");
+        Map<String, Object> medical = customer("Medical " + uniq(), "US");
+        medical.put("appDomain", "A");
+        assertThat(detail(create(medical, admin)).at("/code").asText()).matches("LD-A-\\d{3}");
+        Map<String, Object> noDomain = customer("NoDomain " + uniq(), "US");
+        noDomain.remove("appDomain");
+        assertError(doPost("/api/crm/customers", admin, noDomain), "请选择应用领域（客户编码按领域生成：LD-领域-流水号）");
         assertThat(d.at("/customerStatus").asText()).isEqualTo("PROSPECT");
         assertThat(d.at("/country").asText()).isEqualTo("US");
 

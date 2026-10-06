@@ -35,7 +35,7 @@ crm_customer、crm_contact、crm_address、crm_customer_bank、crm_customer_part
 
 ## 5. 编码规则
 
-CRM_CUSTOMER（C + 5 位，允许手工）、CRM_OPPORTUNITY。
+CRM_CUSTOMER（LD-{领域}- + 3 位，如 LD-A-001，允许手工；01-客户 R11）、CRM_OPPORTUNITY。
 
 ## 6. 内置字典
 

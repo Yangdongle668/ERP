@@ -23,6 +23,7 @@ class FinanceBankImportIntegrationTest extends FinanceTestSupport {
         Map<String, Object> c = new HashMap<>();
         c.put("name", name);
         c.put("country", "CN");
+        c.put("appDomain", "C");
         c.put("paymentTermId", "404");
         c.put("taxNo", "91440300" + uniq());
         c.put("contacts", List.of(Map.of("name", "John", "email", "john@example.com", "isPrimary", true)));

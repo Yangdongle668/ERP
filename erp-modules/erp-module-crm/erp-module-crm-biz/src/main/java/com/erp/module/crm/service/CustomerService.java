@@ -248,7 +248,7 @@ public class CustomerService implements CustomerApi {
         String termName = c.getPaymentTermId() == null ? null : paymentTermApi.get(c.getPaymentTermId()).map(PaymentTermDTO::name).orElse(null);
         return new CustomerDetail(c.getId(), c.getCode(), c.getName(), c.getNameEn(), c.getShortName(), c.getCustomerType(), c.getCustomerLevel(),
                 c.getCustomerStatus().name(), Boolean.TRUE.equals(c.getIsForeign()), c.getCountry(), c.getProvince(), c.getCity(), c.getAddress(),
-                c.getIndustry(), c.getSource(), c.getWebsite(), c.getPhone(), c.getEmail(), c.getTaxNo(), c.getOwnerId(),
+                c.getIndustry(), c.getAppDomain(), c.getSource(), c.getWebsite(), c.getPhone(), c.getEmail(), c.getTaxNo(), c.getOwnerId(),
                 CrmSupport.name(users, c.getOwnerId()), c.getDeptId(), deptName, c.getCurrency(), c.getPaymentTermId(), termName, c.getTradeTerm(),
                 c.getSalesTaxRate(), c.getBlacklistReason(), c.getFirstOrderDate(), c.getLastOrderDate(), c.getRemark(),
                 contactMapper.selectByParent(id).stream().map(CustomerService::contactResp).toList(),
@@ -310,11 +310,13 @@ public class CustomerService implements CustomerApi {
     public SaveResult create(CustomerSave req) {
         CustomerDO c = new CustomerDO();
         String code = CrmSupport.trim(req.code());
-        if (code != null && support.manualCodeAllowed(BIZ_TYPE)) c.setCode(code.toUpperCase(Locale.ROOT));
-        else c.setCode(support.nextNo(BIZ_TYPE));
         c.setCustomerStatus(PROSPECT);
         c.setCreditControl("DEFAULT");
         fill(c, req, true);
+        // R11：客户编码 LD-应用领域-三位流水（《编码规则管理制度》5.1），手工编码时不要求领域
+        if (code != null && support.manualCodeAllowed(BIZ_TYPE)) c.setCode(code.toUpperCase(Locale.ROOT));
+        else if (c.getAppDomain() == null) throw new BizException(CrmErrorCodes.CUSTOMER_DOMAIN_REQUIRED);
+        else c.setCode(support.nextNo(BIZ_TYPE, Map.of("domain", c.getAppDomain())));
         List<String> warnings = new ArrayList<>(checkUnique(c));
         mapper.insert(c);
         saveChildren(c, req);
@@ -379,6 +381,13 @@ public class CustomerService implements CustomerApi {
         String industry = CrmSupport.trim(req.industry());
         if (industry != null && !industry.equals(c.getIndustry())) support.dict().validate("crm_industry", industry, "行业");
         c.setIndustry(industry);
+        String domain = CrmSupport.trim(req.appDomain());
+        if (domain != null) {
+            domain = domain.toUpperCase(Locale.ROOT);
+            if (!domain.equals(c.getAppDomain())) support.dict().validate("crm_app_domain", domain, "应用领域");
+            if (!domain.matches("[A-Z]")) throw BizException.of(CrmErrorCodes.CUSTOMER_FIELD_INVALID, "应用领域代码必须是一个英文字母");
+        }
+        if (domain != null || creating) c.setAppDomain(domain);
         String source = CrmSupport.trim(req.source());
         if (source != null && !source.equals(c.getSource())) support.dict().validate("crm_source", source, "客户来源");
         c.setSource(source);

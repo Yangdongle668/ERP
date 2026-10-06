@@ -9,6 +9,9 @@ import com.erp.framework.excel.ImportRow;
 import com.erp.framework.security.LoginUser;
 import com.erp.framework.security.SecurityUtils;
 import com.erp.module.system.api.SystemErrorCodes;
+import com.erp.module.system.api.coderule.CodeRuleApi;
+import com.erp.module.system.api.dict.DictApi;
+import com.erp.module.system.config.SystemDeclarations;
 import com.erp.module.system.api.org.OrgDTO;
 import com.erp.module.system.api.param.ParamApi;
 import com.erp.module.system.api.user.UserApi;
@@ -75,10 +78,15 @@ public class UserService implements UserApi {
     private final SystemCaches caches;
     private final TransactionTemplate tx;
     private final ApplicationEventPublisher eventPublisher;
+    private final CodeRuleApi codeRuleApi;
+    private final DictApi dictApi;
 
     public UserService(UserMapper userMapper, UserRoleMapper userRoleMapper, RoleMapper roleMapper, OrgMapper orgMapper,
                        OrgService orgService, PasswordEncoder passwordEncoder, PasswordPolicyService passwordPolicy,
-                       ParamApi paramApi, SystemCaches caches, TransactionTemplate tx, ApplicationEventPublisher eventPublisher) {
+                       ParamApi paramApi, SystemCaches caches, TransactionTemplate tx, ApplicationEventPublisher eventPublisher,
+                       CodeRuleApi codeRuleApi, DictApi dictApi) {
+        this.codeRuleApi = codeRuleApi;
+        this.dictApi = dictApi;
         this.userMapper = userMapper;
         this.userRoleMapper = userRoleMapper;
         this.roleMapper = roleMapper;
@@ -244,6 +252,14 @@ public class UserService implements UserApi {
     private void fill(UserDO u, UserSave req, Long selfId) {
         u.setRealName(req.realName().trim());
         String employeeNo = trim(req.employeeNo());
+        String factory = trim(req.factoryCode());
+        // SYS-USR-R12：工号为空且选择了工厂时按《编码规则管理制度》5.3 生成（工厂代码-四位流水）；已有工号不重新生成
+        if (employeeNo == null && factory != null && u.getEmployeeNo() == null) {
+            dictApi.validate(SystemDeclarations.DICT_FACTORY, factory, "工厂");
+            employeeNo = codeRuleApi.nextCode(SystemDeclarations.CODE_EMPLOYEE_NO, Map.of("factory", factory));
+        } else if (employeeNo == null && u.getEmployeeNo() != null && factory != null) {
+            employeeNo = u.getEmployeeNo();
+        }
         if (employeeNo != null) {
             UserDO other = userMapper.selectByEmployeeNo(employeeNo);
             if (other != null && !other.getId().equals(selfId)) {
@@ -476,7 +492,7 @@ public class UserService implements UserApi {
             OrgDO dept = orgMapper.selectByCode(r.get("deptCode").toUpperCase());
             List<Long> roleIds = new ArrayList<>();
             for (String code : r.get("roleCodes").split("[,，]")) roleIds.add(rolesByCode.get(code.trim().toUpperCase()).getId());
-            UserSave save = new UserSave(r.get("username"), r.get("realName"), r.get("employeeNo"), null, r.get("mobile"), r.get("email"),
+            UserSave save = new UserSave(r.get("username"), r.get("realName"), r.get("employeeNo"), r.get("factoryCode"), null, r.get("mobile"), r.get("email"),
                     r.get("position") == null ? null : positionByLabel.get(r.get("position")), null, null, dept.getId(), List.of(), null,
                     roleIds, password, true, null);
             CreateResult res = create(save);

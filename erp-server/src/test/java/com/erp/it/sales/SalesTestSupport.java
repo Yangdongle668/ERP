@@ -164,6 +164,7 @@ abstract class SalesTestSupport extends AbstractIntegrationTest {
         c.put("name", full);
         c.put("nameEn", foreign ? full : null);
         c.put("country", foreign ? "US" : "CN");
+        c.put("appDomain", "C");
         c.put("paymentTermId", term);
         if (level != null) c.put("level", level);
         c.put("contacts", List.of(Map.of("name", "John", "email", "john@example.com", "isPrimary", true)));
