@@ -146,4 +146,8 @@ public interface MaterialMapper extends BaseMapperX<MaterialDO> {
                 .forEach(m -> result.put(m.getId(), m.getLowLevelCode()));
         return result;
     }
+
+    /** 物理删除（导入回滚：释放编码，可以重新导入） */
+    @org.apache.ibatis.annotations.Delete("DELETE FROM eng_material WHERE id = #{id}")
+    int hardDelete(@Param("id") Long id);
 }

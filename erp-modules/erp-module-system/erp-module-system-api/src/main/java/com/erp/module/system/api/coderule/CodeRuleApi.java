@@ -31,6 +31,15 @@ public interface CodeRuleApi {
         return nextCode(bizCode, vars);
     }
 
+    /**
+     * 手工输入（含导入）的编码符合规则格式（前缀 + 指定位数的流水号，规则不含日期）时，把该前缀的流水号推进到不小于它，
+     * 避免之后自动生成的编码与已有编码重复。如导入 LD-B-0011 后，下一个自动编码为 LD-B-0012。
+     *
+     * @param seqLength 流水号位数，空则按规则配置
+     */
+    default void observeManualCode(String bizCode, Map<String, String> vars, Integer seqLength, String code) {
+    }
+
     /** 是否允许手工输入编码（SYS-COD-R06）：为 false 时业务接口应忽略前端传入的编码，始终自动生成 */
     boolean isManualAllowed(String bizCode);
 }

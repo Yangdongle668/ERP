@@ -168,7 +168,7 @@ const asRow = (r: unknown) => r as CustomerRow
     </el-dialog>
 
     <ReasonDialog ref="reasonRef" />
-    <ImportDialog ref="importRef" title="导入客户" base="/crm/customers" template-name="客户" :params="importParams" allow-partial @done="load">
+    <ImportDialog ref="importRef" title="导入客户" base="/crm/customers" template-name="客户" :params="importParams" allow-partial history @done="load" @rollback="load">
       <template #options>
         <div class="import-tip">导入为潜在客户；可同时导入主联系人和默认收货地址。</div>
         <el-form-item label="默认付款条件" v-if="me.hasPermission('crm:customer:import')"><PaymentTermSelect v-model="importTerm" /></el-form-item>

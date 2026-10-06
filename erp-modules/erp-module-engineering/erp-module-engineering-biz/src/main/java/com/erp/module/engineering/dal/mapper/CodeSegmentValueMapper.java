@@ -16,4 +16,7 @@ public interface CodeSegmentValueMapper extends BaseMapperX<CodeSegmentValueDO> 
         return selectList(new LambdaQueryWrapper<CodeSegmentValueDO>().in(CodeSegmentValueDO::getSegmentId, segmentIds)
                 .orderByAsc(CodeSegmentValueDO::getSort).orderByAsc(CodeSegmentValueDO::getValueCode));
     }
+
+    @org.apache.ibatis.annotations.Delete("DELETE FROM eng_code_segment_value WHERE segment_id IN (SELECT id FROM eng_code_segment WHERE category_id = #{categoryId})")
+    int hardDeleteByCategory(@org.apache.ibatis.annotations.Param("categoryId") Long categoryId);
 }

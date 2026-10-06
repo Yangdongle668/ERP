@@ -22,6 +22,7 @@ import com.erp.module.engineering.controller.vo.MaterialVOs.References;
 import com.erp.module.engineering.controller.vo.MaterialVOs.Settings;
 import com.erp.module.engineering.service.BomQueryService;
 import com.erp.module.engineering.service.ExportSupport;
+import com.erp.module.engineering.service.ImportBatchService;
 import com.erp.module.engineering.service.MaterialExcelService;
 import com.erp.module.engineering.service.MaterialService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -57,9 +58,11 @@ public class MaterialController {
     private final MaterialExcelService excelService;
     private final BomQueryService bomQueryService;
     private final ExportSupport exportSupport;
+    private final ImportBatchService batchService;
 
     public MaterialController(MaterialService materialService, MaterialExcelService excelService, BomQueryService bomQueryService,
-                              ExportSupport exportSupport) {
+                              ExportSupport exportSupport, ImportBatchService batchService) {
+        this.batchService = batchService;
         this.materialService = materialService;
         this.excelService = excelService;
         this.bomQueryService = bomQueryService;
@@ -229,6 +232,21 @@ public class MaterialController {
         excelService.check(rows, mode);
         long errors = rows.stream().filter(ImportRow::hasError).count();
         if (errors > 0 && !partial) throw BizException.of(GlobalErrorCodes.IMPORT_HAS_ERRORS, errors);
-        return CommonResult.success(excelService.doImport(rows.stream().filter(r -> !r.hasError()).toList(), mode, enable));
+        return CommonResult.success(excelService.doImport(rows.stream().filter(r -> !r.hasError()).toList(), mode, enable, file.getOriginalFilename()));
+    }
+
+    @Operation(summary = "导入记录")
+    @GetMapping("/import/batches")
+    @PreAuthorize("@ss.has('eng:material:import')")
+    public CommonResult<List<ImportBatchService.BatchRow>> importBatches() {
+        return CommonResult.success(batchService.list(ImportBatchService.MATERIAL));
+    }
+
+    @Operation(summary = "回滚导入批次：删除本批新增的物料，恢复本批更新的物料")
+    @PostMapping("/import/batches/{batchId}/rollback")
+    @PreAuthorize("@ss.has('eng:material:import')")
+    public CommonResult<Void> rollbackImport(@PathVariable Long batchId) {
+        batchService.rollback(ImportBatchService.MATERIAL, batchId);
+        return CommonResult.success();
     }
 }

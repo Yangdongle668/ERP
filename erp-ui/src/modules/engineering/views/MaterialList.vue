@@ -245,7 +245,7 @@ onMounted(async () => {
       </ErpPanel>
     </div>
 
-    <ImportDialog ref="importRef" title="导入物料" base="/engineering/materials" template-name="物料" :params="importParams" allow-partial @done="load">
+    <ImportDialog ref="importRef" title="导入物料" base="/engineering/materials" template-name="物料" :params="importParams" allow-partial history @done="load" @rollback="load">
       <template #options>
         <el-form label-width="120px" class="import-options">
           <el-form-item label="编码已存在时">

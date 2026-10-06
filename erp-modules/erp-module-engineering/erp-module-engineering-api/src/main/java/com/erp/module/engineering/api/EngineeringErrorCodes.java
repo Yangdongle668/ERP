@@ -48,6 +48,12 @@ public interface EngineeringErrorCodes {
     ErrorCode CODE_VALUE_INVALID = new ErrorCode(1_005_002_014, "编码段「{}」没有可用的特征值「{}」");
     ErrorCode CODE_SEQ_OVERFLOW = new ErrorCode(1_005_002_015, "编码「{}」的流水号已用完（{} 位），请联系管理员调整类别的流水号位数");
 
+    // ========== 导入批次与回滚 1_005_010_xxx ==========
+    ErrorCode IMPORT_BATCH_NOT_EXISTS = new ErrorCode(1_005_010_000, "导入批次不存在");
+    ErrorCode IMPORT_BATCH_ROLLED_BACK = new ErrorCode(1_005_010_001, "该批次已回滚");
+    ErrorCode IMPORT_BATCH_LATER = new ErrorCode(1_005_010_002, "之后的导入批次（{}）修改过这些数据，请先回滚之后的批次");
+    ErrorCode IMPORT_ROLLBACK_BLOCKED = new ErrorCode(1_005_010_003, "以下数据导入后已被使用，不能回滚：{}");
+
     // ========== BOM 1_005_003_xxx ==========
     ErrorCode BOM_NOT_EXISTS = new ErrorCode(1_005_003_000, "BOM 不存在");
     ErrorCode BOM_PARENT_TYPE = new ErrorCode(1_005_003_001, "原材料、包材、辅料不能作为 BOM 父件");

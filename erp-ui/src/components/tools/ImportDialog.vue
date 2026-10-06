@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { download, downloadPost, upload } from '@/api/http'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { download, downloadPost, http, upload } from '@/api/http'
 
 /**
  * 导入向导（UI 设计规范 5.4、9.1）：①下载模板 ②上传文件 ③校验预览（错误行标红，可下载错误报告）④确认导入 ⑤结果。
@@ -15,6 +15,10 @@ import { download, downloadPost, upload } from '@/api/http'
  *
  * 导入选项（如“编码已存在时跳过/更新”）：放在 options 插槽中，取值通过 params 传入，
  * 校验和导入请求都会带上这些参数。
+ *
+ * history 为 true 时提供「导入记录」：每次导入为一个批次，可整批回滚（删除本批新增、恢复本批更新的数据）：
+ * - GET  {base}/import/batches                 最近的导入批次
+ * - POST {base}/import/batches/{id}/rollback   回滚
  */
 interface ImportCheckResult {
   total: number
@@ -22,14 +26,28 @@ interface ImportCheckResult {
   columns: { key: string; label: string }[]
   rows: { rowNo: number; data: Record<string, string>; errors: string[]; action?: string }[]
 }
+interface ImportBatch {
+  id: string
+  fileName?: string
+  totalCount: number
+  createdCount: number
+  updatedCount: number
+  status: 'DONE' | 'ROLLED_BACK'
+  createdAt: string
+  rolledBackAt?: string
+}
 interface ImportResult {
   success: number
   failed: number
   errors: { rowNo: number; message: string }[]
 }
 
-const props = withDefaults(defineProps<{ title?: string; base: string; allowPartial?: boolean; templateName?: string; params?: Record<string, string> }>(), { title: '导入' })
-const emit = defineEmits<{ done: [result: ImportResult] }>()
+const props = withDefaults(defineProps<{
+  title?: string; base: string; allowPartial?: boolean; templateName?: string; params?: Record<string, string>
+  /** 提供导入记录与回滚 */
+  history?: boolean
+}>(), { title: '导入' })
+const emit = defineEmits<{ done: [result: ImportResult]; rollback: [] }>()
 
 const visible = ref(false)
 const step = ref(0)
@@ -43,6 +61,7 @@ const onlyErrors = ref(false)
 const MAX_ROWS = 5000
 
 function open() {
+  showHistory.value = false
   step.value = 0
   file.value = undefined
   check.value = undefined
@@ -100,6 +119,39 @@ async function doImport() {
   }
 }
 
+// ---------- 导入记录 / 回滚 ----------
+const showHistory = ref(false)
+const batches = ref<ImportBatch[]>([])
+const loadingBatches = ref(false)
+const rollingBack = ref<string>()
+
+async function openHistory() {
+  showHistory.value = true
+  loadingBatches.value = true
+  try {
+    batches.value = await http.get<ImportBatch[]>(`${props.base}/import/batches`)
+  } finally {
+    loadingBatches.value = false
+  }
+}
+
+async function rollback(b: ImportBatch) {
+  const desc = [b.createdCount ? `删除新增的 ${b.createdCount} 条` : '', b.updatedCount ? `恢复更新的 ${b.updatedCount} 条为导入前的内容` : '']
+    .filter(Boolean).join('，')
+  const ok = await ElMessageBox.confirm(`确定回滚 ${b.createdAt} 的导入（${b.fileName ?? '-'}）吗？将${desc}。回滚后不能撤销。`, '回滚导入',
+    { type: 'warning', confirmButtonText: '回滚', confirmButtonClass: 'el-button--danger' }).then(() => true).catch(() => false)
+  if (!ok) return
+  rollingBack.value = b.id
+  try {
+    await http.post(`${props.base}/import/batches/${b.id}/rollback`)
+    ElMessage.success('已回滚')
+    emit('rollback')
+    openHistory()
+  } finally {
+    rollingBack.value = undefined
+  }
+}
+
 const rowClass = ({ row }: { row: { errors: string[] } }) => (row.errors.length ? 'error-row' : '')
 
 defineExpose({ open })
@@ -107,6 +159,31 @@ defineExpose({ open })
 
 <template>
   <el-dialog v-model="visible" :title="title" width="960px" :close-on-click-modal="false" append-to-body>
+    <template v-if="showHistory">
+      <div class="summary">
+        <el-button link type="primary" icon="ArrowLeft" @click="showHistory = false">返回导入</el-button>
+        <span class="muted">回滚：删除该批新增的数据，把该批更新的数据恢复为导入前的内容；数据导入后已被使用时不能回滚，须从最近的批次开始回滚。</span>
+      </div>
+      <el-table v-loading="loadingBatches" :data="batches" max-height="460">
+        <el-table-column prop="createdAt" label="导入时间" width="170" />
+        <el-table-column prop="fileName" label="文件" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="createdCount" label="新增" width="80" align="right" />
+        <el-table-column prop="updatedCount" label="更新" width="80" align="right" />
+        <el-table-column label="状态" width="180">
+          <template #default="{ row }">
+            <ErpBadge v-if="row.status === 'ROLLED_BACK'" type="info">已回滚 {{ row.rolledBackAt?.slice(5, 16) }}</ErpBadge>
+            <ErpBadge v-else type="success">已导入</ErpBadge>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="90" align="center">
+          <template #default="{ row }">
+            <el-button v-if="row.status === 'DONE'" link type="danger" :loading="rollingBack === row.id" @click="rollback(row as ImportBatch)">回滚</el-button>
+          </template>
+        </el-table-column>
+        <template #empty><ErpEmpty description="还没有导入记录" compact /></template>
+      </el-table>
+    </template>
+    <template v-else>
     <el-steps :active="step" finish-status="success" simple class="steps">
       <el-step title="下载模板" />
       <el-step title="上传文件" />
@@ -149,6 +226,7 @@ defineExpose({ open })
 
     <div v-else-if="step === 4 && result" class="result">
       <el-result :icon="result.failed ? 'warning' : 'success'" :title="`成功 ${result.success} 条，失败 ${result.failed} 条`">
+        <template v-if="history" #sub-title>如需恢复原样，可在「导入记录」中回滚本次导入</template>
         <template v-if="result.errors.length" #extra>
           <el-table :data="result.errors" max-height="240" class="errors">
             <el-table-column prop="rowNo" label="行号" width="80" />
@@ -158,8 +236,12 @@ defineExpose({ open })
       </el-result>
     </div>
 
+    </template>
+
     <template #footer>
-      <template v-if="step === 2">
+      <el-button v-if="history && !showHistory && step < 2" link type="primary" icon="History" class="history-link" @click="openHistory">导入记录（回滚）</el-button>
+      <el-button v-if="showHistory" @click="visible = false">关闭</el-button>
+      <template v-else-if="step === 2">
         <el-button @click="step = 1">重新上传</el-button>
         <el-button type="primary" :disabled="!canImport" :loading="importing" @click="doImport">
           {{ check?.errorCount ? `只导入正确的 ${check.total - check.errorCount} 行` : '确认导入' }}
@@ -176,5 +258,7 @@ defineExpose({ open })
 .summary { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 .bad { color: var(--el-color-danger); }
 .errors { width: 600px; }
+.muted { color: var(--erp-color-text-tertiary); font-size: var(--erp-font-size-secondary); }
+.history-link { float: left; }
 :deep(.error-row) { --el-table-tr-bg-color: var(--el-color-danger-light-9); }
 </style>

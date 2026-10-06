@@ -20,6 +20,9 @@ public interface CodeSeqMapper {
     @Insert("INSERT INTO sys_code_seq (biz_code, reset_key, current_value, updated_at) VALUES (#{bizCode}, #{resetKey}, 1, CURRENT_TIMESTAMP)")
     int insertFirst(@Param("bizCode") String bizCode, @Param("resetKey") String resetKey);
 
+    @Insert("INSERT INTO sys_code_seq (biz_code, reset_key, current_value, updated_at) VALUES (#{bizCode}, #{resetKey}, #{value}, CURRENT_TIMESTAMP)")
+    int insertValue(@Param("bizCode") String bizCode, @Param("resetKey") String resetKey, @Param("value") long value);
+
     @Select("SELECT current_value FROM sys_code_seq WHERE biz_code = #{bizCode} AND reset_key = #{resetKey}")
     Long selectCurrent(@Param("bizCode") String bizCode, @Param("resetKey") String resetKey);
 

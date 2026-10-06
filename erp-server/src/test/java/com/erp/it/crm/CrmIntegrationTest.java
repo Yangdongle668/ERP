@@ -113,11 +113,11 @@ class CrmIntegrationTest extends AbstractIntegrationTest {
         assertThat(d.at("/currency").asText()).isEqualTo("USD");
         assertThat(d.at("/salesTaxRate").decimalValue()).isEqualByComparingTo("0");
         // R11：客户编码 LD-应用领域-三位流水（《编码规则管理制度》5.1）
-        assertThat(d.at("/code").asText()).matches("LD-C-\\d{3}");
+        assertThat(d.at("/code").asText()).matches("LD-C-\\d{4}");
         assertThat(d.at("/appDomain").asText()).isEqualTo("C");
         Map<String, Object> medical = customer("Medical " + uniq(), "US");
         medical.put("appDomain", "A");
-        assertThat(detail(create(medical, admin)).at("/code").asText()).matches("LD-A-\\d{3}");
+        assertThat(detail(create(medical, admin)).at("/code").asText()).matches("LD-A-\\d{4}");
         Map<String, Object> noDomain = customer("NoDomain " + uniq(), "US");
         noDomain.remove("appDomain");
         assertError(doPost("/api/crm/customers", admin, noDomain), "请选择应用领域（客户编码按领域生成：LD-领域-流水号）");

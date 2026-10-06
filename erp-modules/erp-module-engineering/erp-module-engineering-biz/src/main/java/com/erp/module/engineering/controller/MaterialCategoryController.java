@@ -6,7 +6,21 @@ import com.erp.module.engineering.controller.vo.CategoryVOs.CodeScheme;
 import com.erp.module.engineering.controller.vo.CategoryVOs.CodeSchemeSave;
 import com.erp.module.engineering.controller.vo.CategoryVOs.CategorySave;
 import com.erp.module.engineering.controller.vo.CategoryVOs.SimpleNode;
+import com.erp.common.exception.BizException;
+import com.erp.common.exception.GlobalErrorCodes;
+import com.erp.framework.excel.ExcelSupport;
+import com.erp.framework.excel.ImportCheckResult;
+import com.erp.framework.excel.ImportResult;
+import com.erp.framework.excel.ImportRow;
+import com.erp.module.engineering.service.CategoryImportService;
 import com.erp.module.engineering.service.CodeSegmentService;
+import com.erp.module.engineering.service.ImportBatchService;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
+import java.util.Map;
 import com.erp.module.engineering.service.MaterialCategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,10 +46,15 @@ public class MaterialCategoryController {
 
     private final MaterialCategoryService categoryService;
     private final CodeSegmentService segmentService;
+    private final CategoryImportService importService;
+    private final ImportBatchService batchService;
 
-    public MaterialCategoryController(MaterialCategoryService categoryService, CodeSegmentService segmentService) {
+    public MaterialCategoryController(MaterialCategoryService categoryService, CodeSegmentService segmentService,
+                                      CategoryImportService importService, ImportBatchService batchService) {
         this.categoryService = categoryService;
         this.segmentService = segmentService;
+        this.importService = importService;
+        this.batchService = batchService;
     }
 
     @Operation(summary = "树形表格（含停用）")
@@ -104,6 +123,52 @@ public class MaterialCategoryController {
     @PreAuthorize("@ss.has('eng:category:update')")
     public CommonResult<Void> saveCodeScheme(@PathVariable Long id, @Valid @RequestBody CodeSchemeSave req) {
         segmentService.save(id, req);
+        return CommonResult.success();
+    }
+
+    // ==================== 导入（05-01 第 9 节） ====================
+
+    @GetMapping("/import-template")
+    @PreAuthorize("@ss.has('eng:category:create')")
+    public void importTemplate(HttpServletResponse response) throws IOException {
+        ExcelSupport.template(response, "物料类别", CategoryImportService.IMPORT_COLUMNS);
+    }
+
+    @PostMapping(value = "/import/check", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@ss.has('eng:category:create')")
+    public CommonResult<ImportCheckResult> importCheck(@RequestPart("file") MultipartFile file, @RequestParam(defaultValue = "false") boolean report,
+                                                       HttpServletResponse response) throws IOException {
+        List<ImportRow> rows = ExcelSupport.read(file, CategoryImportService.IMPORT_COLUMNS);
+        Map<Integer, String> actions = importService.check(rows);
+        if (report) {
+            ExcelSupport.writeBytes(response, "物料类别导入错误报告.xlsx", ExcelSupport.errorReport(file, rows));
+            return null;
+        }
+        return CommonResult.success(ImportCheckResult.of(CategoryImportService.IMPORT_COLUMNS, rows, r -> actions.get(r.rowNo())));
+    }
+
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@ss.has('eng:category:create')")
+    public CommonResult<ImportResult> doImport(@RequestPart("file") MultipartFile file, @RequestParam(defaultValue = "false") boolean partial) {
+        List<ImportRow> rows = ExcelSupport.read(file, CategoryImportService.IMPORT_COLUMNS);
+        importService.check(rows);
+        long errors = rows.stream().filter(ImportRow::hasError).count();
+        if (errors > 0 && !partial) throw BizException.of(GlobalErrorCodes.IMPORT_HAS_ERRORS, errors);
+        return CommonResult.success(importService.doImport(rows.stream().filter(r -> !r.hasError()).toList(), file.getOriginalFilename()));
+    }
+
+    @Operation(summary = "导入记录")
+    @GetMapping("/import/batches")
+    @PreAuthorize("@ss.has('eng:category:create')")
+    public CommonResult<List<ImportBatchService.BatchRow>> importBatches() {
+        return CommonResult.success(batchService.list(ImportBatchService.CATEGORY));
+    }
+
+    @Operation(summary = "回滚导入批次：删除本批新增的类别")
+    @PostMapping("/import/batches/{batchId}/rollback")
+    @PreAuthorize("@ss.has('eng:category:create')")
+    public CommonResult<Void> rollbackImport(@PathVariable Long batchId) {
+        batchService.rollback(ImportBatchService.CATEGORY, batchId);
         return CommonResult.success();
     }
 }
