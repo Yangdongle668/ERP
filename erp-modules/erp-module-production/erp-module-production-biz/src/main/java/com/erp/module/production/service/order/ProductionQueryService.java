@@ -48,7 +48,9 @@ public class ProductionQueryService implements ProductionQueryApi {
 
     @Override
     public List<OpenOrderDTO> getOpenOrders(Collection<Long> materialIds) {
+        // 拆解订单不是产品的供给，也不产生子件需求，不参与 MRP / 排产
         List<MfgProdOrderDO> orders = orderMapper.selectList(new LambdaQueryWrapper<MfgProdOrderDO>().in(MfgProdOrderDO::getProdStatus, OPEN)
+                .ne(MfgProdOrderDO::getOrderType, ProdOrderService.DISASSEMBLY)
                 .in(materialIds != null && !materialIds.isEmpty(), MfgProdOrderDO::getMaterialId, materialIds)
                 .orderByAsc(MfgProdOrderDO::getPriority).orderByAsc(MfgProdOrderDO::getPlanStart).orderByAsc(MfgProdOrderDO::getId));
         if (orders.isEmpty()) return List.of();
@@ -79,7 +81,7 @@ public class ProductionQueryService implements ProductionQueryApi {
         if (materialIds == null || materialIds.isEmpty()) return Map.of();
         Map<Long, List<WipDTO.Order>> map = new LinkedHashMap<>();
         for (MfgProdOrderDO o : orderMapper.selectList(new LambdaQueryWrapper<MfgProdOrderDO>().in(MfgProdOrderDO::getMaterialId, materialIds)
-                .in(MfgProdOrderDO::getProdStatus, WIP).orderByAsc(MfgProdOrderDO::getPlanEnd))) {
+                .in(MfgProdOrderDO::getProdStatus, WIP).ne(MfgProdOrderDO::getOrderType, ProdOrderService.DISASSEMBLY).orderByAsc(MfgProdOrderDO::getPlanEnd))) {
             BigDecimal remain = MfgSupport.max0(o.getQty().subtract(o.getQualifiedStockedQty()).subtract(o.getScrappedQty()));
             if (remain.signum() <= 0) continue;
             map.computeIfAbsent(o.getMaterialId(), k -> new ArrayList<>()).add(new WipDTO.Order(o.getId(), o.getDocNo(), remain, o.getPlanEnd(), o.getProdStatus()));

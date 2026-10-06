@@ -250,4 +250,78 @@ class ProductionDocsIntegrationTest extends ProductionTestSupport {
         assertThat(ncr.at("/source").asText()).isEqualTo("PRODUCTION");
         assertThat(ncr.at("/ncrQty").decimalValue()).isEqualByComparingTo("10");
     }
+
+    @Test
+    void disassemblyOrderAndBomVersions() throws Exception {
+        String prod = fg("拆解主机");
+        String c1 = raw("拆解子件A");
+        String c2 = raw("拆解子件B");
+        String bom1 = bom(prod, List.of(bomLine(c1, 2, 0, "PICK", null), bomLine(c2, 1, 0.05, "PICK", null)));
+        String bom2 = bom(prod, List.of(bomLine(c1, 3, 0, "PICK", null)));
+
+        // 编辑页 BOM 版本下拉列出全部已审核版本，默认版本在前
+        JsonNode preview = ok(doGet("/api/production/prod-orders/preview-materials?materialId=" + prod, admin));
+        assertThat(preview.at("/boms").size()).isEqualTo(2);
+        assertThat(preview.at("/boms/0/id").asText()).isEqualTo(bom1);
+        assertThat(preview.at("/boms/0/isDefault").asBoolean()).isTrue();
+        assertThat(preview.at("/boms/1/id").asText()).isEqualTo(bom2);
+
+        // 拆解订单：投入产品本身，下达时按 BOM 固化产出（不含损耗）
+        stock(prod, W_FG, "10", null);
+        Map<String, Object> body = orderBody(prod, "5");
+        body.put("orderType", "DISASSEMBLY");
+        String id = ok(doPost("/api/production/prod-orders", admin, body)).at("/id").asText();
+        ok(doPost("/api/production/prod-orders/" + id + "/submit", admin, null));
+        ok(doPost("/api/production/prod-orders/" + id + "/release", admin, Map.of("confirmShortage", true)));
+        JsonNode d = order(id);
+        assertThat(d.at("/materials").size()).isEqualTo(1);
+        assertThat(d.at("/materials/0/componentId").asText()).isEqualTo(prod);
+        assertThat(d.at("/materials/0/requiredQty").decimalValue()).isEqualByComparingTo("5");
+        Map<String, JsonNode> outputs = new HashMap<>();
+        for (JsonNode x : d.at("/outputs")) outputs.put(x.at("/componentId").asText(), x);
+        assertThat(outputs.get(c1).at("/expectedQty").decimalValue()).isEqualByComparingTo("10");
+        assertThat(outputs.get(c2).at("/expectedQty").decimalValue()).isEqualByComparingTo("5");
+        assertThat(queryApi.getWipQty(List.of(Long.valueOf(prod)))).doesNotContainKey(Long.valueOf(prod));
+
+        // 没有产品完工入库；未拆解（未领料）时不能入库子件
+        assertThat(doPost("/api/production/prod-orders/" + id + "/finish", admin, Map.of("qty", 1)).at("/msg").asText()).contains("拆解订单没有产品完工入库");
+        JsonNode cands = ok(doGet("/api/production/returns/candidates?prodOrderId=" + id + "&returnType=OUTPUT", admin));
+        assertThat(cands.size()).isEqualTo(2);
+        assertThat(cands.at("/0/returnableQty").decimalValue()).isEqualByComparingTo("0");
+
+        // 领出 3 个产品拆解：子件可入库按已拆解折算
+        String iss = ok(doPost("/api/production/issues", admin, Map.of("prodOrderId", id, "lines",
+                List.of(Map.of("materialLineId", d.at("/materials/0/id").asText(), "requestQty", 3))))).at("/ids/0").asText();
+        ok(doPost("/api/production/issues/" + iss + "/submit", admin, null));
+        confirmIssue(iss, null, null);
+        Map<String, JsonNode> byComp = new HashMap<>();
+        for (JsonNode c : ok(doGet("/api/production/returns/candidates?prodOrderId=" + id + "&returnType=OUTPUT", admin))) {
+            byComp.put(c.at("/materialId").asText(), c);
+        }
+        assertThat(byComp.get(c1).at("/returnableQty").decimalValue()).isEqualByComparingTo("6");
+        assertThat(byComp.get(c2).at("/returnableQty").decimalValue()).isEqualByComparingTo("3");
+        String over = ok(doPost("/api/production/returns", admin, Map.of("prodOrderId", id, "returnType", "OUTPUT",
+                "lines", List.of(Map.of("materialLineId", byComp.get(c1).at("/materialLineId").asText(), "qty", 7))))).at("/ids/0").asText();
+        assertThat(doPost("/api/production/returns/" + over + "/submit", admin, null).at("/msg").asText()).contains("超过可退数量");
+        ok(doDelete("/api/production/returns/" + over, admin));
+
+        String ret = ok(doPost("/api/production/returns", admin, Map.of("prodOrderId", id, "returnType", "OUTPUT",
+                "lines", List.of(Map.of("materialLineId", byComp.get(c1).at("/materialLineId").asText(), "qty", 6),
+                        Map.of("materialLineId", byComp.get(c2).at("/materialLineId").asText(), "qty", 2))))).at("/ids/0").asText();
+        ok(doPost("/api/production/returns/" + ret + "/submit", admin, null));
+        confirmStockIns(ok(doGet("/api/production/returns/" + ret, admin)).at("/stockInIds").asText());
+        outputs.clear();
+        for (JsonNode x : order(id).at("/outputs")) outputs.put(x.at("/componentId").asText(), x);
+        assertThat(outputs.get(c1).at("/receivedQty").decimalValue()).isEqualByComparingTo("6");
+        assertThat(outputs.get(c2).at("/receivedQty").decimalValue()).isEqualByComparingTo("2");
+
+        // 非拆解订单不能办理拆解入库
+        String normal = releasedOrder(prod, "1");
+        assertThat(doPost("/api/production/returns", admin, Map.of("prodOrderId", normal, "returnType", "OUTPUT",
+                "lines", List.of(Map.of("materialLineId", "1", "qty", 1)))).at("/msg").asText()).contains("只有拆解订单可以办理拆解入库");
+
+        // 报工完成 → 已完工（拆解订单按报工判断）
+        reportOk(report(id, 10, 5, 0, 0));
+        assertThat(order(id).at("/prodStatus").asText()).isEqualTo("COMPLETED");
+    }
 }

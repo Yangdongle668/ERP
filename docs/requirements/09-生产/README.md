@@ -127,6 +127,8 @@ MFG_PROD_ORDER（生产订单/工单流程卡，带条码）、MFG_ISSUE（领�
   - 领料单、超领单审核后生成 `MFG_ISSUE` 出库单，退料单生成 `MFG_RETURN` 入库单（良品回物料默认仓，不良回不良品仓），完工入库生成 `MFG_FINISH` 入库单（免检入成品仓，需 FQC 入待检仓）。一张领/退料单只对应一个仓库，新建时按发料仓拆分。
   - 监听 `StockOutConfirmedEvent` / `StockInConfirmedEvent` 回写实发、实收（按行、按批次写追溯记录）；监听 `StockDocEvent`（反确认、驳回）扣回数量并追加反向追溯记录。
   - 倒冲：报工审核时按“(合格 + 报废) × 单位用量 × (1 + 损耗)”（按单位精度向上取整）生成倒冲领料单并提交，先检查可用库存，不足时报工失败。倒冲出库单是否自动过账取决于仓库参数 `inv.out.auto-confirm-source`，未开启时由仓库确认；反审核报工时作废未确认的倒冲出库单，已确认的提示先在仓库反确认。
+- **拆解订单（DISASSEMBLY）**：投入物料固定为产品本身 × 1（PICK），必须选择已审核 BOM；下达时按 BOM 展开一层生成拆解产出（`mfg_prod_order_output`，预计产出 = 订单数量 × 单位用量，不含损耗）。子件通过退料单类型“拆解入库”（`return_type` = OUTPUT）生成生产退料入库单，可入库 = 产品净领用 × 单位产出 − 已入库 − 未入库单据占用，不超过预计产出；入库确认回写产出已入库。拆解订单没有产品完工入库，末道报工（完成 + 报废）达到计划数量即已完工。
+- **BOM / 工艺路线版本**：编辑页下拉列出产品全部已审核版本（`BomApi.listApprovedVersions`、`RoutingApi.listApprovedVersions`），默认版本在前。
 - **需要确认的操作**：下达齐套检查（参数 `mfg.issue.kit-check` 为 WARN）、关闭时余料/在制/待处理不良（`mfg.close.require-return` 为 WARN）返回 `needConfirm`，前端确认后以 `confirmShortage=true` / `confirmScrap=true` 重试；参数为 BLOCK 时直接拒绝。可用库存已扣除先下达的其他订单未领数量。
 - **不良处置**：报工登记的不良为“待处理”，返修合格、报废以补充报工单（`report_kind` = REPAIR / SCRAP）记录，计入工序合格 / 订单报废。
 - **扩展点（production-api）**：
@@ -138,6 +140,5 @@ MFG_PROD_ORDER（生产订单/工单流程卡，带条码）、MFG_ISSUE（领�
 - **追溯**：追溯页显示产品批次的出货记录（出货单、日期、客户，取出货模块 `ShipmentQueryApi.getShipmentsByBatch`）：正向为所有产品批次（召回范围），反向为根批次。
 - **为其他模块实现**：`SampleOrderCreator`、`BomReferenceChecker`、`RoutingReferenceChecker`、`EcnImpactProvider`（ECN 生效时提示受影响的未完工订单）、`SalesOrderReferenceChecker`（由订单生成的生产订单阻止订单反审核）、`OrgReferenceChecker`、`MaterialReferenceChecker`、`DictReferenceChecker`、`FileAccessChecker`。
 - **限制**：
-  - 拆卸订单（DISASSEMBLY）暂不支持。
-  - 编辑页 BOM 版本下拉只列出默认版本和当前选择的版本（BomApi 暂无按产品列出版本的接口）。
+  - 拆解订单不参与 PMC 的 MRP、排产与在制统计（`ProductionQueryApi.getOpenOrders / getWipQty` 排除），成本核算仍按普通订单归集投入。
   - 派工的工作中心不限制所属车间。

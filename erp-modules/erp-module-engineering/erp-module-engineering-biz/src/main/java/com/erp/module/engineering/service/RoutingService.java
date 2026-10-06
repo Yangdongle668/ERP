@@ -361,6 +361,14 @@ public class RoutingService implements RoutingApi {
         return Optional.ofNullable(routingId == null ? null : mapper.selectById(routingId)).map(this::toDto);
     }
 
+    @Override
+    public List<RoutingDTO> listApprovedVersions(Long materialId) {
+        if (materialId == null) return List.of();
+        return mapper.selectList(new LambdaQueryWrapper<RoutingDO>().eq(RoutingDO::getMaterialId, materialId).eq(RoutingDO::getStatus, DocStatus.APPROVED)
+                        .orderByDesc(RoutingDO::getIsDefault).orderByDesc(RoutingDO::getRoutingVersion))
+                .stream().map(this::toDto).toList();
+    }
+
     private RoutingDTO toDto(RoutingDO r) {
         return new RoutingDTO(r.getId(), r.getDocNo(), r.getMaterialId(), r.getRoutingVersion(), Boolean.TRUE.equals(r.getIsDefault()),
                 stepMapper.selectByParent(r.getId()).stream().map(s -> new RoutingDTO.Step(s.getSeq(), s.getOperation(), s.getWorkCenterId(),

@@ -29,6 +29,7 @@ import com.erp.module.production.controller.vo.CommonVOs.SaveResult;
 import com.erp.module.production.controller.vo.ProdOrderVOs.AdjustLine;
 import com.erp.module.production.controller.vo.ProdOrderVOs.AdjustReq;
 import com.erp.module.production.controller.vo.ProdOrderVOs.KitCheck;
+import com.erp.module.production.controller.vo.ProdOrderVOs.OutputResp;
 import com.erp.module.production.controller.vo.ProdOrderVOs.MaterialPreview;
 import com.erp.module.production.controller.vo.ProdOrderVOs.MaterialResp;
 import com.erp.module.production.controller.vo.ProdOrderVOs.MaterialSave;
@@ -45,6 +46,7 @@ import com.erp.module.production.controller.vo.ProdOrderVOs.SubstituteOption;
 import com.erp.module.production.controller.vo.ProdOrderVOs.Substitution;
 import com.erp.module.production.dal.dataobject.MfgDefectDO;
 import com.erp.module.production.dal.dataobject.MfgFinishDO;
+import com.erp.module.production.dal.dataobject.MfgProdOrderOutputDO;
 import com.erp.module.production.dal.dataobject.MfgIssueDO;
 import com.erp.module.production.dal.dataobject.MfgProdOrderDO;
 import com.erp.module.production.dal.dataobject.MfgProdOrderMaterialDO;
@@ -52,6 +54,7 @@ import com.erp.module.production.dal.dataobject.MfgProdOrderOperationDO;
 import com.erp.module.production.dal.dataobject.MfgReportDO;
 import com.erp.module.production.dal.dataobject.MfgReturnDO;
 import com.erp.module.production.dal.dataobject.MfgWorkOrderDO;
+import com.erp.module.production.dal.mapper.MfgProdOrderOutputMapper;
 import com.erp.module.production.dal.mapper.MfgDefectMapper;
 import com.erp.module.production.dal.mapper.MfgFinishMapper;
 import com.erp.module.production.dal.mapper.MfgIssueMapper;
@@ -107,13 +110,20 @@ import java.util.stream.Collectors;
 public class ProdOrderService {
 
     public static final String BIZ_TYPE = ProductionModuleConfig.PROD_ORDER;
-    static final Set<String> TYPES = Set.of("NORMAL", "SAMPLE", "REWORK");
+    static final Set<String> TYPES = Set.of("NORMAL", "SAMPLE", "REWORK", "DISASSEMBLY");
     static final Map<String, String> TYPE_NAMES = Map.of("NORMAL", "标准", "SAMPLE", "样品", "REWORK", "返工", "DISASSEMBLY", "拆解");
     static final String MRP_SOURCE = "PMC_MRP";
     static final String SINGLE_OPERATION = "完工";
+    public static final String DISASSEMBLY = "DISASSEMBLY";
+
+    /** 投入物料手工维护（不按 BOM 展开）：返工 = 产品 + 补充料；拆解 = 产品本身 */
+    static boolean manualMaterials(String orderType) {
+        return "REWORK".equals(orderType) || DISASSEMBLY.equals(orderType);
+    }
 
     private final MfgProdOrderMapper mapper;
     private final MfgProdOrderMaterialMapper materialMapper;
+    private final MfgProdOrderOutputMapper outputMapper;
     private final MfgProdOrderOperationMapper operationMapper;
     private final MfgWorkOrderMapper workOrderMapper;
     private final MfgIssueMapper issueMapper;
@@ -131,7 +141,8 @@ public class ProdOrderService {
     private final TransactionTemplate tx;
     private final ObjectProvider<InspectionQueryApi> inspectionQueryApi;
 
-    public ProdOrderService(MfgProdOrderMapper mapper, MfgProdOrderMaterialMapper materialMapper, MfgProdOrderOperationMapper operationMapper,
+    public ProdOrderService(MfgProdOrderMapper mapper, MfgProdOrderMaterialMapper materialMapper, MfgProdOrderOutputMapper outputMapper,
+                            MfgProdOrderOperationMapper operationMapper,
                             MfgWorkOrderMapper workOrderMapper, MfgIssueMapper issueMapper, MfgReturnMapper returnMapper, MfgFinishMapper finishMapper,
                             MfgReportMapper reportMapper, MfgDefectMapper defectMapper, MfgSupport support, MaterialPlanner planner,
                             OrderProgressService progress, RoutingApi routingApi, WorkflowApi workflowApi,
@@ -139,6 +150,7 @@ public class ProdOrderService {
                             PlatformTransactionManager transactionManager, ObjectProvider<InspectionQueryApi> inspectionQueryApi) {
         this.mapper = mapper;
         this.materialMapper = materialMapper;
+        this.outputMapper = outputMapper;
         this.operationMapper = operationMapper;
         this.workOrderMapper = workOrderMapper;
         this.issueMapper = issueMapper;
@@ -244,7 +256,19 @@ public class ProdOrderService {
                 o.getScrappedQty(), o.getFinishedRequestQty(), o.getStockedQty(), o.getQualifiedStockedQty(), o.getFqcRejectedQty(),
                 MfgSupport.max0(o.getCompletedQty().subtract(o.getFinishedRequestQty())), pendingDefect, fqc, o.getDeptId(), support.deptName(o.getDeptId()),
                 o.getOwnerId(), support.userName(o.getOwnerId()), o.getCloseReason(), o.getRemark(), o.getCreatedAt(), o.getVersion(), materials, operations,
-                related(o));
+                outputs(id), related(o));
+    }
+
+    /** 拆解订单产出（下达后固化） */
+    private List<OutputResp> outputs(Long orderId) {
+        List<MfgProdOrderOutputDO> list = outputMapper.selectByParent(orderId);
+        if (list.isEmpty()) return List.of();
+        Map<Long, MaterialDTO> ms = support.materials(list.stream().map(MfgProdOrderOutputDO::getComponentId).toList());
+        return list.stream().map(x -> {
+            MaterialDTO c = ms.get(x.getComponentId());
+            return new OutputResp(x.getId(), x.getLineNo(), x.getComponentId(), c == null ? null : c.code(), c == null ? null : c.name(),
+                    c == null ? null : c.spec(), c == null ? null : c.baseUom(), x.getQtyPer(), x.getExpectedQty(), x.getReceivedQty());
+        }).toList();
     }
 
     /** QC-INS-R09：工序最近一次 IPQC 判定为拒收时显示警示 */
@@ -308,13 +332,13 @@ public class ProdOrderService {
         Optional<BomDTO> def = planner.bomApi().getDefaultBom(materialId, LocalDate.now());
         Optional<BomDTO> bom = bomId != null ? planner.bomApi().getBom(bomId) : def;
         List<Option> boms = new ArrayList<>();
-        def.ifPresent(b -> boms.add(new Option(b.id(), b.docNo() + " V" + b.version(), true)));
-        bom.filter(b -> def.isEmpty() || !def.get().id().equals(b.id())).ifPresent(b -> boms.add(new Option(b.id(), b.docNo() + " V" + b.version(), false)));
+        planner.bomApi().listApprovedVersions(materialId).forEach(b -> boms.add(new Option(b.id(), b.docNo() + " V" + b.version(), b.isDefault())));
+        bom.filter(b -> boms.stream().noneMatch(o -> o.id().equals(b.id()))).ifPresent(b -> boms.add(new Option(b.id(), b.docNo() + " V" + b.version(), false)));
         Optional<RoutingDTO> defRouting = routingApi.getDefaultRouting(materialId);
         Optional<RoutingDTO> routing = routingId != null ? routingApi.getRouting(routingId) : defRouting;
         List<Option> routings = new ArrayList<>();
-        defRouting.ifPresent(r -> routings.add(new Option(r.id(), r.docNo() + " V" + r.version(), true)));
-        routing.filter(r -> defRouting.isEmpty() || !defRouting.get().id().equals(r.id()))
+        routingApi.listApprovedVersions(materialId).forEach(r -> routings.add(new Option(r.id(), r.docNo() + " V" + r.version(), r.isDefault())));
+        routing.filter(r -> routings.stream().noneMatch(o -> o.id().equals(r.id())))
                 .ifPresent(r -> routings.add(new Option(r.id(), r.docNo() + " V" + r.version(), false)));
         List<MaterialPreview> materials = new ArrayList<>();
         if (!"REWORK".equals(orderType) && bom.isPresent()) {
@@ -387,7 +411,6 @@ public class ProdOrderService {
         List<String> warnings = new ArrayList<>();
         boolean draft = current == null || current == ProdStatus.DRAFT;
         String type = StringUtils.hasText(req.orderType()) ? req.orderType() : "NORMAL";
-        if ("DISASSEMBLY".equals(type)) throw BizException.of(ProductionErrorCodes.ORDER_TYPE_UNSUPPORTED, "拆解");
         if (!TYPES.contains(type)) throw BizException.of(ProductionErrorCodes.ORDER_TYPE_UNSUPPORTED, type);
         if (req.qty() == null || req.qty().signum() <= 0) throw BizException.of(ProductionErrorCodes.LINE_QTY_POSITIVE, 1);
         if (req.planEnd().isBefore(req.planStart())) throw new BizException(ProductionErrorCodes.ORDER_DATE_RANGE);
@@ -453,14 +476,15 @@ public class ProdOrderService {
         return api.getLine(lineId).orElseThrow(() -> new BizException(ProductionErrorCodes.ORDER_SALES_LINE_MISMATCH));
     }
 
-    /** 返工订单的投入物料：默认“产品本身 × 1”，可增加补充料 */
+    /** 投入物料：返工默认“产品本身 × 1”，可增加补充料；拆解固定为“产品本身 × 1” */
     private void saveReworkMaterials(MfgProdOrderDO o, ProdOrderSave req) {
-        if (!"REWORK".equals(o.getOrderType())) {
+        if (!manualMaterials(o.getOrderType())) {
             materialMapper.deleteByParent(o.getId());
             return;
         }
-        List<MaterialSave> list = req.materials() == null || req.materials().isEmpty()
-                ? List.of(new MaterialSave(o.getMaterialId(), BigDecimal.ONE, BigDecimal.ZERO, "PICK", null, "返工产品"))
+        boolean disassembly = DISASSEMBLY.equals(o.getOrderType());
+        List<MaterialSave> list = disassembly || req.materials() == null || req.materials().isEmpty()
+                ? List.of(new MaterialSave(o.getMaterialId(), BigDecimal.ONE, BigDecimal.ZERO, "PICK", null, disassembly ? "拆解产品" : "返工产品"))
                 : req.materials();
         materialMapper.deleteByParent(o.getId());
         Map<Long, MaterialDTO> ms = support.materials(list.stream().map(MaterialSave::componentId).toList());
@@ -518,7 +542,7 @@ public class ProdOrderService {
         if (!"REWORK".equals(o.getOrderType()) && (o.getBomId() == null || planner.bomApi().getBom(o.getBomId()).isEmpty())) {
             throw BizException.of(ProductionErrorCodes.ORDER_NO_BOM, m.code());
         }
-        if ("REWORK".equals(o.getOrderType()) && materialMapper.selectByParent(id).isEmpty()) throw new BizException(ProductionErrorCodes.ORDER_REWORK_MATERIALS);
+        if (manualMaterials(o.getOrderType()) && materialMapper.selectByParent(id).isEmpty()) throw new BizException(ProductionErrorCodes.ORDER_REWORK_MATERIALS);
         progress.fire(o, MfgAction.SUBMIT, null);
         Map<String, Object> vars = new HashMap<>();
         vars.put("orderType", o.getOrderType());
@@ -603,6 +627,8 @@ public class ProdOrderService {
         }
         operationMapper.deleteByParent(o.getId());
         for (MfgProdOrderOperationDO op : buildOperations(o)) operationMapper.insert(op);
+        outputMapper.deleteByParent(o.getId());
+        if (DISASSEMBLY.equals(o.getOrderType())) buildOutputs(o, product).forEach(outputMapper::insert);
         o.setReleasedAt(LocalDateTime.now());
         progress.fire(o, MfgAction.RELEASE, warnings.isEmpty() ? null : String.join("；", warnings));
         eventPublisher.publish(new ProductionOrderReleasedEvent(o.getId(), o.getDocNo(), o.getMaterialId(), o.getQty(), o.getPlanEnd()));
@@ -625,10 +651,10 @@ public class ProdOrderService {
         return new BatchResult(ok, errors);
     }
 
-    /** 用料快照：标准/样品按 BOM 展开；返工按已录入的投入物料重算应领 */
+    /** 用料快照：标准/样品按 BOM 展开；返工、拆解按已录入的投入物料重算应领 */
     private List<MfgProdOrderMaterialDO> buildMaterials(MfgProdOrderDO o, MaterialDTO product) {
         List<MfgProdOrderMaterialDO> out = new ArrayList<>();
-        if ("REWORK".equals(o.getOrderType())) {
+        if (manualMaterials(o.getOrderType())) {
             List<MfgProdOrderMaterialDO> saved = materialMapper.selectByParent(o.getId());
             if (saved.isEmpty()) throw new BizException(ProductionErrorCodes.ORDER_REWORK_MATERIALS);
             Map<Long, MaterialDTO> ms = support.materials(saved.stream().map(MfgProdOrderMaterialDO::getComponentId).toList());
@@ -649,6 +675,28 @@ public class ProdOrderService {
             MaterialDTO c = ms.get(l.componentId());
             m.setRequiredQty(planner.required(o.getQty(), l.qtyPer(), l.scrapRate(), c == null ? null : c.baseUom()));
             out.add(m);
+        }
+        return out;
+    }
+
+    /** 拆解产出快照：按 BOM 展开一层（虚拟件透过），预计产出 = 订单数量 × 单位用量（不含损耗） */
+    private List<MfgProdOrderOutputDO> buildOutputs(MfgProdOrderDO o, MaterialDTO product) {
+        BomDTO bom = (o.getBomId() == null ? Optional.<BomDTO>empty() : planner.bomApi().getBom(o.getBomId()))
+                .orElseThrow(() -> BizException.of(ProductionErrorCodes.ORDER_NO_BOM, product.code()));
+        List<MaterialPlanner.PlannedLine> lines = planner.explode(bom);
+        Map<Long, MaterialDTO> ms = support.materials(lines.stream().map(MaterialPlanner.PlannedLine::componentId).toList());
+        List<MfgProdOrderOutputDO> out = new ArrayList<>();
+        int no = 0;
+        for (MaterialPlanner.PlannedLine l : lines) {
+            MaterialDTO c = ms.get(l.componentId());
+            MfgProdOrderOutputDO x = new MfgProdOrderOutputDO();
+            x.setProdOrderId(o.getId());
+            x.setLineNo(++no);
+            x.setComponentId(l.componentId());
+            x.setQtyPer(l.qtyPer());
+            x.setExpectedQty(support.round(o.getQty().multiply(l.qtyPer()), c == null ? null : c.baseUom()));
+            x.setReceivedQty(BigDecimal.ZERO);
+            out.add(x);
         }
         return out;
     }
@@ -725,7 +773,8 @@ public class ProdOrderService {
         if (issued || reported) throw new BizException(ProductionErrorCodes.ORDER_UNRELEASE_BLOCKED);
         issueMapper.delete(new LambdaQueryWrapper<MfgIssueDO>().eq(MfgIssueDO::getProdOrderId, id).eq(MfgIssueDO::getStatus, DocStatus.DRAFT));
         workOrderMapper.delete(new LambdaQueryWrapper<MfgWorkOrderDO>().eq(MfgWorkOrderDO::getProdOrderId, id));
-        if (!"REWORK".equals(o.getOrderType())) materialMapper.deleteByParent(id);
+        if (!manualMaterials(o.getOrderType())) materialMapper.deleteByParent(id);
+        outputMapper.deleteByParent(id);
         operationMapper.deleteByParent(id);
         o.setReleasedAt(null);
         progress.fire(o, MfgAction.UNRELEASE, null);
@@ -788,6 +837,13 @@ public class ProdOrderService {
                 BigDecimal required = planner.required(o.getQty(), m.getQtyPer(), m.getScrapRate(), c == null ? null : c.baseUom());
                 m.setRequiredQty(required.max(MaterialPlanner.netQty(m)));
                 touched.add(m.getId());
+            }
+            if (DISASSEMBLY.equals(o.getOrderType())) {
+                for (MfgProdOrderOutputDO x : outputMapper.selectByParent(id)) {
+                    MaterialDTO c = support.material(x.getComponentId());
+                    x.setExpectedQty(support.round(o.getQty().multiply(x.getQtyPer()), c.baseUom()).max(MfgSupport.nz(x.getReceivedQty())));
+                    outputMapper.updateByIdOrFail(x);
+                }
             }
         }
         int nextNo = mats.stream().mapToInt(MfgProdOrderMaterialDO::getLineNo).max().orElse(0);

@@ -64,6 +64,7 @@ public interface ProductionErrorCodes {
     ErrorCode RETURN_NOT_EXISTS = new ErrorCode(1_009_004_000, "退料单不存在");
     ErrorCode RETURN_OVER = new ErrorCode(1_009_004_001, "物料「{}」退料数量超过可退数量 {}");
     ErrorCode RETURN_DEFECT_DESC = new ErrorCode(1_009_004_002, "物料「{}」不良退料必须填写不良描述");
+    ErrorCode RETURN_OUTPUT_NOT_DISASSEMBLY = new ErrorCode(1_009_004_003, "只有拆解订单可以办理拆解入库");
 
     // ==================== 报工 005 ====================
     ErrorCode REPORT_NOT_EXISTS = new ErrorCode(1_009_005_000, "报工单不存在");
@@ -86,6 +87,7 @@ public interface ProductionErrorCodes {
     ErrorCode FINISH_OVER = new ErrorCode(1_009_006_001, "可申请入库数量为 {}");
     ErrorCode FINISH_STOCKED = new ErrorCode(1_009_006_002, "入库单已确认，不能取消");
     ErrorCode FINISH_SERIAL_REQUIRED = new ErrorCode(1_009_006_003, "产品「{}」为序列号管理，请录入 {} 个序列号");
+    ErrorCode FINISH_DISASSEMBLY = new ErrorCode(1_009_006_004, "拆解订单没有产品完工入库，子件请通过“拆解入库”退料单入库");
 
     // ==================== 不良 007 ====================
     ErrorCode DEFECT_NOT_EXISTS = new ErrorCode(1_009_007_000, "不良记录不存在");

@@ -14,6 +14,9 @@ public interface BomApi {
 
     Optional<BomDTO> getBom(Long bomId);
 
+    /** 父件的全部已审核版本：默认版本在前，其余按版本号倒序（生产订单选择 BOM 版本） */
+    List<BomDTO> listApprovedVersions(Long materialId);
+
     /**
      * 多级展开（MRP 口径）：从父件默认 BOM 开始逐层计算需求量；虚拟件不出现在结果中，其子件直接挂到上一层（透过）。
      *

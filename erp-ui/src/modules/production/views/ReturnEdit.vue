@@ -25,6 +25,7 @@ const form = ref<{ prodOrderId?: string; returnType: string; warehouseId?: strin
 const guard = useLeaveGuard(() => form.value)
 const loadingLines = ref(false)
 const isDefect = computed(() => form.value.returnType === 'DEFECT')
+const isOutput = computed(() => form.value.returnType === 'OUTPUT')
 
 async function loadCandidates() {
   const f = form.value
@@ -63,6 +64,7 @@ onMounted(async () => {
     await loadCandidates()
   } else if (typeof route.query.prodOrderId === 'string') {
     form.value.prodOrderId = route.query.prodOrderId
+    if (route.query.returnType === 'OUTPUT') form.value.returnType = 'OUTPUT'
     await loadCandidates()
   }
   guard.markClean()
@@ -154,15 +156,16 @@ const title = computed(() => (detail.value ? `编辑退料单 ${detail.value.doc
       </el-form>
     </ErpPanel>
 
-    <ErpPanel title="退料明细" :description="isDefect ? '不良可退 = 已领 − 已退；品质会收到不良退料通知' : '良品可退 = 已领 − 已退 − 理论耗用（(完工 + 报废) × 单位用量）'">
+    <ErpPanel :title="isOutput ? '拆解产出' : '退料明细'"
+      :description="isOutput ? '可入库 = 已拆解产品（净领用）× 单位产出 − 已入库，不超过预计产出' : isDefect ? '不良可退 = 已领 − 已退；品质会收到不良退料通知' : '良品可退 = 已领 − 已退 − 理论耗用（(完工 + 报废) × 单位用量）'">
       <el-table v-loading="loadingLines" :data="form.lines">
         <el-table-column label="" width="50"><template #default="{ row }"><el-checkbox v-model="row.selected" /></template></el-table-column>
         <el-table-column label="物料" min-width="200"><template #default="{ row }">{{ row.code }} {{ row.name }}</template></el-table-column>
-        <el-table-column label="已领" width="90" align="right"><template #default="{ row }">{{ formatQty(row.issuedQty) }}</template></el-table-column>
-        <el-table-column label="已退" width="90" align="right"><template #default="{ row }">{{ formatQty(row.returnedQty) }}</template></el-table-column>
-        <el-table-column v-if="!isDefect" label="理论耗用" width="90" align="right"><template #default="{ row }">{{ formatQty(row.theoreticalQty) }}</template></el-table-column>
-        <el-table-column label="可退" width="90" align="right"><template #default="{ row }">{{ formatQty(row.returnableQty) }}</template></el-table-column>
-        <el-table-column label="退料数量" width="130"><template #default="{ row }"><QtyInput v-model="row.qty" :uom="row.uom" /></template></el-table-column>
+        <el-table-column :label="isOutput ? '预计产出' : '已领'" width="90" align="right"><template #default="{ row }">{{ formatQty(row.issuedQty) }}</template></el-table-column>
+        <el-table-column :label="isOutput ? '已入库' : '已退'" width="90" align="right"><template #default="{ row }">{{ formatQty(row.returnedQty) }}</template></el-table-column>
+        <el-table-column v-if="!isDefect && !isOutput" label="理论耗用" width="90" align="right"><template #default="{ row }">{{ formatQty(row.theoreticalQty) }}</template></el-table-column>
+        <el-table-column :label="isOutput ? '可入库' : '可退'" width="90" align="right"><template #default="{ row }">{{ formatQty(row.returnableQty) }}</template></el-table-column>
+        <el-table-column :label="isOutput ? '入库数量' : '退料数量'" width="130"><template #default="{ row }"><QtyInput v-model="row.qty" :uom="row.uom" /></template></el-table-column>
         <el-table-column prop="uom" label="单位" width="60" />
         <el-table-column label="批次" width="150">
           <template #default="{ row }">
@@ -173,7 +176,7 @@ const title = computed(() => (detail.value ? `编辑退料单 ${detail.value.doc
         <el-table-column v-if="isDefect" label="不良描述" min-width="200">
           <template #default="{ row }"><el-input v-model="row.defectDesc" maxlength="256" placeholder="必填，如来料引脚氧化" /></template>
         </el-table-column>
-        <template #empty><ErpEmpty compact :description="form.prodOrderId ? '该订单没有已领料的物料' : '请先选择生产订单'" /></template>
+        <template #empty><ErpEmpty compact :description="!form.prodOrderId ? '请先选择生产订单' : isOutput ? '只有已下达的拆解订单有拆解产出' : '该订单没有已领料的物料'" /></template>
       </el-table>
     </ErpPanel>
   </ErpPage>

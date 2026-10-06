@@ -101,7 +101,12 @@ public final class ProdOrderVOs {
                                   BigDecimal scrappedQty, BigDecimal finishedRequestQty, BigDecimal stockedQty, BigDecimal qualifiedStockedQty,
                                   BigDecimal fqcRejectedQty, BigDecimal finishableQty, BigDecimal pendingDefectQty, boolean fqcRequired, Long deptId,
                                   String deptName, Long ownerId, String ownerName, String closeReason, String remark, LocalDateTime createdAt, int version,
-                                  List<MaterialResp> materials, List<OperationResp> operations, List<RelatedDoc> related) {
+                                  List<MaterialResp> materials, List<OperationResp> operations, List<OutputResp> outputs, List<RelatedDoc> related) {
+    }
+
+    /** 拆解订单产出：预计产出、已入库 */
+    public record OutputResp(Long id, int lineNo, Long componentId, String code, String name, String spec, String uom, BigDecimal qtyPer,
+                             BigDecimal expectedQty, BigDecimal receivedQty) {
     }
 
     /**

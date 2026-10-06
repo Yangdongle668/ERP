@@ -506,6 +506,14 @@ public class BomQueryService implements BomApi {
     }
 
     @Override
+    public List<BomDTO> listApprovedVersions(Long materialId) {
+        if (materialId == null) return List.of();
+        return bomMapper.selectList(new LambdaQueryWrapper<BomDO>().eq(BomDO::getMaterialId, materialId).eq(BomDO::getStatus, DocStatus.APPROVED)
+                        .orderByDesc(BomDO::getIsDefault).orderByDesc(BomDO::getBomVersion))
+                .stream().map(this::toDto).toList();
+    }
+
+    @Override
     public List<BomExplodeLine> explode(Long materialId, BigDecimal qty, LocalDate date, int levels) {
         BomDO bom = bomMapper.selectDefault(materialId);
         if (bom == null) return List.of();
