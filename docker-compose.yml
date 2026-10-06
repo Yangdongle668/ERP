@@ -79,7 +79,7 @@ services:
       erp-server:
         condition: service_healthy
     ports:
-      - "${ERP_HTTP_PORT:-80}:80"
+      - "${ERP_HTTP_PORT:-1493}:80"
 
 volumes:
   mysql-data:

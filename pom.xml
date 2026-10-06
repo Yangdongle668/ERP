@@ -254,6 +254,16 @@
                 <artifactId>erp-module-asset-biz</artifactId>
                 <version>${revision}</version>
             </dependency>
+            <dependency>
+                <groupId>com.erp</groupId>
+                <artifactId>erp-module-fx-api</artifactId>
+                <version>${revision}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.erp</groupId>
+                <artifactId>erp-module-fx-biz</artifactId>
+                <version>${revision}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

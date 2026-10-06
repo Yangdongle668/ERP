@@ -389,6 +389,19 @@ public class CurrencyService implements CurrencyApi {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean saveAutoRate(String currency, RateType type, LocalDate date, BigDecimal rate, String remark) {
+        CurrencyDO c = all().get(currency);
+        if (c == null || Boolean.TRUE.equals(c.getBase()) || c.getStatus() != EnableStatus.ENABLED || rate == null || rate.signum() <= 0) return false;
+        LocalDate d = normalizeDate(type, date);
+        ExchangeRateDO existing = findRate(currency, type, d);
+        if (existing != null && !ExchangeRateDO.SOURCE_AUTO.equals(existing.getSource())) return false;
+        if (existing != null && existing.getRate().compareTo(rate.setScale(6, RoundingMode.HALF_UP)) == 0) return true;
+        upsertRate(currency, type, d, rate, remark, ExchangeRateDO.SOURCE_AUTO, true);
+        return true;
+    }
+
+    @Override
     public int getPrecision(String currency) {
         CurrencyDO c = currency == null ? null : all().get(currency);
         return c == null ? 2 : c.getAmountPrecision();

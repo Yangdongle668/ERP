@@ -43,7 +43,8 @@ class ModuleTableOwnershipTest {
             Map.entry("finance", Set.of("fin")),
             Map.entry("bi", Set.of("bi", "ai")),
             Map.entry("backup", Set.of("bak")),
-            Map.entry("asset", Set.of("ast")));
+            Map.entry("asset", Set.of("ast")),
+            Map.entry("fx", Set.of("fx")));
 
     private static final Set<String> ALL_PREFIXES = PREFIXES.values().stream().flatMap(Set::stream).collect(Collectors.toSet());
     private static final Pattern MODULE_PACKAGE = Pattern.compile("^com\\.erp\\.module\\.([a-z0-9]+)\\..*");

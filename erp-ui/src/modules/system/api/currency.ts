@@ -29,7 +29,7 @@ export interface RateRow {
   rateType: 'DAILY' | 'MONTH_END'
   effectiveDate: string
   rate: string
-  source: 'MANUAL' | 'IMPORT'
+  source: 'MANUAL' | 'IMPORT' | 'AUTO'
   remark?: string
   updatedByName?: string
   updatedAt: string

@@ -102,7 +102,7 @@ const rateColumns: TableColumn<RateRow>[] = [
   { prop: 'rateType', label: '汇率类型', width: 100, type: 'enum', options: RATE_TYPE_OPTIONS },
   { prop: 'effectiveDate', label: '生效日期', width: 110, type: 'date', sortable: true },
   { prop: 'rate', label: '汇率', width: 130, type: 'rate', slot: true },
-  { prop: 'source', label: '来源', width: 80, type: 'enum', options: [{ value: 'MANUAL', label: '手工' }, { value: 'IMPORT', label: '导入' }] },
+  { prop: 'source', label: '来源', width: 80, type: 'enum', options: [{ value: 'MANUAL', label: '手工' }, { value: 'IMPORT', label: '导入' }, { value: 'AUTO', label: '自动' }] },
   { prop: 'remark', label: '备注', minWidth: 160 },
   { prop: 'updatedByName', label: '维护人', width: 100 },
   { prop: 'updatedAt', label: '维护时间', width: 150, type: 'datetime' }
