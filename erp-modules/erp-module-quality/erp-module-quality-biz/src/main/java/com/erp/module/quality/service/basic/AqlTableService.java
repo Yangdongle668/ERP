@@ -1,5 +1,7 @@
 package com.erp.module.quality.service.basic;
 
+import org.springframework.context.event.EventListener;
+import com.erp.framework.maintenance.DataRestoredEvent;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.erp.common.exception.BizException;
 import com.erp.module.quality.api.QualityErrorCodes;
@@ -132,6 +134,12 @@ public class AqlTableService {
         r.setRe(req.re());
         tableMapper.updateByIdOrFail(r);
         refreshAfterCommit();
+    }
+
+    /** 系统数据恢复后重新读取 */
+    @EventListener(DataRestoredEvent.class)
+    public void onRestored() {
+        snapshot = null;
     }
 
     private void refreshAfterCommit() {

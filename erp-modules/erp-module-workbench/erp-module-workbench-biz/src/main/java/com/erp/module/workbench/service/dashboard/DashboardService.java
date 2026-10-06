@@ -1,5 +1,7 @@
 package com.erp.module.workbench.service.dashboard;
 
+import org.springframework.context.event.EventListener;
+import com.erp.framework.maintenance.DataRestoredEvent;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.erp.common.exception.BizException;
 import com.erp.module.workbench.api.WorkbenchErrorCodes;
@@ -66,6 +68,12 @@ public class DashboardService {
         this.messageService = messageService;
         this.support = support;
         this.objectMapper = objectMapper;
+    }
+
+    /** 系统数据恢复后清除看板缓存 */
+    @EventListener(DataRestoredEvent.class)
+    public void onRestored() {
+        cache.clear();
     }
 
     public Summary summary() {

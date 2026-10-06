@@ -26,5 +26,6 @@
         <module>erp-module-finance</module>
         <module>erp-module-bi</module>
         <module>erp-module-workbench</module>
+        <module>erp-module-backup</module>
     </modules>
 </project>
