@@ -34,6 +34,7 @@
 | 出货 | `shipping` | 出货通知、拣货、装箱与箱唛、OQC、出货单、装箱单 / 发票 / 报关资料、物流 |
 | 财务 | `finance` | 应收应付、收付款与核销、发票、凭证、成本核算、月结、损益与分析报表 |
 | BI / AI | `bi` | 指标库与汇总数据层、经营驾驶舱、销售 / 采购 / 库存 / 生产 / 品质 / 财务专题分析、AI 问数、异常解读、经营周报 |
+| 实时汇率 | `fx` | 每 15 分钟获取中国银行现汇买入价（USD_CNY / EUR_CNY / EUR_USD），日 / 月平均汇率自动写入系统汇率表，数据保存 3 年 |
 | 固定资产 | `asset` | 资产台账、资产编码 LD1-PD-CPJ-264-001（《编码规则管理制度》）、闲置 / 送修 / 报废 |
 | 系统备份 | `backup` | 超级管理员全量备份（数据库 + 附件）、下载 / 上传备份、一键恢复、自动备份与保留份数 |
 
@@ -56,7 +57,7 @@ cd ERP
 3. 构建后端与前端镜像，启动 3 个容器：`mysql`（MySQL 8）、`erp-server`（Spring Boot）、`erp-ui`（Nginx 静态页面 + `/api` 反向代理）；
 4. 等待后端健康检查通过（首次启动自动执行全部模块的建表脚本）。
 
-完成后访问 `http://服务器IP`（端口可在 `.env` 的 `ERP_HTTP_PORT` 修改），初始账号 **`admin / admin123`**，首次登录会强制修改密码。
+完成后访问 `http://服务器IP:1493`（默认端口 1493，可在 `.env` 的 `ERP_HTTP_PORT` 修改；已部署的服务器沿用原 `.env` 中的端口），初始账号 **`admin / admin123`**，首次登录会强制修改密码。
 
 ```
 浏览器 ──80──▶ erp-ui（Nginx：静态页面，/api → erp-server:8080）
@@ -64,7 +65,7 @@ cd ERP
                           └──▶ mysql（MySQL 8，数据卷 mysql-data）
 ```
 
-**小内存服务器（2 核 2G）**：`deploy.sh` 检测到内存 ≤ 3.5GB 时自动使用低内存配置（JVM 堆 640MB、MySQL 缓冲池 128MB 并关闭 performance_schema，运行时合计约 0.8GB），镜像逐个构建；前端镜像构建只打包、不做类型检查（类型检查在 CI 中执行），打包约需 1GB 内存。建议首次部署使用 `sudo ./deploy.sh --cn --swap`，自动创建 2GB 交换文件。配置写在 `.env` 的 `ERP_MEMORY_PROFILE`、`JAVA_OPTS`、`MYSQL_*` 中，可手工调整。
+**小内存服务器（2 核 2G）**：`deploy.sh` 检测到内存 ≤ 3.5GB 时自动使用低内存配置（JVM 堆 640MB、MySQL 缓冲池 128MB 并关闭 performance_schema，运行时合计约 0.8GB），镜像逐个构建；前端镜像构建只打包、不做类型检查（类型检查在 CI 中执行），打包约需 1GB 内存。建议首次部署使用 `sudo ./deploy.sh --cn --swap`，自动创建 1536MB 交换文件。配置写在 `.env` 的 `ERP_MEMORY_PROFILE`、`JAVA_OPTS`、`MYSQL_*` 中，可手工调整。
 
 **HTTPS、监控、备份**：
 

@@ -18,6 +18,8 @@ public class ExchangeRateDO extends BaseDO {
 
     public static final String SOURCE_MANUAL = "MANUAL";
     public static final String SOURCE_IMPORT = "IMPORT";
+    /** 实时汇率模块自动推送（中国银行现汇买入价） */
+    public static final String SOURCE_AUTO = "AUTO";
 
     private String currency;
     private RateType rateType;

@@ -13,3 +13,5 @@ erp:
   backup:
     path: ${java.io.tmpdir}/erp-it-backups
     settle-millis: 0
+  fx:
+    poll-enabled: false

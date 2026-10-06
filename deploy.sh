@@ -4,7 +4,7 @@
 # 用法：
 #   ./deploy.sh          首次部署（已部署时相当于按当前代码重新构建并启动）
 #   ./deploy.sh --cn     使用国内镜像源构建（Maven 阿里云、npm npmmirror），写入 .env
-#   ./deploy.sh --swap   内存 ≤ 3.5GB 且没有足够交换空间时，自动创建 2GB 交换文件 /swapfile（需要 root）
+#   ./deploy.sh --swap   内存 ≤ 3.5GB 且没有足够交换空间时，自动创建 1536MB 交换文件 /swapfile（需要 root）
 #   ./deploy.sh --backup-cron   部署完成后安装每日定时备份（数据库 + 附件，见 backup.sh）
 #   ./deploy.sh --https  使用 Caddy 自动申请 HTTPS 证书（需在 .env 设置 ERP_DOMAIN，80/443 端口可从公网访问）
 #   ./deploy.sh --monitoring   同时启动 Prometheus 监控（docker-compose.monitoring.yml）
@@ -68,18 +68,18 @@ if ! grep -qE '^ERP_MEMORY_PROFILE=.+' .env; then
     set_env ERP_MEMORY_PROFILE standard
   fi
 fi
-if [ "$MEM_MB" -gt 0 ] && [ "$MEM_MB" -le 3584 ] && [ "$SWAP_MB" -lt 2000 ]; then
+if [ "$MEM_MB" -gt 0 ] && [ "$MEM_MB" -le 3584 ] && [ "$SWAP_MB" -lt 1500 ]; then
   if [ "$SWAP" = 1 ]; then
     [ "$(id -u)" = 0 ] || fail "创建交换文件需要 root（sudo ./deploy.sh --swap）"
     if [ ! -f /swapfile ]; then
-      info "创建 2GB 交换文件 /swapfile …"
-      (fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none)
+      info "创建 1536MB 交换文件 /swapfile …"
+      (fallocate -l 1536M /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=1536 status=none)
       chmod 600 /swapfile && mkswap /swapfile >/dev/null
       grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
     fi
     swapon /swapfile 2>/dev/null || true
   else
-    warn "内存 ${MEM_MB}MB、交换空间 ${SWAP_MB}MB，构建前端可能内存不足；建议执行 sudo ./deploy.sh --swap 自动创建 2GB 交换文件"
+    warn "内存 ${MEM_MB}MB、交换空间 ${SWAP_MB}MB，构建前端可能内存不足；建议执行 sudo ./deploy.sh --swap 自动创建 1536MB 交换文件"
   fi
 fi
 
@@ -94,7 +94,7 @@ if [ "$HTTPS" = 1 ]; then
   [ -n "$(env_val ERP_DOMAIN)" ] || fail "启用 HTTPS 需要在 .env 中设置 ERP_DOMAIN（已解析到本机的域名）"
   set_env ERP_HTTPS true
   # 前端容器只在本机监听，公网 80/443 由 Caddy 接管
-  case "$(env_val ERP_HTTP_PORT)" in ""|80) set_env ERP_HTTP_PORT 127.0.0.1:8088 ;; esac
+  case "$(env_val ERP_HTTP_PORT)" in ""|80|1493) set_env ERP_HTTP_PORT 127.0.0.1:8088 ;; esac
 fi
 if [ "$MONITORING" = 1 ]; then
   set_env ERP_MONITORING true
@@ -142,7 +142,7 @@ if ! wait_healthy erp-server 600; then
 fi
 wait_healthy erp-ui 120 || fail "前端未能正常启动（docker compose logs erp-ui）"
 
-PORT=${ERP_HTTP_PORT:-80}
+PORT=${ERP_HTTP_PORT:-1493}
 HOST=$(hostname -I 2>/dev/null | awk '{print $1}')
 info "部署完成！"
 if [ "${ERP_HTTPS:-}" = true ]; then

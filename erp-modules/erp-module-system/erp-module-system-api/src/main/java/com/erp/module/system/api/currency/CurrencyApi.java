@@ -24,6 +24,16 @@ public interface CurrencyApi {
      */
     BigDecimal getRate(String currency, LocalDate date, RateType type);
 
+    /**
+     * 自动汇率（实时汇率模块推送，来源 AUTO）：币别不存在、未启用或为本位币时忽略；
+     * 同键已有手工 / 导入的汇率时以人工为准、不覆盖，已有自动汇率时更新。
+     *
+     * @return 是否已保存
+     */
+    default boolean saveAutoRate(String currency, RateType type, LocalDate date, BigDecimal rate, String remark) {
+        return false;
+    }
+
     /** 金额精度（小数位） */
     int getPrecision(String currency);
 
