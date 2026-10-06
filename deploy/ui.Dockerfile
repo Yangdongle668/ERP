@@ -4,7 +4,7 @@ FROM node:22-alpine AS build
 # 可选：npm 镜像源（如 https://registry.npmmirror.com）
 ARG NPM_REGISTRY=""
 # Node 堆上限：打包约需 1GB。类型检查（vue-tsc）需要 2GB 以上，镜像构建中不执行，由 CI 的 npm run build 保证
-ARG NODE_HEAP_MB=1024
+ARG NODE_HEAP_MB=1536
 ENV NODE_OPTIONS="--max-old-space-size=${NODE_HEAP_MB}"
 WORKDIR /src
 COPY deploy/certs/ /tmp/certs/
