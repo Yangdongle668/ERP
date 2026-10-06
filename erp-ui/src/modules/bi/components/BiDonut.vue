@@ -28,8 +28,8 @@ const arcs = computed(() => {
     <ErpEmpty v-if="!items.length" description="暂无数据" />
     <template v-else>
       <svg viewBox="0 0 160 160" class="bi-donut__svg" role="img" aria-label="占比图">
-        <circle cx="80" cy="80" :r="R" class="track" />
-        <circle v-for="a in arcs" :key="a.label" cx="80" cy="80" :r="R" :class="['arc', a.cls]" :stroke-dasharray="a.dash" :stroke-dashoffset="a.offset"
+        <circle cx="80" cy="80" :r="R" class="track" fill="none" />
+        <circle v-for="a in arcs" :key="a.label" cx="80" cy="80" :r="R" :class="['arc', a.cls]" fill="none" :stroke-dasharray="a.dash" :stroke-dashoffset="a.offset"
                 transform="rotate(-90 80 80)"><title>{{ a.label }}：{{ a.share.toFixed(1) }}%</title></circle>
       </svg>
       <ul class="bi-donut__legend">

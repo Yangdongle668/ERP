@@ -54,7 +54,7 @@ const lines = computed(() => props.series.map((s, si) => ({
           </circle>
         </template>
       </g>
-      <rect v-for="(l, i) in labels" :key="`hit-${l}`" :x="xOf(i) - step / 2" :y="PAD.t" :width="step" :height="H - PAD.t - PAD.b" class="hit"
+      <rect v-for="(l, i) in labels" :key="`hit-${l}`" :x="xOf(i) - step / 2" :y="PAD.t" :width="step" :height="H - PAD.t - PAD.b" class="hit" fill="transparent"
             @click="emit('select', i)" />
     </svg>
     <div v-if="series.length > 1" class="bi-legend">

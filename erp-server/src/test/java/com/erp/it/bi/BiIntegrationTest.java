@@ -153,6 +153,24 @@ class BiIntegrationTest extends ShippingTestSupport {
         assertThat(ok(doGet("/api/bi/etl/logs?jobCode=RECON_SALES", admin)).get(0).at("/diffRows").asInt()).isEqualTo(1);
     }
 
+    /** 生产效率 = 标准工时 ÷ 实际工时（13-03 生产专题 KPI） */
+    @Test
+    void productionEfficiency() throws Exception {
+        LocalDate day = LocalDate.of(2019, 5, 10);
+        long dept = 980_000_000L + AGG_ID.incrementAndGet() % 100_000;
+        for (String[] v : new String[][]{{"8", "6"}, {"4", "3.6"}}) {
+            jdbc.update("INSERT INTO bi_agg_production_daily (id, stat_date, period, dept_id, material_id, category_id, plan_qty, good_qty, defect_qty, scrap_qty, "
+                            + "work_hours, std_hours, in_qty, first_pass_qty, delayed_order_count, version, created_at, updated_at, deleted) "
+                            + "VALUES (?, ?, '201905', ?, NULL, NULL, 0, 100, 0, 0, ?, ?, 0, 0, 0, 0, ?, ?, 0)",
+                    AGG_ID.incrementAndGet(), day, dept, new BigDecimal(v[0]), new BigDecimal(v[1]), LocalDateTime.now(), LocalDateTime.now());
+        }
+        JsonNode r = ok(query(admin, Map.of("metrics", List.of("std_hours", "work_hours", "production_efficiency"), "dimensions", List.of("dept"),
+                "filters", Map.of("dept", List.of(String.valueOf(dept))), "from", day.toString(), "to", day.toString())));
+        assertThat(r.at("/rows/0/std_hours").decimalValue()).isEqualByComparingTo("9.6");
+        assertThat(r.at("/rows/0/work_hours").decimalValue()).isEqualByComparingTo("12");
+        assertThat(r.at("/rows/0/production_efficiency").decimalValue()).isEqualByComparingTo("80");
+    }
+
     /** BI-DATA-T03 / BI-TOP-T03：业务员只看到自己的数据；指标权限与维度白名单 */
     @Test
     void queryDataScopeAndPermissions() throws Exception {

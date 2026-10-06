@@ -324,4 +324,23 @@ class ProductionDocsIntegrationTest extends ProductionTestSupport {
         reportOk(report(id, 10, 5, 0, 0));
         assertThat(order(id).at("/prodStatus").asText()).isEqualTo("COMPLETED");
     }
+
+    @Autowired
+    com.erp.module.production.service.bi.ProductionBiFactProvider biFacts;
+
+    /** BI 生产事实的标准工时 = 合格 × 工序标准秒 ÷ 3600（36 秒 / 件 × 100 = 1 小时） */
+    @Test
+    void biStandardHours() throws Exception {
+        String prod = fg("标准工时产品");
+        String comp = raw("标准工时料");
+        bom(prod, List.of(bomLine(comp, 1, 0, "BACKFLUSH", null)));
+        routing(prod, workCenter(), new Object[]{10, "组装", true});
+        stock(comp, W_RAW, "100", null);
+        String id = releasedOrder(prod, "100");
+        reportOk(report(id, 10, 100, 0, 0));
+        BigDecimal std = biFacts.productionFacts(LocalDate.now(), LocalDate.now()).stream()
+                .filter(f -> f.materialId().toString().equals(prod) && f.goodQty().signum() > 0)
+                .map(f -> f.stdHours()).reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertThat(std).isEqualByComparingTo("1");
+    }
 }

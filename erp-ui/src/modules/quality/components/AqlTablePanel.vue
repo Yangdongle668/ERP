@@ -77,7 +77,7 @@ async function saveRow() {
 </script>
 
 <template>
-  <div v-loading="loading" class="aql">
+  <div v-loading="loading" class="aql-panel">
     <p class="hint">
       GB/T 2828.1 一次正常检验。检验单按“批量 + 检验水平 → 字码”“字码 + AQL → 样本量 n 与 Ac/Re”计算，箭头指向的方案已展开为实际使用的字码与样本量。
       <template v-if="canEdit">点击单元格可修改，修改只影响之后新建的检验单。</template>
@@ -141,7 +141,8 @@ async function saveRow() {
 </template>
 
 <style scoped>
-.aql { padding: var(--erp-space-4); }
+.aql-panel { padding: var(--erp-space-4); }
+.aql-panel :deep(.el-table .cell) { white-space: nowrap; }
 .hint { margin: 0 0 var(--erp-space-3); color: var(--erp-color-text-secondary); font-size: var(--erp-font-size-secondary); }
 .title { margin: var(--erp-space-4) 0 var(--erp-space-2); font-size: var(--erp-font-size-section-title); font-weight: var(--erp-font-weight-semibold); }
 .cell { cursor: pointer; }
