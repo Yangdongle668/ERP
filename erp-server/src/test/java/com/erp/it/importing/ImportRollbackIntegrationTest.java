@@ -61,7 +61,7 @@ class ImportRollbackIntegrationTest extends AbstractIntegrationTest {
         String u = uniq();
         String group = "G" + u.substring(Math.max(0, u.length() - 6));
         String cat = "C" + u.substring(Math.max(0, u.length() - 6));
-        String prefix = "9" + u.substring(u.length() - 1) + "-";
+        String prefix = "T" + u.substring(u.length() - 2) + "-";
         byte[] cats = xlsx(List.of("类别编码", "名称", "上级类别编码", "编码前缀", "流水号位数", "默认物料类型", "默认基本单位", "默认库存管理", "默认来料检验"),
                 List.of(List.of(group, "分组" + u, "", group, "", "原材料", "PCS", "不管理", "是"),
                         List.of(cat, "连接片" + u, group, prefix, "7", "原材料", "PCS", "批次", "否")));

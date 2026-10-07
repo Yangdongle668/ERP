@@ -13,6 +13,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** 物料编码段（需求 05-01 第 8 节、05-02 R14，《物料编码原则》） */
 class CodeSegmentIntegrationTest extends EngineeringTestSupport {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     private String categoryId(String code) throws Exception {
         JsonNode tree = ok(doGet("/api/engineering/categories/tree", admin));
         for (JsonNode n : tree.findParents("code")) {
@@ -27,29 +30,51 @@ class CodeSegmentIntegrationTest extends EngineeringTestSupport {
         return m;
     }
 
-    /** 预置大类：线材 12- + 型号 + 颜色 + 5 位流水；同组合连续，不同组合独立计数；泡棉 3 位流水 */
+    /** 预置类别（《物料编码手册》）：线材 92- + 型号 + 颜色 + 5 位流水；同组合连续，不同组合独立计数；泡棉胶 4 位流水 */
     @Test
     void presetCategories() throws Exception {
-        String wire = categoryId("LD12");
+        String wire = categoryId("LD92");
         JsonNode scheme = ok(doGet("/api/engineering/categories/" + wire + "/code-scheme", admin));
-        assertThat(scheme.at("/codePrefix").asText()).isEqualTo("12-");
+        assertThat(scheme.at("/codePrefix").asText()).isEqualTo("92-");
         assertThat(scheme.at("/segments/0/name").asText()).isEqualTo("线材型号");
         assertThat(scheme.at("/segments/1/name").asText()).isEqualTo("颜色");
         assertThat(scheme.at("/segments").size()).isEqualTo(2);
 
-        String a = getMaterial(createMaterial(coded(wire, "导线", "RAW", List.of("02", "1")))).at("/code").asText();
-        assertThat(a).matches("12-021\\d{5}");
-        String b = getMaterial(createMaterial(coded(wire, "导线", "RAW", List.of("02", "1")))).at("/code").asText();
-        assertThat(Long.parseLong(b.substring(6))).isEqualTo(Long.parseLong(a.substring(6)) + 1);
-        JsonNode c = getMaterial(createMaterial(coded(wire, "导线", "RAW", List.of("06", "2"))));
-        assertThat(c.at("/code").asText()).matches("12-062\\d{5}");
-        assertThat(c.at("/codeSegments").asText()).isEqualTo("线材型号 06 UL1007；颜色 2 黑色");
+        String a = getMaterial(createMaterial(coded(wire, "导线", "RAW", List.of("2", "1")))).at("/code").asText();
+        assertThat(a).matches("92-21\\d{5}");
+        String b = getMaterial(createMaterial(coded(wire, "导线", "RAW", List.of("2", "1")))).at("/code").asText();
+        assertThat(Long.parseLong(b.substring(5))).isEqualTo(Long.parseLong(a.substring(5)) + 1);
+        JsonNode c = getMaterial(createMaterial(coded(wire, "导线", "RAW", List.of("6", "2"))));
+        assertThat(c.at("/code").asText()).matches("92-62\\d{5}");
+        assertThat(c.at("/codeSegments").asText()).isEqualTo("线材型号 6 UL1007；颜色 2 黑色");
 
-        assertError(doPost("/api/engineering/materials", admin, coded(wire, "导线", "RAW", List.of("02"))), "请选择编码段「颜色」");
-        assertError(doPost("/api/engineering/materials", admin, coded(wire, "导线", "RAW", List.of("99", "1"))), "编码段「线材型号」没有可用的特征值「99」");
+        assertError(doPost("/api/engineering/materials", admin, coded(wire, "导线", "RAW", List.of("2"))), "请选择编码段「颜色」");
+        assertError(doPost("/api/engineering/materials", admin, coded(wire, "导线", "RAW", List.of("9", "1"))), "编码段「线材型号」没有可用的特征值「9」");
 
-        String foam = categoryId("LD16");
-        assertThat(getMaterial(createMaterial(coded(foam, "EVA", "RAW", List.of("10", "1", "1")))).at("/code").asText()).matches("16-1011\\d{3}");
+        String foam = categoryId("LD82");
+        assertThat(getMaterial(createMaterial(coded(foam, "EVA", "RAW", List.of("01", "1")))).at("/code").asText()).matches("82-011\\d{4}");
+    }
+
+    /** 《物料编码手册》类别：旧版预置（LD10～LD41）已删除；分组 LDWL 下 22 个类别；自动编码跳过已被占用的编号 */
+    @Test
+    void handbookCategoriesAndSkip() throws Exception {
+        JsonNode tree = ok(doGet("/api/engineering/categories/tree", admin));
+        assertThat(tree.findValuesAsText("code")).contains("LDWL", "LD99", "LD79", "LD49", "LD59").doesNotContain("LD12", "LD21", "LDPR", "LDCR");
+        JsonNode cell = ok(doGet("/api/engineering/categories/" + categoryId("LD79") + "/code-scheme", admin));
+        assertThat(cell.at("/codeSeqLength").asInt()).isEqualTo(3);
+        assertThat(cell.at("/segments").size()).isEqualTo(4);
+
+        String wire = categoryId("LD92");
+        String a = getMaterial(createMaterial(coded(wire, "导线", "RAW", List.of("7", "1")))).at("/code").asText();
+        String b = getMaterial(createMaterial(coded(wire, "导线", "RAW", List.of("7", "1")))).at("/code").asText();
+        // 模拟流水号落后于已有编码（规则调整前导入的编码）：自动生成时跳过已被占用的编号
+        jdbc.update("UPDATE sys_code_seq SET current_value = current_value - 1 WHERE biz_code = 'ENG_MATERIAL' AND reset_key = 'ALL|92-71'");
+        String c = getMaterial(createMaterial(coded(wire, "导线", "RAW", List.of("7", "1")))).at("/code").asText();
+        assertThat(Long.parseLong(c.substring(5))).isEqualTo(Long.parseLong(b.substring(5)) + 1).isEqualTo(Long.parseLong(a.substring(5)) + 2);
+        // 手工编码推进按编码段组合的流水号
+        String manual = "92-7199990";
+        createMaterial(Map.of("code", manual, "name", "手工", "materialType", "RAW", "baseUom", "PCS", "categoryId", wire));
+        assertThat(getMaterial(createMaterial(coded(wire, "导线", "RAW", List.of("7", "1")))).at("/code").asText()).isEqualTo("92-7199991");
     }
 
     /** 自定义编码方案；已有物料后不能改结构、不能删特征值，可以新增 / 停用特征值 */
