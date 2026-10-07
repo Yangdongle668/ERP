@@ -213,6 +213,15 @@ public class CodeSegmentService {
         return parts;
     }
 
+    /**
+     * 手工 / 导入编码对应的计数前缀：类别前缀 + 各编码段（按位数截取），如 92-2100001 → 92-21。
+     * 类别没有编码段或编码不以类别前缀开头时返回类别前缀。
+     */
+    public String prefixOf(MaterialCategoryDO c, String code) {
+        int len = c.getCodePrefix().length() + segmentMapper.selectByCategory(c.getId()).stream().mapToInt(CodeSegmentDO::getSegLength).sum();
+        return code != null && code.startsWith(c.getCodePrefix()) && code.length() > len ? code.substring(0, len) : c.getCodePrefix();
+    }
+
     public boolean hasSegments(Long categoryId) {
         return !segmentMapper.selectByCategory(categoryId).isEmpty();
     }

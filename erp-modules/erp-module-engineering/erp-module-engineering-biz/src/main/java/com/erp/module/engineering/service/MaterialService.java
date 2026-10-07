@@ -199,8 +199,9 @@ public class MaterialService {
         assertCodeUnique(code, null);
         if (manual) {
             // 手工 / 导入的编码符合规则时推进流水号，之后自动生成的编码不会重复
-            codeRuleApi.observeManualCode(EngineeringModuleConfig.CODE_RULE_MATERIAL,
-                    Map.of("categoryPrefix", composed == null ? category.getCodePrefix() : composed.prefix()), category.getCodeSeqLength(), code);
+            String counterPrefix = composed != null ? composed.prefix() : segmentService.prefixOf(category, code);
+            codeRuleApi.observeManualCode(EngineeringModuleConfig.CODE_RULE_MATERIAL, Map.of("categoryPrefix", counterPrefix),
+                    category.getCodeSeqLength(), code);
         }
 
         MaterialDO m = new MaterialDO();
@@ -263,12 +264,16 @@ public class MaterialService {
     private String generateCode(MaterialCategoryDO category, CodeSegmentService.Composed composed) {
         String prefix = composed == null ? category.getCodePrefix() : composed.prefix();
         Integer seqLength = category.getCodeSeqLength();
-        String code = codeRuleApi.nextCode(EngineeringModuleConfig.CODE_RULE_MATERIAL, Map.of("categoryPrefix", prefix), seqLength);
-        // 流水号超出位数（如 3 位流水已到 999）时不能生成更长的编码，否则会和其他特征组合混淆
-        if (seqLength != null && code.startsWith(prefix) && code.length() > prefix.length() + seqLength) {
-            throw BizException.of(EngineeringErrorCodes.CODE_SEQ_OVERFLOW, prefix, seqLength);
+        // 已被占用的编号（如编码规则调整前手工 / 导入的编码）自动跳过
+        for (int i = 0; i < 10_000; i++) {
+            String code = codeRuleApi.nextCode(EngineeringModuleConfig.CODE_RULE_MATERIAL, Map.of("categoryPrefix", prefix), seqLength);
+            // 流水号超出位数（如 3 位流水已到 999）时不能生成更长的编码，否则会和其他特征组合混淆
+            if (seqLength != null && code.startsWith(prefix) && code.length() > prefix.length() + seqLength) {
+                throw BizException.of(EngineeringErrorCodes.CODE_SEQ_OVERFLOW, prefix, seqLength);
+            }
+            if (materialMapper.selectByCode(code) == null) return code;
         }
-        return code;
+        throw BizException.of(EngineeringErrorCodes.CODE_SEQ_OVERFLOW, prefix, seqLength == null ? 5 : seqLength);
     }
 
     /** 选择类别后带出默认值（仅新建时，前端对未手工修改的字段同样处理） */
