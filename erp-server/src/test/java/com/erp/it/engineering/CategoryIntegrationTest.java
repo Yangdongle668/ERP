@@ -14,9 +14,10 @@ class CategoryIntegrationTest extends EngineeringTestSupport {
     @Test
     void initialCategoriesExist() throws Exception {
         JsonNode tree = ok(doGet("/api/engineering/categories/tree", admin));
-        assertThat(tree.findValuesAsText("code")).contains("RAW", "FPC", "ELEC", "PKG", "AUX", "SEMI", "FG");
+        // 《物料编码手册》一级类别（测试库另补了 V2 示例类别 RAW、FG 等，见 test resources V7_900）
+        assertThat(tree.findValuesAsText("code")).contains("LD99", "LDDX", "LDPK", "LD69", "LD59", "LD49");
         JsonNode simple = ok(doGet("/api/engineering/categories/simple-tree", admin));
-        assertThat(simple.findValuesAsText("code")).contains("FPC");
+        assertThat(simple.findValuesAsText("code")).contains("LD79", "LD91");
     }
 
     /** T01 新增下级继承默认值（前端带出，后端按请求保存）；T02 已有物料不能新增下级；T03 在下级中建物料编码用下级前缀 */
