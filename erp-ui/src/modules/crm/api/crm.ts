@@ -43,6 +43,8 @@ export interface CustomerRow {
   country: string
   customerType: string
   level: string
+  appDomain?: string
+  appDomainName?: string
   ownerId: string
   ownerName?: string
   primaryContact?: string
@@ -124,8 +126,9 @@ export interface CustomerDetail {
   city?: string
   address?: string
   industry?: string
-  /** 应用领域（字典 crm_app_domain），客户编码 LD-领域-流水 */
+  /** 应用领域字母（CRM / 应用领域），与客户编码 LD-字母-流水号 绑定 */
   appDomain?: string
+  appDomainName?: string
   source?: string
   website?: string
   phone?: string
@@ -167,7 +170,7 @@ export interface CustomerSave {
   city?: string
   address?: string
   industry?: string
-  /** 应用领域（字典 crm_app_domain），客户编码 LD-领域-流水 */
+  /** 应用领域字母（CRM / 应用领域），自动生成编码时必填 */
   appDomain?: string
   source?: string
   website?: string
@@ -197,6 +200,8 @@ export interface CustomerQuery extends PageParam {
   ownerId?: string
   customerType?: string
   source?: string
+  /** 应用领域字母，逗号分隔 */
+  appDomains?: string
   lastOrderFrom?: string
   lastOrderTo?: string
   noOrderDays?: number
@@ -243,7 +248,48 @@ export const customerApi = {
   transfer: (data: { customerIds: string[]; newOwnerId: string; transferDocs: boolean; reason: string }) => http.post<number>('/crm/customers/transfer', data),
   transferLogs: (id: string) => http.get<TransferLogRow[]>(`/crm/customers/${id}/transfer-logs`),
   contacts: (q: PageParam & { name?: string; email?: string; phone?: string; customerId?: string; role?: string; status?: string }) =>
-    http.get<PageResult<ContactRow>>('/crm/contacts', q)
+    http.get<PageResult<ContactRow>>('/crm/contacts', q),
+  /** 预览该领域下一个客户编码（不占用流水号） */
+  nextCode: (appDomain: string) => http.get<string>('/crm/customers/next-code', { appDomain })
+}
+
+// ==================== 应用领域 ====================
+
+/** 应用领域：code 为一个英文字母，即客户编码 LD-字母-流水号 中的字母 */
+export interface AppDomainRow {
+  id: string
+  code: string
+  name: string
+  nameEn?: string
+  sort: number
+  status: 'ENABLED' | 'DISABLED'
+  remark?: string
+  customerCount: number
+  nextCode?: string
+  version: number
+}
+export interface AppDomainOption {
+  code: string
+  name: string
+  nameEn?: string
+  status: 'ENABLED' | 'DISABLED'
+}
+export interface AppDomainSave {
+  code: string
+  name: string
+  nameEn?: string
+  sort?: number
+  remark?: string
+  version?: number
+}
+export const appDomainApi = {
+  list: () => http.get<AppDomainRow[]>('/crm/app-domains'),
+  options: () => http.get<AppDomainOption[]>('/crm/app-domains/options'),
+  create: (data: AppDomainSave) => http.post<string>('/crm/app-domains', data),
+  update: (id: string, data: AppDomainSave) => http.put<void>(`/crm/app-domains/${id}`, data),
+  enable: (id: string) => http.post<void>(`/crm/app-domains/${id}/enable`),
+  disable: (id: string) => http.post<void>(`/crm/app-domains/${id}/disable`),
+  remove: (id: string) => http.delete<void>(`/crm/app-domains/${id}`)
 }
 
 // ==================== 客户料号 ====================

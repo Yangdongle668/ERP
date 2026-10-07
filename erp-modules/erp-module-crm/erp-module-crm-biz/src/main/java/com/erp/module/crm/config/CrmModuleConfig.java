@@ -75,6 +75,13 @@ public class CrmModuleConfig {
     }
 
     @Bean
+    public PermissionDefinition crmAppDomainPermissions() {
+        return PermissionDefinition.group(MODULE, "app-domain", "应用领域", 15)
+                .menu("crm:app-domain:query", "查看")
+                .button("crm:app-domain:manage", "新增/编辑/停用/删除");
+    }
+
+    @Bean
     public PermissionDefinition crmCustomerPartPermissions() {
         return PermissionDefinition.group(MODULE, "customer-part", "客户料号", 20)
                 .menu("crm:customer-part:query", "查看")
@@ -126,19 +133,6 @@ public class CrmModuleConfig {
                 .add(new Item("B", "B 级", "B", TagType.PRIMARY, true, false))
                 .add(new Item("C", "C 级", "C", TagType.WARNING, true, true))
                 .add(new Item("D", "D 级风险客户", "D", TagType.DANGER, true, false));
-    }
-
-    /** 应用领域：字典值即客户编码中的领域字母，后续领域按字母依次新增 */
-    @Bean
-    public DictDefinition crmAppDomainDict() {
-        return DictDefinition.of("crm_app_domain", "应用领域", MODULE)
-                .item("A", "智能医疗", "Smart medical")
-                .item("B", "智能穿戴（戒指、眼镜、手表、耳机等）", "Smart wearables")
-                .item("C", "消费电子", "Consumer electronics")
-                .item("D", "低空设备", "Low-altitude equipment")
-                .item("E", "物联网（智能家居等）", "IoT")
-                .item("G", "电子产品", "Electronics")
-                .item("O", "枪械运动", "Shooting sports");
     }
 
     @Bean

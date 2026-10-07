@@ -100,6 +100,21 @@ public class CodeRuleService implements CodeRuleApi {
     }
 
     @Override
+    public String peekNextCode(String bizCode, Map<String, String> vars) {
+        CodeRuleDO rule = loadOrInitRule(bizCode);
+        String prefix;
+        try {
+            prefix = resolvePrefix(rule, vars);
+        } catch (BizException e) {
+            return null;
+        }
+        LocalDate today = LocalDate.now(clock);
+        String resetKey = resetKey(rule.getResetCycle(), today) + (hasVars(rule.getPrefix()) ? "|" + prefix : "");
+        Long current = codeSeqMapper.selectCurrent(bizCode, resetKey);
+        return format(prefix, rule.getDatePattern(), rule.getSeqSeparator(), rule.getSeqLength(), today, (current == null ? 0 : current) + 1);
+    }
+
+    @Override
     public void observeManualCode(String bizCode, Map<String, String> vars, Integer seqLengthOverride, String code) {
         if (code == null) return;
         CodeRuleDO rule = loadOrInitRule(bizCode);

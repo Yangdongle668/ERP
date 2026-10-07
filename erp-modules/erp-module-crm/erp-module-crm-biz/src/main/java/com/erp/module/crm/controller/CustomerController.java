@@ -66,6 +66,7 @@ public class CustomerController {
             ExcelColumn.text("country", "国家", CustomerRow::country),
             ExcelColumn.text("customerType", "类型", CustomerRow::customerType),
             ExcelColumn.text("level", "等级", CustomerRow::level),
+            ExcelColumn.text("appDomain", "应用领域", r -> r.appDomain() == null ? null : r.appDomain() + " " + java.util.Objects.toString(r.appDomainName(), "")),
             ExcelColumn.text("ownerName", "负责人", CustomerRow::ownerName),
             ExcelColumn.text("primaryContact", "主联系人", CustomerRow::primaryContact),
             ExcelColumn.text("primaryContactEmail", "联系人邮箱", CustomerRow::primaryContactEmail),

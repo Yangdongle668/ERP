@@ -36,7 +36,7 @@ public class CustomerImportService {
             ExcelColumn.input("customerType", "客户类型", false, "终端客户/贸易商/代理商/品牌商，默认终端客户"),
             ExcelColumn.input("level", "等级", false, "A/B/C/D，默认 C"),
             ExcelColumn.input("country", "国家", true, "ISO 二位代码，如 CN、US"),
-            ExcelColumn.input("appDomain", "应用领域", false, "编码为空时必填：A 智能医疗 / B 智能穿戴 / C 消费电子 / D 低空设备 / E 物联网 / G 电子产品 / O 枪械运动（填字母或名称）；填了编码时按编码中的字母"),
+            ExcelColumn.input("appDomain", "应用领域", false, "编码为空时必填，填领域字母或名称（见「CRM / 应用领域」，如 B 或 智能穿戴）；编码为 LD-字母-流水号 时按编码中的字母"),
             ExcelColumn.input("taxNo", "税号", false, null),
             ExcelColumn.input("phone", "电话", false, null),
             ExcelColumn.input("email", "邮箱", false, null),
@@ -55,9 +55,11 @@ public class CustomerImportService {
     private final CurrencyApi currencyApi;
     private final CustomerImportBatchService batchService;
     private final CustomerMapper customerMapper;
+    private final AppDomainService appDomainService;
 
     public CustomerImportService(CustomerService customerService, DictApi dictApi, UserApi userApi, CurrencyApi currencyApi,
-                                 CustomerImportBatchService batchService, CustomerMapper customerMapper) {
+                                 CustomerImportBatchService batchService, CustomerMapper customerMapper, AppDomainService appDomainService) {
+        this.appDomainService = appDomainService;
         this.batchService = batchService;
         this.customerMapper = customerMapper;
         this.customerService = customerService;
@@ -75,13 +77,36 @@ public class CustomerImportService {
         return map;
     }
 
+    /** 领域字母、名称、括号前的名称 → 字母 */
+    private Map<String, String> domainLookup() {
+        Map<String, String> domains = new HashMap<>();
+        appDomainService.names().forEach((code, name) -> {
+            domains.put(code, code);
+            domains.put(name, code);
+            domains.put(name.replaceAll("（.*", ""), code);
+        });
+        return domains;
+    }
+
+    private static String domainOf(ImportRow r, Map<String, String> domains) {
+        String text = r.get("appDomain") == null ? null : r.get("appDomain").trim();
+        if (text != null) return domains.getOrDefault(text, domains.getOrDefault(text.toUpperCase(Locale.ROOT), text));
+        return r.get("code") == null ? null : CustomerService.domainOf(r.get("code").trim().toUpperCase(Locale.ROOT));
+    }
+
     /** 校验，返回每行动作（CREATE） */
     public Map<Integer, String> check(List<ImportRow> rows) {
         Map<Integer, String> actions = new HashMap<>();
         Set<String> keys = new HashSet<>();
         Map<String, String> types = typeByLabel();
+        Map<String, String> domains = domainLookup();
         for (ImportRow r : rows) {
             String name = r.get("name");
+            String domain = domainOf(r, domains);
+            if (domain == null && r.get("code") == null) r.error("编码为空时请填写应用领域");
+            else if (domain != null && !domains.containsKey(domain)) r.error("应用领域「" + domain + "」不存在，请先在「CRM / 应用领域」中新增");
+            String codeDomain = r.get("code") == null ? null : CustomerService.domainOf(r.get("code").trim().toUpperCase(Locale.ROOT));
+            if (codeDomain != null && domain != null && !codeDomain.equals(domain)) r.error("应用领域与编码中的字母 " + codeDomain + " 不一致");
             String country = r.get("country") == null ? null : r.get("country").toUpperCase(Locale.ROOT);
             if (name == null) r.error("客户名称不能为空");
             if (country == null || !country.matches("[A-Z]{2}")) r.error("国家请填写 ISO 二位代码");
@@ -104,12 +129,7 @@ public class CustomerImportService {
     /** 每个客户单独事务：失败的行不影响其他行 */
     public ImportResult doImport(List<ImportRow> rows, Long paymentTermId, String fileName) {
         Map<String, String> types = typeByLabel();
-        Map<String, String> domains = new HashMap<>();
-        for (DictItemDTO d : dictApi.getItems("crm_app_domain")) {
-            domains.put(d.label(), d.value());
-            domains.put(d.value(), d.value());
-            domains.put(d.label().replaceAll("（.*", ""), d.value());
-        }
+        Map<String, String> domains = domainLookup();
         int ok = 0;
         List<ImportResult.Error> errors = new ArrayList<>();
         CrmImportBatchDO batch = batchService.begin(fileName, rows.size());
@@ -124,9 +144,7 @@ public class CustomerImportService {
                 List<AddressSave> addresses = r.get("shipAddress") == null ? List.of()
                         : List.of(new AddressSave("SHIP_TO", company, r.get("contactName"), r.get("contactPhone"), country, null, null, null,
                         r.get("shipAddress"), true, null));
-                String code = r.get("code") == null ? null : r.get("code").trim().toUpperCase(Locale.ROOT);
-                String domainText = r.get("appDomain") == null ? null : r.get("appDomain").trim();
-                String domain = domainText != null ? domains.getOrDefault(domainText, domainText) : code == null ? null : CustomerService.domainOf(code);
+                String domain = domainOf(r, domains);
                 Long id = customerService.create(new CustomerSave(r.get("code"), r.get("name"), r.get("nameEn"), r.get("shortName"),
                         r.get("customerType") == null ? null : types.get(r.get("customerType")),
                         r.get("level") == null ? null : r.get("level").toUpperCase(Locale.ROOT), country, null, null, null, r.get("address"), null,

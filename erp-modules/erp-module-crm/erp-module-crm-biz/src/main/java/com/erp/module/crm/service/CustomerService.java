@@ -162,12 +162,13 @@ public class CustomerService implements CustomerApi {
     private final FileApi fileApi;
     private final DomainEventPublisher eventPublisher;
     private final List<CustomerReferenceChecker> referenceCheckers;
+    private final AppDomainService appDomainService;
 
     public CustomerService(CustomerMapper mapper, CustomerContactMapper contactMapper, CustomerAddressMapper addressMapper, CustomerBankMapper bankMapper,
                            CustomerTransferLogMapper transferLogMapper, CustomerCreditMapper creditMapper, CustomerPartMapper partMapper,
                            FollowupMapper followupMapper, OpportunityMapper opportunityMapper, CrmSupport support, CurrencyApi currencyApi,
                            PaymentTermApi paymentTermApi, WorkflowApi workflowApi, FileApi fileApi, DomainEventPublisher eventPublisher,
-                           List<CustomerReferenceChecker> referenceCheckers) {
+                           List<CustomerReferenceChecker> referenceCheckers, AppDomainService appDomainService) {
         this.mapper = mapper;
         this.contactMapper = contactMapper;
         this.addressMapper = addressMapper;
@@ -184,6 +185,7 @@ public class CustomerService implements CustomerApi {
         this.fileApi = fileApi;
         this.eventPublisher = eventPublisher;
         this.referenceCheckers = referenceCheckers;
+        this.appDomainService = appDomainService;
     }
 
     // ==================== 查询 ====================
@@ -202,6 +204,8 @@ public class CustomerService implements CustomerApi {
                 .eq(q.getOwnerId() != null, CustomerDO::getOwnerId, q.getOwnerId())
                 .eq(StringUtils.hasText(q.getCustomerType()), CustomerDO::getCustomerType, q.getCustomerType())
                 .eq(StringUtils.hasText(q.getSource()), CustomerDO::getSource, q.getSource())
+                .in(StringUtils.hasText(q.getAppDomains()), CustomerDO::getAppDomain,
+                        StringUtils.hasText(q.getAppDomains()) ? csv(q.getAppDomains().toUpperCase(Locale.ROOT)) : List.of())
                 .ge(q.getLastOrderFrom() != null, CustomerDO::getLastOrderDate, q.getLastOrderFrom())
                 .le(q.getLastOrderTo() != null, CustomerDO::getLastOrderDate, q.getLastOrderTo());
         if (StringUtils.hasText(q.getKeyword())) {
@@ -232,10 +236,12 @@ public class CustomerService implements CustomerApi {
                 .filter(c -> Boolean.TRUE.equals(c.getIsPrimary())).collect(Collectors.toMap(CustomerContactDO::getCustomerId, c -> c, (a, b) -> a));
         Map<Long, UserDTO> users = support.users(list.stream().map(CustomerDO::getOwnerId).toList());
         boolean credit = CrmSupport.canViewCredit();
+        Map<String, String> domains = appDomainService.names();
         return list.stream().map(c -> {
             CustomerContactDO p = primary.get(c.getId());
             return new CustomerRow(c.getId(), c.getCode(), c.getShortName(), c.getName(), c.getNameEn(), c.getCountry(), c.getCustomerType(),
-                    c.getCustomerLevel(), c.getOwnerId(), CrmSupport.name(users, c.getOwnerId()), p == null ? null : p.getName(),
+                    c.getCustomerLevel(), c.getAppDomain(), c.getAppDomain() == null ? null : domains.get(c.getAppDomain()),
+                    c.getOwnerId(), CrmSupport.name(users, c.getOwnerId()), p == null ? null : p.getName(),
                     p == null ? null : p.getEmail(), c.getCurrency(), credit ? c.getCreditLimit() : null, credit, c.getLastOrderDate(),
                     c.getCustomerStatus().name(), c.getCreatedAt(), c.getVersion());
         }).toList();
@@ -248,7 +254,7 @@ public class CustomerService implements CustomerApi {
         String termName = c.getPaymentTermId() == null ? null : paymentTermApi.get(c.getPaymentTermId()).map(PaymentTermDTO::name).orElse(null);
         return new CustomerDetail(c.getId(), c.getCode(), c.getName(), c.getNameEn(), c.getShortName(), c.getCustomerType(), c.getCustomerLevel(),
                 c.getCustomerStatus().name(), Boolean.TRUE.equals(c.getIsForeign()), c.getCountry(), c.getProvince(), c.getCity(), c.getAddress(),
-                c.getIndustry(), c.getAppDomain(), c.getSource(), c.getWebsite(), c.getPhone(), c.getEmail(), c.getTaxNo(), c.getOwnerId(),
+                c.getIndustry(), c.getAppDomain(), c.getAppDomain() == null ? null : appDomainService.names().get(c.getAppDomain()), c.getSource(), c.getWebsite(), c.getPhone(), c.getEmail(), c.getTaxNo(), c.getOwnerId(),
                 CrmSupport.name(users, c.getOwnerId()), c.getDeptId(), deptName, c.getCurrency(), c.getPaymentTermId(), termName, c.getTradeTerm(),
                 c.getSalesTaxRate(), c.getBlacklistReason(), c.getFirstOrderDate(), c.getLastOrderDate(), c.getRemark(),
                 contactMapper.selectByParent(id).stream().map(CustomerService::contactResp).toList(),
@@ -337,15 +343,20 @@ public class CustomerService implements CustomerApi {
         String code = CrmSupport.trim(req.code());
         c.setCustomerStatus(PROSPECT);
         c.setCreditControl("DEFAULT");
+        boolean manual = code != null && support.manualCodeAllowed(BIZ_TYPE);
+        if (manual) c.setCode(code.toUpperCase(Locale.ROOT));
         fill(c, req, true);
-        // R11：客户编码 LD-应用领域-三位流水（《编码规则管理制度》5.1），手工编码时不要求领域
-        if (code != null && support.manualCodeAllowed(BIZ_TYPE)) {
-            c.setCode(code.toUpperCase(Locale.ROOT));
+        // R11：客户编码 LD-应用领域字母-流水号（《编码规则管理制度》5.1），应用领域与编码字母绑定，各领域独立计流水号
+        if (manual) {
             // 手工 / 导入的编码符合 LD-领域-流水 时推进该领域的流水号，之后自动生成的编码不会重复
-            String d = c.getAppDomain() != null ? c.getAppDomain() : domainOf(c.getCode());
-            if (d != null) support.observeCode(BIZ_TYPE, Map.of("domain", d), c.getCode());
+            if (domainOf(c.getCode()) != null) support.observeCode(BIZ_TYPE, Map.of("domain", c.getAppDomain()), c.getCode());
         } else if (c.getAppDomain() == null) throw new BizException(CrmErrorCodes.CUSTOMER_DOMAIN_REQUIRED);
-        else c.setCode(support.nextNo(BIZ_TYPE, Map.of("domain", c.getAppDomain())));
+        else {
+            String next = support.nextNo(BIZ_TYPE, Map.of("domain", c.getAppDomain()));
+            // 跳过手工 / 导入时已占用、但没有推进流水号的编码
+            for (int i = 0; i < 1000 && mapper.existsCode(next); i++) next = support.nextNo(BIZ_TYPE, Map.of("domain", c.getAppDomain()));
+            c.setCode(next);
+        }
         List<String> warnings = new ArrayList<>(checkUnique(c));
         mapper.insert(c);
         saveChildren(c, req);
@@ -367,6 +378,7 @@ public class CustomerService implements CustomerApi {
         fill(c, req, false);
         List<String> warnings = new ArrayList<>(checkUnique(c));
         mapper.updateByIdOrFail(c);
+        if (code != null && domainOf(c.getCode()) != null) support.observeCode(BIZ_TYPE, Map.of("domain", c.getAppDomain()), c.getCode());
         saveChildren(c, req);
         if (req.fileIds() != null && !req.fileIds().isEmpty()) fileApi.bind(req.fileIds(), BIZ_TYPE, c.getId());
         // R06：正式客户修改名称、英文名称、税号时记录旧值新值
@@ -411,11 +423,14 @@ public class CustomerService implements CustomerApi {
         if (industry != null && !industry.equals(c.getIndustry())) support.dict().validate("crm_industry", industry, "行业");
         c.setIndustry(industry);
         String domain = CrmSupport.trim(req.appDomain());
-        if (domain != null) {
-            domain = domain.toUpperCase(Locale.ROOT);
-            if (!domain.equals(c.getAppDomain())) support.dict().validate("crm_app_domain", domain, "应用领域");
-            if (!domain.matches("[A-Z]")) throw BizException.of(CrmErrorCodes.CUSTOMER_FIELD_INVALID, "应用领域代码必须是一个英文字母");
+        if (domain != null) domain = domain.toUpperCase(Locale.ROOT);
+        // 编码为 LD-字母-流水号 时，应用领域就是编码中的字母，不能选别的领域
+        String locked = c.getCode() == null ? null : domainOf(c.getCode());
+        if (locked != null) {
+            if (domain != null && !domain.equals(locked)) throw BizException.of(CrmErrorCodes.CUSTOMER_DOMAIN_LOCKED, c.getCode(), locked);
+            domain = locked;
         }
+        if (domain != null && !domain.equals(c.getAppDomain())) appDomainService.requireUsable(domain);
         if (domain != null || creating) c.setAppDomain(domain);
         String source = CrmSupport.trim(req.source());
         if (source != null && !source.equals(c.getSource())) support.dict().validate("crm_source", source, "客户来源");

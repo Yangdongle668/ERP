@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance } from 'element-plus'
 import type { SearchField, TableColumn } from '@/components'
@@ -7,7 +7,7 @@ import { useListPage } from '@/composables/useListPage'
 import { formatAmount } from '@/utils/format'
 import { useUserStore } from '@/stores/user'
 import PaymentTermSelect from '../components/PaymentTermSelect.vue'
-import { CUSTOMER_STATUS, CUSTOMER_STATUS_OPTIONS, customerApi, type CustomerQuery, type CustomerRow } from '../api/crm'
+import { CUSTOMER_STATUS, CUSTOMER_STATUS_OPTIONS, appDomainApi, customerApi, type CustomerQuery, type CustomerRow } from '../api/crm'
 
 defineOptions({ name: 'CrmCustomerList' })
 
@@ -18,13 +18,14 @@ const tableRef = ref<{ getVisibleColumns: () => TableColumn[] }>()
 const importRef = ref<{ open: () => void }>()
 const reasonRef = ref<{ open: (o: { title?: string; tip?: string; options?: string[] }) => Promise<string | undefined> }>()
 
-type Query = Omit<CustomerQuery, 'pageNo' | 'pageSize' | 'statuses' | 'levels' | 'countries' | 'lastOrderFrom' | 'lastOrderTo'> & {
-  statuses?: string[]; levels?: string[]; countries?: string; lastOrder?: string[]
+type Query = Omit<CustomerQuery, 'pageNo' | 'pageSize' | 'statuses' | 'levels' | 'countries' | 'appDomains' | 'lastOrderFrom' | 'lastOrderTo'> & {
+  statuses?: string[]; levels?: string[]; countries?: string; appDomains?: string[]; lastOrder?: string[]
 }
 function toParams(q: Query) {
-  const { statuses, levels, lastOrder, ...rest } = q
+  const { statuses, levels, appDomains, lastOrder, ...rest } = q
   return {
     ...rest, statuses: statuses?.length ? statuses.join(',') : undefined, levels: levels?.length ? levels.join(',') : undefined,
+    appDomains: appDomains?.length ? appDomains.join(',') : undefined,
     lastOrderFrom: lastOrder?.[0], lastOrderTo: lastOrder?.[1], noOrderDays: rest.noOrderDays || undefined
   }
 }
@@ -34,23 +35,31 @@ const { query, list, total, loading, selection, load, search, reset, onSelection
   refreshOnActivated: true
 })
 
-const fields: SearchField[] = [
+/** 应用领域（CRM / 应用领域）：领域字母即客户编码 LD-字母-流水号 中的字母 */
+const domainOptions = ref<{ value: string; label: string }[]>([])
+onMounted(async () => {
+  domainOptions.value = (await appDomainApi.options()).map((d) => ({ value: d.code, label: `${d.code} ${d.name}` }))
+})
+
+const fields = computed<SearchField[]>(() => [
   { prop: 'keyword', label: '关键字', placeholder: '编码/名称/英文名/简称' },
   { prop: 'statuses', label: '状态', type: 'select', options: CUSTOMER_STATUS_OPTIONS, multiple: true },
   { prop: 'levels', label: '等级', type: 'dict', dictType: 'crm_customer_level', multiple: true },
   { prop: 'countries', label: '国家', type: 'slot' },
   { prop: 'ownerId', label: '负责人', type: 'user' },
+  { prop: 'appDomains', label: '应用领域', type: 'select', options: domainOptions.value, multiple: true },
   { prop: 'customerType', label: '客户类型', type: 'dict', dictType: 'crm_customer_type' },
   { prop: 'source', label: '来源', type: 'dict', dictType: 'crm_source' },
   { prop: 'lastOrder', label: '最近下单', type: 'daterange' },
   { prop: 'noOrderDays', label: '超过N天未下单', type: 'number' }
-]
+])
 
 const columns = computed<TableColumn<CustomerRow>[]>(() => [
   { prop: 'code', label: '编码', width: 100, type: 'link', onClick: (r) => router.push(`/crm/customer/${r.id}`) },
   { prop: 'shortName', label: '简称', width: 120 },
   { prop: 'name', label: '名称', minWidth: 200 },
   { prop: 'country', label: '国家', width: 80 },
+  { prop: 'appDomain', label: '应用领域', width: 130, formatter: (r) => (r.appDomain ? `${r.appDomain} ${r.appDomainName ?? ''}` : '-') },
   { prop: 'customerType', label: '类型', width: 90, type: 'dict', dictType: 'crm_customer_type' },
   { prop: 'level', label: '等级', width: 60, type: 'dict', dictType: 'crm_customer_level' },
   { prop: 'ownerName', label: '负责人', width: 90 },
