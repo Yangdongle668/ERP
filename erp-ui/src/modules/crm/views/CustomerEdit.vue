@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElNotification, type FormInstance, type FormRules } from 'element-plus'
 import { useLeaveGuard } from '@/composables/useLeaveGuard'
@@ -8,8 +8,8 @@ import { useUserStore } from '@/stores/user'
 import { formatAmount } from '@/utils/format'
 import PaymentTermSelect from '../components/PaymentTermSelect.vue'
 import {
-  ADDRESS_TYPE_OPTIONS, CREDIT_CONTROL_OPTIONS, CUSTOMER_STATUS, GENDER_OPTIONS, customerApi,
-  type Address, type Bank, type Contact, type CustomerDetail, type CustomerSave, type DuplicateRow
+  ADDRESS_TYPE_OPTIONS, CREDIT_CONTROL_OPTIONS, CUSTOMER_STATUS, GENDER_OPTIONS, appDomainApi, customerApi,
+  type Address, type AppDomainOption, type Bank, type Contact, type CustomerDetail, type CustomerSave, type DuplicateRow
 } from '../api/crm'
 
 defineOptions({ name: 'CrmCustomerEdit' })
@@ -49,6 +49,29 @@ const rules = computed<FormRules>(() => ({
   currency: [{ required: true, message: '请选择币别', trigger: 'change' }],
   taxPct: [{ required: true, message: '请填写税率', trigger: 'blur' }]
 }))
+
+/**
+ * 应用领域（R11）：客户编码 = LD-领域字母-流水号。新建时选择领域即预览将生成的编码；
+ * 编码为 LD-字母-流水号 时领域就是编码中的字母（手工输入编码自动带出，编辑时不能改）。
+ */
+const domains = ref<AppDomainOption[]>([])
+const previewCode = ref('')
+const domainOfCode = (code?: string) => /^LD-([A-Z])-\d+$/.exec(code ?? '')?.[1]
+const domainLocked = computed(() => !!domainOfCode(detail.value ? detail.value.code : form.value.code))
+const domainOptions = computed(() => domains.value
+  .filter((d) => d.status === 'ENABLED' || d.code === form.value.appDomain)
+  .map((d) => ({ value: d.code, label: `${d.code} ${d.name}`, disabled: d.status !== 'ENABLED' })))
+let previewSeq = 0
+watch(() => [form.value.appDomain, form.value.code, detail.value], async () => {
+  const letter = domainOfCode(form.value.code)
+  if (!detail.value && letter && form.value.appDomain !== letter) form.value.appDomain = letter
+  previewCode.value = ''
+  if (detail.value || form.value.code || !form.value.appDomain) return
+  const seq = ++previewSeq
+  const code = await customerApi.nextCode(form.value.appDomain).catch(() => '')
+  if (seq === previewSeq) previewCode.value = code
+})
+const codePlaceholder = computed(() => (previewCode.value ? `将生成 ${previewCode.value}` : '选择应用领域后自动生成，如 LD-A-0001'))
 
 /** 默认简称：中文取前 10 个字；英文等在 20 个字符内按单词截断（与后端一致） */
 function defaultShortName(name: string) {
@@ -96,6 +119,7 @@ function addAddress() {
 }
 
 onMounted(async () => {
+  appDomainApi.options().then((d) => (domains.value = d)).catch(() => undefined)
   if (id.value) {
     const d = await customerApi.get(id.value)
     if (d.customerStatus === 'BLACKLIST') {
@@ -198,8 +222,17 @@ const asBank = (r: unknown) => r as Bank
           <el-col :xl="8" :span="12"><el-form-item label="英文名称" prop="nameEn"><el-input v-model="form.nameEn" maxlength="256" /></el-form-item></el-col>
           <el-col :xl="8" :span="12"><el-form-item label="简称" prop="shortName"><el-input v-model="form.shortName" maxlength="32" @input="shortTouched = true" /></el-form-item></el-col>
           <el-col :xl="8" :span="12">
+            <el-form-item label="应用领域" prop="appDomain">
+              <el-select v-model="form.appDomain" filterable clearable :disabled="domainLocked" placeholder="请选择">
+                <el-option v-for="o in domainOptions" :key="o.value" :value="o.value" :label="o.label" :disabled="o.disabled" />
+              </el-select>
+              <div v-if="domainLocked" class="form-tip">应用领域与客户编码中的字母绑定</div>
+            </el-form-item>
+          </el-col>
+          <el-col :xl="8" :span="12">
             <el-form-item label="编码">
-              <el-input v-model="form.code" maxlength="32" :disabled="!!detail" placeholder="留空按应用领域自动生成，如 LD-A-001" @input="form.code = form.code?.toUpperCase()" />
+              <el-input v-model="form.code" maxlength="32" :disabled="!!detail" :placeholder="codePlaceholder" @input="form.code = form.code?.toUpperCase()" />
+              <div v-if="!detail && previewCode" class="form-tip">按应用领域自动生成；也可以手工输入</div>
             </el-form-item>
           </el-col>
           <el-col :xl="8" :span="12"><el-form-item label="客户类型" prop="customerType"><DictSelect v-model="form.customerType" type="crm_customer_type" :clearable="false" /></el-form-item></el-col>
@@ -210,12 +243,6 @@ const asBank = (r: unknown) => r as Bank
           </el-form-item></el-col>
           <el-col :xl="8" :span="12"><el-form-item label="税号"><el-input v-model="form.taxNo" maxlength="32" @blur="checkDuplicate" /></el-form-item></el-col>
           <el-col :span="24"><el-form-item label="公司地址"><el-input v-model="form.address" maxlength="256" /></el-form-item></el-col>
-          <el-col :xl="8" :span="12">
-            <el-form-item label="应用领域" prop="appDomain">
-              <DictSelect v-model="form.appDomain" type="crm_app_domain" />
-              <div v-if="!detail" class="form-tip">客户编码 = LD-领域字母-三位流水，如智能医疗 LD-A-001</div>
-            </el-form-item>
-          </el-col>
           <el-col :xl="8" :span="12"><el-form-item label="行业"><DictSelect v-model="form.industry" type="crm_industry" /></el-form-item></el-col>
           <el-col :xl="8" :span="12"><el-form-item label="来源"><DictSelect v-model="form.source" type="crm_source" /></el-form-item></el-col>
           <el-col :xl="8" :span="12"><el-form-item label="网址"><el-input v-model="form.website" maxlength="128" @blur="checkDuplicate" /></el-form-item></el-col>

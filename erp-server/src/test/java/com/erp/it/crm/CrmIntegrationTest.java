@@ -103,6 +103,66 @@ class CrmIntegrationTest extends AbstractIntegrationTest {
 
     // ==================== 客户 ====================
 
+    /** R11 应用领域：领域字母即编码字母，各领域独立流水号；预览下一个编码；领域与编码绑定；已使用的领域不能删除、不能改字母 */
+    @Test
+    void appDomainBoundToCode() throws Exception {
+        JsonNode list = ok(doGet("/api/crm/app-domains", admin));
+        assertThat(list.findValuesAsText("code")).contains("A", "B", "C", "D", "E", "G", "O");
+        // 预览的编码就是新建时生成的编码
+        String preview = ok(doGet("/api/crm/customers/next-code?appDomain=b", admin)).asText();
+        assertThat(preview).matches("LD-B-\\d{4}");
+        Map<String, Object> wear = customer("Wearable " + uniq(), "US");
+        wear.put("appDomain", "B");
+        String wearId = create(wear, admin);
+        JsonNode wd = detail(wearId);
+        assertThat(wd.at("/code").asText()).isEqualTo(preview);
+        assertThat(wd.at("/appDomainName").asText()).startsWith("智能穿戴");
+
+        // 新增领域 Z → LD-Z-0001
+        String zId = ok(doPost("/api/crm/app-domains", admin, Map.of("code", "z", "name", "测试领域"))).asText();
+        assertError(doPost("/api/crm/app-domains", admin, Map.of("code", "Z", "name", "重复")), "领域字母「Z」已被「测试领域」使用");
+        assertError(doPost("/api/crm/app-domains", admin, Map.of("code", "1", "name", "数字")), "领域字母必须是一个英文字母 A～Z");
+        Map<String, Object> z = customer("Zeta " + uniq(), "US");
+        z.put("appDomain", "Z");
+        String zCustomer = create(z, admin);
+        assertThat(detail(zCustomer).at("/code").asText()).isEqualTo("LD-Z-0001");
+        JsonNode rows = ok(doGet("/api/crm/customers?appDomains=Z&pageSize=50", admin)).at("/list");
+        assertThat(rows.size()).isEqualTo(1);
+        assertThat(rows.get(0).at("/appDomainName").asText()).isEqualTo("测试领域");
+        JsonNode zRow = null;
+        for (JsonNode r : ok(doGet("/api/crm/app-domains", admin))) if ("Z".equals(r.at("/code").asText())) zRow = r;
+        assertThat(zRow.at("/customerCount").asLong()).isEqualTo(1);
+        assertThat(zRow.at("/nextCode").asText()).isEqualTo("LD-Z-0002");
+
+        // 领域与编码绑定：不能改成其他领域；手工编码的字母与所选领域不一致时报错
+        Map<String, Object> change = customer((String) z.get("name"), "US");
+        change.put("appDomain", "A");
+        change.put("version", detail(zCustomer).at("/version").asInt());
+        assertError(doPut("/api/crm/customers/" + zCustomer, admin, change), "客户编码 LD-Z-0001 对应应用领域 Z，应用领域与编码绑定，不能改为其他领域");
+        Map<String, Object> manual = customer("Manual " + uniq(), "US");
+        manual.put("code", "LD-Z-0100");
+        manual.put("appDomain", "A");
+        assertError(doPost("/api/crm/customers", admin, manual), "客户编码 LD-Z-0100 对应应用领域 Z，应用领域与编码绑定，不能改为其他领域");
+        // 手工编码 LD-Z-0100（不填领域）→ 领域取 Z，并推进流水号
+        manual.remove("appDomain");
+        assertThat(detail(create(manual, admin)).at("/appDomain").asText()).isEqualTo("Z");
+        assertThat(ok(doGet("/api/crm/customers/next-code?appDomain=Z", admin)).asText()).isEqualTo("LD-Z-0101");
+
+        // 已使用：不能删除、不能改字母；停用后不能再用它新建客户
+        assertError(doDelete("/api/crm/app-domains/" + zId, admin), "已有 2 个客户使用该应用领域，不能删除，可以停用");
+        assertError(doPut("/api/crm/app-domains/" + zId, admin, Map.of("code", "Y", "name", "测试领域")), "已有 2 个客户使用该应用领域，不能修改领域字母");
+        ok(doPut("/api/crm/app-domains/" + zId, admin, Map.of("code", "Z", "name", "测试领域改名")));
+        ok(doPost("/api/crm/app-domains/" + zId + "/disable", admin, Map.of()));
+        Map<String, Object> z2 = customer("Zeta2 " + uniq(), "US");
+        z2.put("appDomain", "Z");
+        assertError(doPost("/api/crm/customers", admin, z2), "应用领域「Z 测试领域改名」已停用");
+        assertError(doPost("/api/crm/customers", admin, Map.of("name", "Q " + uniq(), "nameEn", "Q", "country", "US", "appDomain", "Q")),
+                "应用领域「Q」不存在，请先在「CRM / 应用领域」中新增");
+        // 未使用的领域可以删除
+        String yId = ok(doPost("/api/crm/app-domains", admin, Map.of("code", "Y", "name", "临时"))).asText();
+        ok(doDelete("/api/crm/app-domains/" + yId, admin));
+    }
+
     /** CUS-T01 外销默认值；T02 名称 + 国家唯一；R02 外销英文名；R05 联系方式 */
     @Test
     void createDefaultsAndUnique() throws Exception {

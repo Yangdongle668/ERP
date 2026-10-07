@@ -29,6 +29,14 @@ public interface CrmErrorCodes {
     ErrorCode IMPORT_BATCH_ROLLED_BACK = new ErrorCode(1_003_001_018, "该批次已回滚");
     ErrorCode IMPORT_ROLLBACK_BLOCKED = new ErrorCode(1_003_001_019, "以下客户导入后已有业务数据（跟进、商机、客户料号、报价、订单等），不能回滚：{}");
     ErrorCode CUSTOMER_DOMAIN_REQUIRED = new ErrorCode(1_003_001_016, "请选择应用领域（客户编码按领域生成：LD-领域-流水号）");
+    ErrorCode CUSTOMER_DOMAIN_LOCKED = new ErrorCode(1_003_001_020, "客户编码 {} 对应应用领域 {}，应用领域与编码绑定，不能改为其他领域");
+
+    // ========== 应用领域 1_003_006_xxx ==========
+    ErrorCode APP_DOMAIN_NOT_EXISTS = new ErrorCode(1_003_006_000, "应用领域「{}」不存在，请先在「CRM / 应用领域」中新增");
+    ErrorCode APP_DOMAIN_CODE_EXISTS = new ErrorCode(1_003_006_001, "领域字母「{}」已被「{}」使用");
+    ErrorCode APP_DOMAIN_IN_USE = new ErrorCode(1_003_006_002, "已有 {} 个客户使用该应用领域，不能{}");
+    ErrorCode APP_DOMAIN_DISABLED = new ErrorCode(1_003_006_003, "应用领域「{}」已停用");
+    ErrorCode APP_DOMAIN_CODE_INVALID = new ErrorCode(1_003_006_004, "领域字母必须是一个英文字母 A～Z");
 
     // ========== 客户料号 1_003_002_xxx ==========
     ErrorCode PART_NOT_EXISTS = new ErrorCode(1_003_002_000, "客户料号对照不存在");

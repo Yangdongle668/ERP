@@ -180,6 +180,7 @@ onMounted(load)
           <el-descriptions-item label="英文名">{{ d.nameEn || '-' }}</el-descriptions-item>
           <el-descriptions-item label="国家">{{ d.country }}{{ d.isForeign ? '（外销）' : '' }}</el-descriptions-item>
           <el-descriptions-item label="类型"><DictTag type="crm_customer_type" :value="d.customerType" /></el-descriptions-item>
+          <el-descriptions-item label="应用领域">{{ d.appDomain ? `${d.appDomain} ${d.appDomainName ?? ''}` : '-' }}</el-descriptions-item>
           <el-descriptions-item label="负责人">{{ d.ownerName ?? '-' }}{{ d.deptName ? `（${d.deptName}）` : '' }}</el-descriptions-item>
           <el-descriptions-item label="主联系人">{{ primary ? `${primary.name} ${primary.email ?? primary.mobile ?? primary.phone ?? ''}` : '-' }}</el-descriptions-item>
           <el-descriptions-item label="币别 / 税率">{{ d.currency }} / {{ Number((Number(d.salesTaxRate) * 100).toFixed(2)) }}%</el-descriptions-item>

@@ -88,6 +88,11 @@ public class CrmSupport {
         return codeRuleApi.nextCode(rule, vars);
     }
 
+    /** 预览下一个编号，不占用流水号 */
+    public String peekNo(String rule, Map<String, String> vars) {
+        return codeRuleApi.peekNextCode(rule, vars);
+    }
+
     public boolean manualCodeAllowed(String rule) {
         return codeRuleApi.isManualAllowed(rule);
     }

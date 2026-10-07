@@ -32,6 +32,8 @@ public final class CustomerVOs {
         private Long ownerId;
         private String customerType;
         private String source;
+        /** 应用领域字母，逗号分隔 */
+        private String appDomains;
         private LocalDate lastOrderFrom;
         private LocalDate lastOrderTo;
         /** 超过 N 天未下单（从未下单的也算） */
@@ -42,6 +44,7 @@ public final class CustomerVOs {
 
     /** creditLimit：无 crm:customer:credit 权限时为空，creditVisible=false */
     public record CustomerRow(Long id, String code, String shortName, String name, String nameEn, String country, String customerType, String level,
+                              String appDomain, String appDomainName,
                               Long ownerId, String ownerName, String primaryContact, String primaryContactEmail, String currency,
                               BigDecimal creditLimit, boolean creditVisible, LocalDate lastOrderDate, String customerStatus,
                               LocalDateTime createdAt, int version) {
@@ -108,6 +111,7 @@ public final class CustomerVOs {
 
     public record CustomerDetail(Long id, String code, String name, String nameEn, String shortName, String customerType, String level,
                                  String customerStatus, boolean isForeign, String country, String province, String city, String address, String industry, String appDomain,
+                                 String appDomainName,
                                  String source, String website, String phone, String email, String taxNo, Long ownerId, String ownerName, Long deptId,
                                  String deptName, String currency, Long paymentTermId, String paymentTermName, String tradeTerm, BigDecimal salesTaxRate,
                                  String blacklistReason, LocalDate firstOrderDate, LocalDate lastOrderDate, String remark,

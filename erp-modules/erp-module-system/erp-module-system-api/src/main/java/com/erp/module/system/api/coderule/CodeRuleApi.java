@@ -40,6 +40,15 @@ public interface CodeRuleApi {
     default void observeManualCode(String bizCode, Map<String, String> vars, Integer seqLength, String code) {
     }
 
+    /**
+     * 预览下一个编码（不占用流水号），如新建客户时显示“保存后编码为 LD-B-0012”。并发新建时实际编码可能更大。
+     *
+     * @return 规则不存在或前缀变量缺失时为 null
+     */
+    default String peekNextCode(String bizCode, Map<String, String> vars) {
+        return null;
+    }
+
     /** 是否允许手工输入编码（SYS-COD-R06）：为 false 时业务接口应忽略前端传入的编码，始终自动生成 */
     boolean isManualAllowed(String bizCode);
 }
