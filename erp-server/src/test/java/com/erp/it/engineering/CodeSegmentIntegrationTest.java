@@ -55,11 +55,21 @@ class CodeSegmentIntegrationTest extends EngineeringTestSupport {
         assertThat(getMaterial(createMaterial(coded(foam, "EVA", "RAW", List.of("01", "1")))).at("/code").asText()).matches("82-011\\d{4}");
     }
 
-    /** 《物料编码手册》类别：旧版预置（LD10～LD41）已删除；分组 LDWL 下 22 个类别；自动编码跳过已被占用的编号 */
+    /** 《物料编码手册》类别：旧版预置（LD10～LD41）、分组 LDWL 已删除；一级 电池成品 / 电芯物料 / PACK物料 / 包材 / 辅料 / 工装；自动编码跳过已被占用的编号 */
     @Test
     void handbookCategoriesAndSkip() throws Exception {
         JsonNode tree = ok(doGet("/api/engineering/categories/tree", admin));
-        assertThat(tree.findValuesAsText("code")).contains("LDWL", "LD99", "LD79", "LD49", "LD59").doesNotContain("LD12", "LD21", "LDPR", "LDCR");
+        assertThat(tree.findValuesAsText("code")).contains("LD99", "LDDX", "LDPK", "LD79", "LD49", "LD59").doesNotContain("LDWL", "LD12", "LD21", "LDPR", "LDCR");
+        Map<String, List<String>> roots = new java.util.LinkedHashMap<>();
+        for (JsonNode n : tree) {
+            List<String> children = new java.util.ArrayList<>();
+            n.path("children").forEach(c -> children.add(c.at("/code").asText()));
+            roots.put(n.at("/code").asText(), children);
+        }
+        assertThat(roots).containsKeys("LD99", "LDDX", "LDPK", "LD69", "LD59", "LD49");
+        assertThat(roots.get("LD99")).isEmpty();
+        assertThat(roots.get("LDDX")).containsExactly("LD79", "LD71", "LD72", "LD73", "LD74", "LD75", "LD76");
+        assertThat(roots.get("LDPK")).containsExactly("LD91", "LD92", "LD93", "LD94", "LD81", "LD82", "LD83", "LD84", "LD85", "LD86", "LD87");
         JsonNode cell = ok(doGet("/api/engineering/categories/" + categoryId("LD79") + "/code-scheme", admin));
         assertThat(cell.at("/codeSeqLength").asInt()).isEqualTo(3);
         assertThat(cell.at("/segments").size()).isEqualTo(4);
