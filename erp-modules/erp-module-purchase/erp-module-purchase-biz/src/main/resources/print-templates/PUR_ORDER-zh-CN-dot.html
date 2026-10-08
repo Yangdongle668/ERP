@@ -1,7 +1,7 @@
-<!-- erp-print: paper=DOT_241_93; margin=4mm 6mm 3mm 6mm; rowsPerPage=8; copies=①白 存根|②红 供应商 -->
-<!-- 采购订单（针式三等分 241×93mm，多联纸）：每页 8 行明细，单头、表头、签名栏每页都打印；合计在最后一页 -->
+<!-- erp-print: paper=DOT_241_140; margin=5mm 6mm 4mm 6mm; rowsPerPage=15; copies=①白 存根|②红 供应商 -->
+<!-- 采购订单（针式二等分 241×140mm，多联纸）：每页 15 行明细，单头、表头、签名栏每页都打印；合计在最后一页 -->
 <style>
-/* 针式三等分（241×93mm）：8.5pt 正文，单头为无线条的标签-内容网格，明细为细线网格，签名栏等分纯文本 */
+/* 针式二等分（241×140mm）：8.5pt 正文，单头为无线条的标签-内容网格，明细为细线网格，签名栏等分纯文本 */
 .dm { position: relative; box-sizing: border-box; height: 100%; padding-right: 6mm; font-family: "SimSun", "宋体", "NSimSun", "Songti SC", serif; font-size: 8.5pt; line-height: 1.2; color: #000; font-variant-numeric: tabular-nums; }
 .dm-head { display: grid; grid-template-columns: 38% 1fr 30%; align-items: center; min-height: 10.5mm; padding-bottom: 0.6mm; border-bottom: 0.25mm solid #000; }
 .dm-co { display: flex; align-items: center; gap: 1.5mm; overflow: hidden; }
@@ -21,7 +21,7 @@
 .dm-f .v { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
 .dm-f.s2 { grid-column: span 2; } .dm-f.s3 { grid-column: span 3; } .dm-f.s4 { grid-column: span 4; }
 .dm-lines { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.dm-lines th, .dm-lines td { height: 4.1mm; padding: 0 0.8mm; border: 0.2mm solid #000; font-size: 8.5pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.dm-lines th, .dm-lines td { height: 4.6mm; padding: 0 0.8mm; border: 0.2mm solid #000; font-size: 8.5pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .dm-lines th { font-weight: bold; text-align: center; }
 .dm-lines .r { text-align: right; } .dm-lines .c { text-align: center; }
 .dm-lines tfoot td { font-weight: bold; }

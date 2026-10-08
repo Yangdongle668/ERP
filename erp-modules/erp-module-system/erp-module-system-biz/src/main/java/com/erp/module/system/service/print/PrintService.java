@@ -144,7 +144,7 @@ public class PrintService {
             PrintTemplateDO t = existing != null ? existing : new PrintTemplateDO();
             if (existing != null && content.equals(existing.getContent())) return;
             t.setBizType(d.bizType());
-            t.setName(dot ? d.name() + "（针式三等分）" : "en".equals(lang) ? d.name() + " (Standard)" : d.name() + "（标准）");
+            t.setName(dot ? d.name() + "（针式二等分）" : "en".equals(lang) ? d.name() + " (Standard)" : d.name() + "（标准）");
             t.setLanguage(lang);
             t.setPaper("A4_P");
             t.setMargin("10mm 10mm 10mm 10mm");
