@@ -844,6 +844,7 @@ public class OrderService {
             lines.add(m);
         }
         data.put("lines", lines);
+        support.putPrintSignature(data, mapper.selectById(id));
         return data;
     }
 

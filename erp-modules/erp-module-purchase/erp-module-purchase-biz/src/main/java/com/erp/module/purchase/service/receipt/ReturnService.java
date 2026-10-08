@@ -611,6 +611,7 @@ public class ReturnService {
             m.put("totalAmount", l.totalAmount());
             return m;
         }).toList());
+        support.putPrintSignature(data, mapper.selectById(id));
         return data;
     }
 

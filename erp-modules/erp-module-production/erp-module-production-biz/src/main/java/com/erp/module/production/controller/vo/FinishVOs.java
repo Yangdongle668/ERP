@@ -20,6 +20,8 @@ public final class FinishVOs {
     @EqualsAndHashCode(callSuper = true)
     public static class FinishQuery extends PageParam {
         private Long prodOrderId;
+        /** 申请单号（前缀匹配） */
+        private String docNo;
         private String prodOrderNo;
         private Long materialId;
         /** SUBMITTED / STOCKED / JUDGED / CANCELED，逗号分隔 */

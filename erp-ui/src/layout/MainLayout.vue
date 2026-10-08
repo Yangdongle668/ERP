@@ -8,7 +8,7 @@ import { useDictStore } from '@/stores/dict'
 import { cacheNameOf, tabKeyOf, useTabsStore } from '@/stores/tabs'
 import { CONCURRENT_EVENT } from '@/api/http'
 import { authApi } from '@/api/auth'
-import { systemCommonApi } from '@/api/system'
+import { systemCommonApi, systemLogoUrl } from '@/api/system'
 import TabsBar from './TabsBar.vue'
 import MenuSearch from './MenuSearch.vue'
 import TodoBell from './TodoBell.vue'
@@ -21,6 +21,7 @@ const store = useUserStore()
 const dict = useDictStore()
 const tabs = useTabsStore()
 const systemName = ref('ERP 系统')
+const logoUrl = ref('')
 
 const collapsed = ref(readCollapsed())
 function readCollapsed() {
@@ -115,6 +116,7 @@ onMounted(async () => {
   window.addEventListener(CONCURRENT_EVENT, onConcurrent)
   const p = await systemCommonApi.publicParams().catch(() => undefined)
   if (p?.systemName) systemName.value = p.systemName
+  logoUrl.value = systemLogoUrl(p?.logoVersion)
   idleMinutes = p?.idleTimeoutMinutes ?? 0
   if (idleMinutes > 0) {
     ACTIVITY.forEach((e) => window.addEventListener(e, markActive, { passive: true }))
@@ -139,7 +141,8 @@ onBeforeUnmount(() => {
   <el-container class="layout">
     <el-aside :width="collapsed ? 'var(--erp-sidebar-collapsed-width)' : 'var(--erp-sidebar-width)'" :class="['aside', { 'is-collapsed': collapsed }]">
       <div class="brand" :title="systemName">
-        <span class="brand__mark">{{ systemName.slice(0, 1) }}</span>
+        <img v-if="logoUrl" :src="logoUrl" class="brand__logo" alt="" @error="logoUrl = ''">
+        <span v-else class="brand__mark">{{ systemName.slice(0, 1) }}</span>
         <span v-show="!collapsed" class="brand__name">{{ systemName }}</span>
       </div>
       <el-scrollbar class="aside__menu">
@@ -201,6 +204,7 @@ onBeforeUnmount(() => {
 }
 .brand { height: var(--erp-header-height); display: flex; align-items: center; gap: 10px; padding: 0 18px; flex-shrink: 0; overflow: hidden; }
 .aside.is-collapsed .brand { padding: 0; justify-content: center; }
+.brand__logo { height: 28px; max-width: 96px; object-fit: contain; flex-shrink: 0; }
 .brand__mark {
   width: 28px; height: 28px; border-radius: var(--erp-radius-control); background: var(--erp-color-text); color: var(--erp-color-surface);
   display: inline-flex; align-items: center; justify-content: center; font-size: var(--erp-font-size-body); font-weight: var(--erp-font-weight-semibold); flex-shrink: 0;

@@ -801,17 +801,28 @@ public class ShipmentService {
         m.put("docNo", d.docNo());
         m.put("status", ShipmentStatus.valueOf(d.shipmentStatus()).label());
         m.put("customerName", d.customerName());
+        // 针式送货单只打印客户编号
+        m.put("customerCode", d.customerId() == null ? "" : support.customerApi().getCustomer(d.customerId()).map(c -> Objects.toString(c.code(), "")).orElse(""));
         m.put("shipDate", d.shipDate());
         m.put("shipToText", Objects.toString(d.shipToText(), ""));
         m.put("transportModeName", support.dictLabel("shp_transport_mode", d.transportMode()));
         m.put("blNo", Objects.toString(d.blNo(), ""));
         m.put("cartonCount", d.cartonCount());
+        m.put("docDate", d.docDate());
+        m.put("statusName", ShipmentStatus.valueOf(d.shipmentStatus()).label());
+        m.put("noticeNo", Objects.toString(d.noticeNo(), ""));
+        m.put("warehouseName", Objects.toString(d.warehouseName(), ""));
+        m.put("totalQty", d.totalQty());
+        m.put("forwarderName", Objects.toString(d.forwarderName(), ""));
+        support.putPrintSignature(m, mapper.selectById(id));
         m.put("lines", d.lines().stream().map(l -> {
             Map<String, Object> r = new LinkedHashMap<>();
             r.put("lineNo", l.lineNo());
             r.put("orderNo", l.orderNo());
             r.put("materialCode", l.materialCode());
             r.put("materialName", l.materialName());
+            var mat = support.material(l.materialId());
+            r.put("materialSpec", mat == null ? "" : Objects.toString(mat.spec(), ""));
             r.put("batchNo", Objects.toString(l.batchNo(), ""));
             r.put("qty", l.qty());
             r.put("uom", l.uom());

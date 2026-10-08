@@ -118,6 +118,16 @@ public class PurSupport {
         return set.isEmpty() ? Map.of() : orgApi.list(set);
     }
 
+    /** 打印签名栏公共字段：所属公司（打印抬头）、制单人、业务负责人、部门；审核人留空手签 */
+    public void putPrintSignature(Map<String, Object> data, com.erp.framework.mybatis.BaseDocDO d) {
+        if (d == null) return;
+        data.put("orgId", d.getOrgId());
+        data.put("createdByName", Objects.toString(userName(d.getCreatedBy()), ""));
+        data.putIfAbsent("ownerName", Objects.toString(userName(d.getOwnerId()), ""));
+        data.put("deptName", d.getDeptId() == null ? "" : orgs(java.util.List.of(d.getDeptId())).values().stream().findFirst().map(OrgDTO::name).orElse(""));
+        data.putIfAbsent("auditByName", "");
+    }
+
     public static boolean hasPermission(String permission) {
         LoginUser u = SecurityUtils.getLoginUserOrNull();
         return u == null || u.hasPermission(permission);

@@ -103,6 +103,16 @@ public class ShpSupport {
         return id == null || !users.containsKey(id) ? null : users.get(id).realName();
     }
 
+    /** 打印签名栏公共字段：所属公司（打印抬头）、制单人、业务负责人、部门；审核人留空手签 */
+    public void putPrintSignature(java.util.Map<String, Object> data, com.erp.framework.mybatis.BaseDocDO d) {
+        if (d == null) return;
+        data.put("orgId", d.getOrgId());
+        data.put("createdByName", java.util.Objects.toString(userName(d.getCreatedBy()), ""));
+        data.putIfAbsent("ownerName", java.util.Objects.toString(userName(d.getOwnerId()), ""));
+        data.put("deptName", d.getDeptId() == null ? "" : orgApi.get(d.getDeptId()).map(o -> o.name()).orElse(""));
+        data.putIfAbsent("auditByName", "");
+    }
+
     public String userName(Long id) {
         return id == null ? null : userApi.get(id).map(UserDTO::realName).orElse(null);
     }

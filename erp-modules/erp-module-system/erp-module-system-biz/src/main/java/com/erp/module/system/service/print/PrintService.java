@@ -114,30 +114,78 @@ public class PrintService {
         }
     }
 
-    /** 模块资源 print-templates/<bizType>-<language>.html 存在且还没有该语言的内置模板时导入 */
+    /**
+     * 模块资源 print-templates/&lt;bizType&gt;-&lt;language&gt;.html（标准，A4）与 &lt;bizType&gt;-zh-CN-dot.html（针式多联纸）存在、
+     * 且还没有该变体的内置模板时导入。针式模板首行注释声明纸张等设置：
+     * {@code <!-- erp-print: paper=DOT_241_140; margin=5mm 6mm 4mm 6mm; rowsPerPage=6; copies=①白 存根|②红 财务|③黄 仓库 -->}；
+     * 导入时若该语言的默认模板仍是内置标准模板，则改为针式模板为默认（多联打印机是日常单据的主力）。
+     */
     private void importBuiltin(PrintBizDefinition d, String lang) {
-        Resource r = resourceLoader.getResource("classpath:print-templates/" + d.bizType() + "-" + lang + ".html");
+        importBuiltin(d, lang, lang);
+        if ("zh-CN".equals(lang)) importBuiltin(d, lang, lang + "-dot");
+    }
+
+    private static final Pattern META = Pattern.compile("^\\s*<!--\\s*erp-print:(.*?)-->");
+
+    private void importBuiltin(PrintBizDefinition d, String lang, String key) {
+        Resource r = resourceLoader.getResource("classpath:print-templates/" + d.bizType() + "-" + key + ".html");
         if (!r.exists()) return;
-        boolean has = templateMapper.selectCount(new LambdaQueryWrapper<PrintTemplateDO>().eq(PrintTemplateDO::getBizType, d.bizType())
-                .eq(PrintTemplateDO::getLanguage, lang).eq(PrintTemplateDO::getIsBuiltin, true)) > 0;
-        if (has) return;
+        boolean dot = key.endsWith("-dot");
+        PrintTemplateDO existing = templateMapper.selectOne(new LambdaQueryWrapper<PrintTemplateDO>().eq(PrintTemplateDO::getBizType, d.bizType())
+                .eq(PrintTemplateDO::getLanguage, lang).eq(PrintTemplateDO::getIsBuiltin, true)
+                .and(w -> {
+                    w.eq(PrintTemplateDO::getBuiltinKey, key);
+                    if (key.equals(lang)) w.or().isNull(PrintTemplateDO::getBuiltinKey);
+                }).last("LIMIT 1"));
+        // 标准模板已存在不覆盖（R05）；内置针式模板只读，随版本更新（纸张、版式调整后已导入的也同步）
+        if (existing != null && !dot) return;
         try (InputStream in = r.getInputStream()) {
             String content = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            boolean hasDefault = templateMapper.selectCount(new LambdaQueryWrapper<PrintTemplateDO>().eq(PrintTemplateDO::getBizType, d.bizType())
-                    .eq(PrintTemplateDO::getLanguage, lang).eq(PrintTemplateDO::getIsDefault, true)) > 0;
-            PrintTemplateDO t = new PrintTemplateDO();
+            PrintTemplateDO t = existing != null ? existing : new PrintTemplateDO();
+            if (existing != null && content.equals(existing.getContent())) return;
             t.setBizType(d.bizType());
-            t.setName("en".equals(lang) ? d.name() + " (Standard)" : d.name() + "（标准）");
+            t.setName(dot ? d.name() + "（针式三等分）" : "en".equals(lang) ? d.name() + " (Standard)" : d.name() + "（标准）");
             t.setLanguage(lang);
             t.setPaper("A4_P");
             t.setMargin("10mm 10mm 10mm 10mm");
+            t.setCopyMode("CARBON");
+            var m = META.matcher(content);
+            if (m.find()) {
+                for (String kv : m.group(1).split(";")) {
+                    int i = kv.indexOf('=');
+                    if (i < 0) continue;
+                    String k = kv.substring(0, i).trim();
+                    String v = kv.substring(i + 1).trim();
+                    switch (k) {
+                        case "paper" -> t.setPaper(v);
+                        case "margin" -> t.setMargin(v);
+                        case "rowsPerPage" -> t.setRowsPerPage(Integer.valueOf(v));
+                        case "copies" -> t.setCopiesNote(v);
+                        case "copyMode" -> t.setCopyMode(v);
+                        default -> { }
+                    }
+                }
+            }
             t.setContent(content);
-            t.setIsDefault(!hasDefault);
+            if (existing != null) {
+                templateMapper.updateByIdOrFail(t);
+                log.info("[打印模板] 更新内置模板 {}-{}", d.bizType(), key);
+                return;
+            }
+            PrintTemplateDO currentDefault = templateMapper.selectOne(new LambdaQueryWrapper<PrintTemplateDO>().eq(PrintTemplateDO::getBizType, d.bizType())
+                    .eq(PrintTemplateDO::getLanguage, lang).eq(PrintTemplateDO::getIsDefault, true).last("LIMIT 1"));
+            boolean makeDefault = currentDefault == null || (dot && Boolean.TRUE.equals(currentDefault.getIsBuiltin()));
+            if (makeDefault && currentDefault != null) {
+                currentDefault.setIsDefault(false);
+                templateMapper.updateByIdOrFail(currentDefault);
+            }
+            t.setIsDefault(makeDefault);
             t.setIsBuiltin(true);
+            t.setBuiltinKey(key);
             t.setStatus(EnableStatus.ENABLED);
             templateMapper.insert(t);
-            log.info("[打印模板] 导入内置模板 {}-{}", d.bizType(), lang);
-        } catch (IOException e) {
+            log.info("[打印模板] 导入内置模板 {}-{}", d.bizType(), key);
+        } catch (IOException | NumberFormatException e) {
             log.warn("[打印模板] 读取内置模板失败 {}", r, e);
         }
     }
@@ -162,7 +210,8 @@ public class PrintService {
         PrintTemplateDO t = getTemplate(id);
         return new TemplateDetail(t.getId(), t.getBizType(), bizNames().getOrDefault(t.getBizType(), t.getBizType()), t.getName(), t.getLanguage(),
                 t.getPaper(), t.getPaperWidth(), t.getPaperHeight(), t.getMargin(), t.getContent(), Boolean.TRUE.equals(t.getIsDefault()),
-                Boolean.TRUE.equals(t.getIsBuiltin()), t.getStatus().name(), t.getRemark(), t.getVersion());
+                Boolean.TRUE.equals(t.getIsBuiltin()), t.getStatus().name(), t.getRemark(), t.getRowsPerPage(), t.getCopiesNote(),
+                copyMode(t), t.getVersion());
     }
 
     public List<BizResp> bizList() {
@@ -190,7 +239,8 @@ public class PrintService {
     public ForPrint forPrint(Long id) {
         PrintTemplateDO t = getTemplate(id);
         if (t.getStatus() != EnableStatus.ENABLED) throw BizException.of(SystemErrorCodes.PRINT_TEMPLATE_DISABLED);
-        return new ForPrint(t.getId(), t.getName(), t.getLanguage(), t.getPaper(), t.getPaperWidth(), t.getPaperHeight(), t.getMargin(), t.getContent());
+        return new ForPrint(t.getId(), t.getName(), t.getLanguage(), t.getPaper(), t.getPaperWidth(), t.getPaperHeight(), t.getMargin(), t.getContent(),
+                t.getRowsPerPage(), t.getCopiesNote(), copyMode(t));
     }
 
     // ==================== 维护 ====================
@@ -237,6 +287,9 @@ public class PrintService {
         t.setPaperHeight(src.getPaperHeight());
         t.setMargin(src.getMargin());
         t.setContent(src.getContent());
+        t.setRowsPerPage(src.getRowsPerPage());
+        t.setCopiesNote(src.getCopiesNote());
+        t.setCopyMode(src.getCopyMode());
         t.setIsDefault(false);
         t.setIsBuiltin(false);
         t.setStatus(EnableStatus.ENABLED);
@@ -327,6 +380,13 @@ public class PrintService {
         t.setMargin(req.margin().trim());
         t.setContent(req.content());
         t.setRemark(StringUtils.hasText(req.remark()) ? req.remark().trim() : null);
+        t.setRowsPerPage(req.rowsPerPage());
+        t.setCopiesNote(StringUtils.hasText(req.copiesNote()) ? req.copiesNote().trim() : null);
+        t.setCopyMode(StringUtils.hasText(req.copyMode()) ? req.copyMode() : "CARBON");
+    }
+
+    private static String copyMode(PrintTemplateDO t) {
+        return t.getCopyMode() == null ? "CARBON" : t.getCopyMode();
     }
 
     private PrintTemplateDO getTemplate(Long id) {

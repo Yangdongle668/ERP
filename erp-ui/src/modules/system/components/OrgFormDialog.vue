@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
+import { fetchBlob } from '@/api/http'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { orgApi, type OrgNode, type OrgSave } from '../api/org'
 
@@ -25,6 +26,50 @@ const rules: FormRules = {
 }
 
 const isCompany = computed(() => form.value.orgType === 'COMPANY')
+
+// ---------- 公司 Logo：系统左上角、登录页、打印单据抬头共用 ----------
+const logoPreview = ref('')
+const logoUploading = ref(false)
+function setPreview(url: string) {
+  if (logoPreview.value.startsWith('blob:')) URL.revokeObjectURL(logoPreview.value)
+  logoPreview.value = url
+}
+async function loadLogo(fileId?: string) {
+  setPreview('')
+  if (!fileId) return
+  const blob = await fetchBlob(`/system/files/${fileId}/preview`).catch(() => undefined)
+  if (blob) setPreview(URL.createObjectURL(blob))
+}
+async function onLogoPick(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || !editingId.value) return
+  if (!/\.(png|svg|jpe?g)$/i.test(file.name)) return ElMessage.warning('Logo 只支持 PNG、SVG、JPG 图片')
+  if (file.size > 512 * 1024) return ElMessage.warning('Logo 图片不能超过 512KB')
+  logoUploading.value = true
+  try {
+    const id = await orgApi.uploadLogo(editingId.value, file)
+    form.value.logoFileId = String(id)
+    snapshot = JSON.stringify({ ...JSON.parse(snapshot), logoFileId: form.value.logoFileId })
+    setPreview(URL.createObjectURL(file))
+    ElMessage.success('Logo 已更新，刷新页面后左上角显示新 Logo')
+    emit('saved')
+  } finally {
+    logoUploading.value = false
+  }
+}
+async function removeLogo() {
+  if (!editingId.value) return
+  await ElMessageBox.confirm('删除公司 Logo？打印单据和系统左上角将不再显示 Logo。', '提示', { type: 'warning' })
+  await orgApi.removeLogo(editingId.value)
+  form.value.logoFileId = undefined
+  snapshot = JSON.stringify({ ...JSON.parse(snapshot), logoFileId: undefined })
+  setPreview('')
+  ElMessage.success('已删除')
+  emit('saved')
+}
+onBeforeUnmount(() => setPreview(''))
 const title = computed(() => (editingId.value ? '编辑组织' : '新建组织'))
 
 async function open(opts: { id?: string; parent?: OrgNode; orgType?: 'COMPANY' | 'DEPT' }) {
@@ -37,7 +82,9 @@ async function open(opts: { id?: string; parent?: OrgNode; orgType?: 'COMPANY' |
       sort: d.sort, remark: d.remark, version: d.version
     }
     parentIsDept.value = false
+    loadLogo(d.logoFileId)
   } else {
+    setPreview('')
     form.value = empty()
     form.value.parentId = opts.parent?.id
     parentIsDept.value = opts.parent?.orgType === 'DEPT'
@@ -120,6 +167,29 @@ defineExpose({ open })
           <el-col :span="12"><el-form-item label="税号"><el-input v-model="form.taxNo" maxlength="32" /></el-form-item></el-col>
           <el-col :span="24"><el-form-item label="地址"><el-input v-model="form.address" maxlength="256" /></el-form-item></el-col>
           <el-col :span="24"><el-form-item label="英文地址"><el-input v-model="form.addressEn" maxlength="256" /></el-form-item></el-col>
+          <el-col :span="24">
+            <el-form-item label="公司 Logo">
+              <div class="logo">
+                <div class="logo__box">
+                  <img v-if="logoPreview" :src="logoPreview" alt="Logo">
+                  <span v-else class="text-muted">未上传</span>
+                </div>
+                <div class="logo__side">
+                  <template v-if="editingId">
+                    <label class="el-button" :class="{ 'is-disabled': logoUploading }">
+                      <input type="file" accept=".png,.svg,.jpg,.jpeg,image/png,image/svg+xml,image/jpeg" hidden :disabled="logoUploading" @change="onLogoPick">
+                      {{ form.logoFileId ? '更换 Logo' : '上传 Logo' }}
+                    </label>
+                    <el-button v-if="form.logoFileId" link type="danger" @click="removeLogo">删除</el-button>
+                  </template>
+                  <div class="text-muted logo__tip">
+                    {{ editingId ? '' : '保存公司后再上传 Logo。' }}PNG / SVG / JPG，≤ 512KB，建议横版透明底、高度 ≥ 120px；
+                    用于系统左上角、登录页和打印单据抬头（针式打印为黑白）
+                  </div>
+                </div>
+              </div>
+            </el-form-item>
+          </el-col>
         </el-row>
       </template>
       <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" :rows="2" maxlength="256" show-word-limit /></el-form-item>
@@ -131,3 +201,12 @@ defineExpose({ open })
     </template>
   </el-dialog>
 </template>
+
+<style scoped>
+.logo { display: flex; align-items: flex-start; gap: var(--erp-space-4); }
+.logo__box { width: 200px; height: 72px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--erp-color-border);
+  border-radius: var(--erp-radius-control); background: var(--erp-color-bg); }
+.logo__box img { max-width: 184px; max-height: 60px; object-fit: contain; }
+.logo__side { display: flex; flex-direction: column; align-items: flex-start; gap: var(--erp-space-2); }
+.logo__tip { font-size: var(--erp-font-size-caption); line-height: 1.5; }
+</style>

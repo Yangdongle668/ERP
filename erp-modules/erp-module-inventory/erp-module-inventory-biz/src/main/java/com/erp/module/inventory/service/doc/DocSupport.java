@@ -49,9 +49,18 @@ public class DocSupport {
     private final WarehouseService warehouseService;
     private final StockTxnMapper txnMapper;
     private final PeriodBalanceMapper periodBalanceMapper;
+    private final org.springframework.beans.factory.ObjectProvider<com.erp.module.purchase.api.supplier.SupplierApi> supplierApi;
+    private final org.springframework.beans.factory.ObjectProvider<com.erp.module.crm.api.customer.CustomerApi> customerApi;
+    private final org.springframework.beans.factory.ObjectProvider<com.erp.module.system.api.org.OrgApi> orgApi;
 
     public DocSupport(CodeRuleApi codeRuleApi, DocLogApi docLogApi, UserApi userApi, MaterialApi materialApi, WarehouseService warehouseService,
-                      StockTxnMapper txnMapper, PeriodBalanceMapper periodBalanceMapper) {
+                      StockTxnMapper txnMapper, PeriodBalanceMapper periodBalanceMapper,
+                      org.springframework.beans.factory.ObjectProvider<com.erp.module.purchase.api.supplier.SupplierApi> supplierApi,
+                      org.springframework.beans.factory.ObjectProvider<com.erp.module.crm.api.customer.CustomerApi> customerApi,
+                      org.springframework.beans.factory.ObjectProvider<com.erp.module.system.api.org.OrgApi> orgApi) {
+        this.supplierApi = supplierApi;
+        this.customerApi = customerApi;
+        this.orgApi = orgApi;
         this.codeRuleApi = codeRuleApi;
         this.docLogApi = docLogApi;
         this.userApi = userApi;
@@ -59,6 +68,27 @@ public class DocSupport {
         this.warehouseService = warehouseService;
         this.txnMapper = txnMapper;
         this.periodBalanceMapper = periodBalanceMapper;
+    }
+
+    /** 打印用：往来单位（供应商为名称；客户只打印客户编号，不显示客户名称），都没有时为空串 */
+    public String partnerName(Long supplierId, Long customerId) {
+        if (supplierId != null) {
+            var api = supplierApi.getIfAvailable();
+            String n = api == null ? null : api.getSupplier(supplierId).map(s -> s.name()).orElse(null);
+            if (n != null) return n;
+        }
+        if (customerId != null) {
+            var api = customerApi.getIfAvailable();
+            String n = api == null ? null : api.getCustomer(customerId).map(c -> "客户 " + c.code()).orElse(null);
+            if (n != null) return n;
+        }
+        return "";
+    }
+
+    /** 打印用：部门名称 */
+    public String deptName(Long deptId) {
+        var api = deptId == null ? null : orgApi.getIfAvailable();
+        return api == null ? "" : api.get(deptId).map(o -> o.name()).orElse("");
     }
 
     public String nextNo(String rule) {

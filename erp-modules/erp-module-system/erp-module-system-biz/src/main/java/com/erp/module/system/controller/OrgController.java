@@ -29,9 +29,26 @@ import java.util.List;
 public class OrgController {
 
     private final OrgService orgService;
+    private final com.erp.module.system.service.file.FileService fileService;
 
-    public OrgController(OrgService orgService) {
+    public OrgController(OrgService orgService, com.erp.module.system.service.file.FileService fileService) {
         this.orgService = orgService;
+        this.fileService = fileService;
+    }
+
+    /** 上传公司 Logo（PNG / SVG / JPG，≤ 512KB）：系统左上角、登录页、打印单据抬头使用；返回文件 ID */
+    @PostMapping(value = "/{id}/logo", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@ss.has('system:org:update')")
+    public CommonResult<Long> uploadLogo(@PathVariable Long id, @org.springframework.web.bind.annotation.RequestPart("file")
+                                         org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        return CommonResult.success(orgService.uploadLogo(id, file.getOriginalFilename(), file.getBytes(), fileService::saveGenerated));
+    }
+
+    @DeleteMapping("/{id}/logo")
+    @PreAuthorize("@ss.has('system:org:update')")
+    public CommonResult<Void> removeLogo(@PathVariable Long id) {
+        orgService.removeLogo(id);
+        return CommonResult.success();
     }
 
     @GetMapping("/tree")

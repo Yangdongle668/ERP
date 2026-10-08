@@ -254,6 +254,79 @@ public class OrgService implements OrgApi {
         if (u == null || u.getStatus() != EnableStatus.ENABLED) throw new BizException(SystemErrorCodes.USER_NOT_EXISTS);
     }
 
+    // ==================== 公司 Logo ====================
+
+    /** Logo 大小上限（打印时嵌入页面） */
+    public static final int LOGO_MAX_BYTES = 512 * 1024;
+    public static final String LOGO_BIZ_TYPE = "SYS_ORG_LOGO";
+    private static final java.util.regex.Pattern SVG_UNSAFE = java.util.regex.Pattern.compile(
+            "(?is)<\\s*(script|foreignObject|iframe|object|embed)\\b|\\son[a-z]+\\s*=|javascript\\s*:|(href|src)\\s*=\\s*[\"']?\\s*(https?:|//|data:text)");
+
+    /**
+     * 上传公司 Logo（需求 01-02 组织架构）：PNG / JPG / SVG，≤ 512KB；SVG 不能包含脚本、事件属性和外部链接。
+     * 用于系统左上角、登录页和打印单据抬头。返回文件 ID。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Long uploadLogo(Long id, String fileName, byte[] bytes, FileServiceBridge files) {
+        OrgDO o = getOrg(id);
+        if (o.getOrgType() != OrgType.COMPANY) throw BizException.of(SystemErrorCodes.ORG_LOGO_ONLY_COMPANY);
+        if (bytes == null || bytes.length == 0) throw BizException.of(SystemErrorCodes.ORG_LOGO_INVALID, "请选择 Logo 图片");
+        if (bytes.length > LOGO_MAX_BYTES) throw BizException.of(SystemErrorCodes.ORG_LOGO_INVALID, "Logo 图片不能超过 512KB");
+        String name = fileName == null ? "logo" : fileName.trim();
+        String ext = name.contains(".") ? name.substring(name.lastIndexOf('.') + 1).toLowerCase(java.util.Locale.ROOT) : "";
+        String contentType = switch (ext) {
+            case "png" -> isPng(bytes) ? "image/png" : null;
+            case "jpg", "jpeg" -> isJpeg(bytes) ? "image/jpeg" : null;
+            case "svg" -> isSafeSvg(bytes) ? "image/svg+xml" : null;
+            default -> throw BizException.of(SystemErrorCodes.ORG_LOGO_INVALID, "Logo 只支持 PNG、SVG、JPG 图片");
+        };
+        if (contentType == null) {
+            throw BizException.of(SystemErrorCodes.ORG_LOGO_INVALID, "svg".equals(ext)
+                    ? "SVG 文件无效或包含脚本、外部链接，请导出为纯图形 SVG 或改用 PNG" : "图片内容与扩展名不符");
+        }
+        Long fileId = files.save(LOGO_BIZ_TYPE, id, "logo." + ext, contentType, bytes);
+        o.setLogoFileId(fileId);
+        orgMapper.updateByIdOrFail(o);
+        caches.clear(SystemCaches.ORG);
+        return fileId;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void removeLogo(Long id) {
+        OrgDO o = getOrg(id);
+        if (o.getLogoFileId() == null) return;
+        o.setLogoFileId(null);
+        orgMapper.update(null, new com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<OrgDO>().eq(OrgDO::getId, id)
+                .set(OrgDO::getLogoFileId, null).set(OrgDO::getUpdatedAt, java.time.LocalDateTime.now()));
+        caches.clear(SystemCaches.ORG);
+    }
+
+    /** 系统 Logo：第一个启用的顶级公司的 Logo 文件 ID（登录页、左上角） */
+    public Long systemLogoFileId() {
+        return all().values().stream().filter(o -> o.getParentId() == null && o.getOrgType() == OrgType.COMPANY && o.getStatus() == EnableStatus.ENABLED)
+                .sorted(java.util.Comparator.comparing((OrgDO o) -> o.getSort() == null ? 0 : o.getSort()).thenComparing(OrgDO::getId))
+                .map(OrgDO::getLogoFileId).filter(java.util.Objects::nonNull).findFirst().orElse(null);
+    }
+
+    /** 保存 Logo 文件（由控制器传入 FileService，避免 OrgService 依赖附件服务） */
+    @FunctionalInterface
+    public interface FileServiceBridge {
+        Long save(String bizType, Long bizId, String fileName, String contentType, byte[] content);
+    }
+
+    static boolean isPng(byte[] b) {
+        return b.length > 8 && (b[0] & 0xFF) == 0x89 && b[1] == 'P' && b[2] == 'N' && b[3] == 'G';
+    }
+
+    static boolean isJpeg(byte[] b) {
+        return b.length > 3 && (b[0] & 0xFF) == 0xFF && (b[1] & 0xFF) == 0xD8;
+    }
+
+    static boolean isSafeSvg(byte[] b) {
+        String s = new String(b, java.nio.charset.StandardCharsets.UTF_8);
+        return s.contains("<svg") && !SVG_UNSAFE.matcher(s).find() && !s.contains("<!ENTITY");
+    }
+
     private static void fill(OrgDO o, OrgSave req) {
         o.setName(req.name().trim());
         o.setShortName(trim(req.shortName()));

@@ -12,7 +12,7 @@ const route = useRoute()
 const router = useRouter()
 
 type Query = { prodOrderNo?: string; prodOrderId?: string; materialId?: string; statuses?: string[]; dates?: [string, string] }
-const { query, list, total, loading, load, search, reset } = useListPage<Query, FinishRow>({
+const { query, list, total, loading, load, search, reset, selection, onSelectionChange } = useListPage<Query, FinishRow>({
   api: (q) => {
     const { statuses, dates, ...rest } = q
     return finishApi.page({ ...rest, statuses: joinList(statuses), dateFrom: dates?.[0], dateTo: dates?.[1] } as never)
@@ -53,6 +53,7 @@ const rowActions = (r: FinishRow): RowAction[] => [
     } }
 ]
 const asRow = (r: unknown) => r as FinishRow
+const printIds = () => selection.value.map((r) => r.id)
 </script>
 
 <template>
@@ -63,7 +64,11 @@ const asRow = (r: unknown) => r as FinishRow
           <template #field-materialId><MaterialSelect v-model="query.materialId" /></template>
         </ErpSearchForm>
       </template>
-      <ErpTable :columns="columns" :data="list" :loading="loading" storage-key="mfg.finish" :actions-width="80" @refresh="load">
+      <ErpTable :columns="columns" :data="list" :loading="loading" selection storage-key="mfg.finish" :actions-width="80"
+                @selection-change="onSelectionChange" @refresh="load">
+        <template #toolbar>
+          <PrintButton biz-type="MFG_FINISH" :ids="printIds" permission="mfg:finish:print" label="批量打印" />
+        </template>
         <template #actions="{ row }"><RowActions :actions="rowActions(asRow(row))" /></template>
       </ErpTable>
       <ErpPagination v-model:page-no="query.pageNo" v-model:page-size="query.pageSize" :total="total" @change="load" />

@@ -925,6 +925,8 @@ public class OrderService {
         data.put("companyName", company == null ? "" : (en && company.nameEn() != null ? company.nameEn() : company.name()));
         data.put("companyAddress", company == null ? "" : Objects.toString(en && company.addressEn() != null ? company.addressEn() : company.address(), ""));
         data.put("customerName", en && StringUtils.hasText(c.nameEn()) ? c.nameEn() : c.name());
+        // 针式单据只打印客户编号（对内流转的单据不显示客户名称等信息）
+        data.put("customerCode", Objects.toString(c.code(), ""));
         data.put("customerPoNo", Objects.toString(d.customerPoNo(), ""));
         data.put("contactName", Objects.toString(d.contactName(), ""));
         data.put("shipTo", Objects.toString(d.shipToText(), ""));
@@ -960,6 +962,7 @@ public class OrderService {
             lines.add(m);
         }
         data.put("lines", lines);
+        support.putPrintSignature(data, mapper.selectById(id));
         return data;
     }
 

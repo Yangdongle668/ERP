@@ -721,6 +721,7 @@ public class ReceiptService {
             m.put("warehouseName", Objects.toString(l.targetWarehouseName(), ""));
             return m;
         }).toList());
+        support.putPrintSignature(data, mapper.selectById(id));
         return data;
     }
 

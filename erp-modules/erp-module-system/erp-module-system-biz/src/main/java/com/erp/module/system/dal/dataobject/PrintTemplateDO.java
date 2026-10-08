@@ -24,6 +24,16 @@ public class PrintTemplateDO extends BaseDO {
     private Integer paperHeight;
     private String margin;
     private String content;
+    /** 每页明细行数：设置后按固定行数分页（针式多联纸），空为浏览器自动分页 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private Integer rowsPerPage;
+    /** 联次说明，| 分隔 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private String copiesNote;
+    /** CARBON 多联纸一次打印 / REPEAT 普通纸逐联打印 */
+    private String copyMode;
+    /** 内置模板变体：zh-CN / en / zh-CN-dot */
+    private String builtinKey;
     private Boolean isDefault;
     private Boolean isBuiltin;
     private EnableStatus status;

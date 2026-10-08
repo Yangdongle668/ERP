@@ -498,11 +498,21 @@ public class ReturnService {
         data.put("warehouseName", d.warehouseName());
         data.put("remark", d.remark());
         data.put("ownerName", d.ownerName());
+        data.put("productName", d.productName());
+        data.put("stockInNos", java.util.Objects.toString(d.stockInNos(), ""));
+        // 打印签名栏：制单、责任人（申请人）、车间；status 为 DRAFT 时打印“草稿”
+        com.erp.framework.mybatis.BaseDocDO doc = mapper.selectById(id);
+        data.put("status", d.status());
+        data.put("orgId", doc == null ? null : doc.getOrgId());
+        data.put("createdByName", doc == null ? "" : java.util.Objects.toString(support.userName(doc.getCreatedBy()), ""));
+        data.put("deptName", doc == null || doc.getDeptId() == null ? "" : java.util.Objects.toString(support.deptName(doc.getDeptId()), ""));
+        data.put("auditByName", "");
         data.put("lines", d.lines().stream().map(l -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("lineNo", l.lineNo());
             m.put("materialCode", l.code());
             m.put("materialName", l.name());
+            m.put("materialSpec", l.spec());
             m.put("uom", l.uom());
             m.put("qty", l.qty());
             m.put("batchNo", l.batchNo());

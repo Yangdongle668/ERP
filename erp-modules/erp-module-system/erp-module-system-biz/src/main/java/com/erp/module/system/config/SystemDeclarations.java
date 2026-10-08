@@ -170,6 +170,9 @@ public class SystemDeclarations {
                 .builtin("A4_P", "A4 纵向", "A4 Portrait")
                 .builtin("A4_L", "A4 横向", "A4 Landscape")
                 .builtin("A5_L", "A5 横向", "A5 Landscape")
+                .builtin("DOT_241_140", "针式二等分 241×140mm", "Dot-matrix 241×140mm")
+                .builtin("DOT_241_93", "针式三等分 241×93mm", "Dot-matrix 241×93mm")
+                .builtin("DOT_241_280", "针式整张 241×280mm", "Dot-matrix 241×280mm")
                 .builtin("CUSTOM", "自定义", "Custom");
     }
 
