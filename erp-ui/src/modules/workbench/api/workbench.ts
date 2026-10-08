@@ -54,8 +54,11 @@ export interface CardData {
 
 export const homeApi = {
   summary: () => http.get<Summary>('/workbench/summary', undefined, { silent: true }),
-  /** 首页天气（Open-Meteo，后端缓存 30 分钟） */
-  weather: () => http.get<Weather>('/workbench/weather', undefined, { silent: true }),
+  /** 顶部天气：传经纬度（自动定位）按位置查询，否则按个人设置的城市（默认东莞） */
+  weather: (loc?: { lat: number; lon: number }) => http.get<Weather>('/workbench/weather', loc, { silent: true }),
+  weatherPref: () => http.get<WeatherPref>('/workbench/weather/pref', undefined, { silent: true }),
+  saveWeatherPref: (data: WeatherPref) => http.put<void>('/workbench/weather/pref', data),
+  weatherCities: (keyword?: string) => http.get<WeatherCity[]>('/workbench/weather/cities', { keyword }, { silent: true }),
   cards: () => http.get<CardVO[]>('/workbench/cards'),
   cardData: (code: string, refresh = false) => http.get<CardData>(`/workbench/cards/${code}/data`, { refresh }, { silent: true }),
   saveLayout: (items: { code: string; visible: boolean }[]) => http.put<void>('/workbench/layout', { items }),
@@ -155,6 +158,8 @@ export interface Weather {
   enabled: boolean
   available: boolean
   stale: boolean
+  /** 按浏览器定位查询 */
+  located: boolean
   city: string
   temperature?: string
   humidity?: number
@@ -165,3 +170,7 @@ export interface Weather {
   days: WeatherDay[]
   updatedAt?: string
 }
+
+/** 个人天气设置：AUTO 自动定位（定位失败时用手选城市）/ MANUAL 手选城市 */
+export interface WeatherPref { mode: 'AUTO' | 'MANUAL'; cityName: string; latitude: number; longitude: number }
+export interface WeatherCity { name: string; province: string; latitude: number; longitude: number }

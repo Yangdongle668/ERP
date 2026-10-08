@@ -129,13 +129,36 @@ class WorkbenchIntegrationTest extends AbstractIntegrationTest {
     // ==================== 待办与审批 ====================
 
     /** WB-TODO-T01 ~ T04、WB-MSG-T01 */
-    /** 首页天气：取不到数据（测试环境不访问外网）时返回不可用，不报错；关闭参数后不显示 */
+    /** 顶部天气：默认东莞；个人设置手选城市 / 自动定位；取不到数据（测试环境不访问外网）时返回不可用，不报错 */
     @Test
-    void weatherGraceful() throws Exception {
-        JsonNode w = ok(doGet("/api/workbench/weather", admin));
+    void weatherPrefAndGraceful() throws Exception {
+        String user = user("100", "SELF", List.of()).token();
+        JsonNode pref = ok(doGet("/api/workbench/weather/pref", user));
+        assertThat(pref.at("/mode").asText()).isEqualTo("MANUAL");
+        assertThat(pref.at("/cityName").asText()).isEqualTo("东莞");
+        JsonNode w = ok(doGet("/api/workbench/weather", user));
         assertThat(w.at("/enabled").asBoolean()).isTrue();
         assertThat(w.at("/available").asBoolean()).isFalse();
-        assertThat(w.at("/city").asText()).isEqualTo("深圳宝安");
+        assertThat(w.at("/city").asText()).isEqualTo("东莞");
+
+        // 手选城市，跟个人账号绑定
+        ok(doPut("/api/workbench/weather/pref", user, Map.of("mode", "MANUAL", "cityName", "惠州", "latitude", 23.1115, "longitude", 114.4152)));
+        assertThat(ok(doGet("/api/workbench/weather/pref", user)).at("/cityName").asText()).isEqualTo("惠州");
+        assertThat(ok(doGet("/api/workbench/weather", user)).at("/city").asText()).isEqualTo("惠州");
+        assertThat(ok(doGet("/api/workbench/weather/pref", admin)).at("/cityName").asText()).isEqualTo("东莞");
+
+        // 自动定位：按浏览器经纬度查询，城市名取最近的内置城市
+        ok(doPut("/api/workbench/weather/pref", user, Map.of("mode", "AUTO", "cityName", "惠州", "latitude", 23.1115, "longitude", 114.4152)));
+        assertThat(ok(doGet("/api/workbench/weather/pref", user)).at("/mode").asText()).isEqualTo("AUTO");
+        JsonNode located = ok(doGet("/api/workbench/weather?lat=22.54&lon=114.06", user));
+        assertThat(located.at("/city").asText()).isEqualTo("深圳");
+        assertThat(located.at("/located").asBoolean()).isTrue();
+        assertError(doGet("/api/workbench/weather?lat=95&lon=114", user), "经纬度不正确");
+        assertError(doPut("/api/workbench/weather/pref", user, Map.of("mode", "MANUAL", "cityName", "", "latitude", 23, "longitude", 113)), "请选择城市");
+
+        JsonNode cities = ok(doGet("/api/workbench/weather/cities", user));
+        assertThat(cities.get(0).at("/name").asText()).isEqualTo("东莞");
+        assertThat(ok(doGet("/api/workbench/weather/cities?keyword=广东", user)).size()).isEqualTo(21);
     }
 
     @Test

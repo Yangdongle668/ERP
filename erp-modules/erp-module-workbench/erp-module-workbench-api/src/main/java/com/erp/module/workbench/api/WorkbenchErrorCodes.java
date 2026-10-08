@@ -17,4 +17,5 @@ public interface WorkbenchErrorCodes {
     ErrorCode SHORTCUT_TOO_MANY = new ErrorCode(1_002_003_000, "快捷入口最多 {} 个");
     ErrorCode CARD_NOT_EXISTS = new ErrorCode(1_002_003_001, "卡片「{}」不存在或无权限");
     ErrorCode CARD_LOAD_FAILED = new ErrorCode(1_002_003_002, "卡片数据加载失败：{}");
+    ErrorCode WEATHER_CITY_INVALID = new ErrorCode(1_002_003_003, "{}");
 }

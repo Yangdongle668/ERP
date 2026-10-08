@@ -16,7 +16,7 @@ class WeatherServiceTest {
 
     @Test
     void parseOpenMeteo() throws Exception {
-        WeatherService s = new WeatherService(null, new ObjectMapper(), "http://localhost");
+        WeatherService s = new WeatherService(null, new ObjectMapper(), null, null, "http://localhost", "http://localhost");
         WeatherService.Weather w = s.parse(SAMPLE, "深圳宝安");
         assertThat(w.available()).isTrue();
         assertThat(w.city()).isEqualTo("深圳宝安");
@@ -30,6 +30,13 @@ class WeatherServiceTest {
         assertThat(w.days().get(1).max()).isEqualByComparingTo("29");
         assertThat(w.days().get(1).min()).isEqualByComparingTo("24");
         assertThat(w.days().get(2).rainProbability()).isEqualTo(65);
+    }
+
+    @Test
+    void nearestCity() {
+        assertThat(WeatherCities.nearest(new java.math.BigDecimal("22.98"), new java.math.BigDecimal("113.74")).name()).isEqualTo("东莞");
+        assertThat(WeatherCities.nearest(new java.math.BigDecimal("22.54"), new java.math.BigDecimal("114.06")).name()).isEqualTo("深圳");
+        assertThat(WeatherCities.DEFAULT.name()).isEqualTo("东莞");
     }
 
     @Test
