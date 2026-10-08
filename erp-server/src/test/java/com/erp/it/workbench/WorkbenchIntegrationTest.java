@@ -129,6 +129,15 @@ class WorkbenchIntegrationTest extends AbstractIntegrationTest {
     // ==================== 待办与审批 ====================
 
     /** WB-TODO-T01 ~ T04、WB-MSG-T01 */
+    /** 首页天气：取不到数据（测试环境不访问外网）时返回不可用，不报错；关闭参数后不显示 */
+    @Test
+    void weatherGraceful() throws Exception {
+        JsonNode w = ok(doGet("/api/workbench/weather", admin));
+        assertThat(w.at("/enabled").asBoolean()).isTrue();
+        assertThat(w.at("/available").asBoolean()).isFalse();
+        assertThat(w.at("/city").asText()).isEqualTo("深圳宝安");
+    }
+
     @Test
     void approvalTodos() throws Exception {
         User approver = user(List.of());

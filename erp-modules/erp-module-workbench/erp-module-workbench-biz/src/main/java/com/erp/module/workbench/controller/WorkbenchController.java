@@ -55,9 +55,11 @@ public class WorkbenchController {
     private final AlertService alertService;
     private final WbSupport support;
     private final WorkbenchPushService pushService;
+    private final com.erp.module.workbench.service.weather.WeatherService weatherService;
 
     public WorkbenchController(DashboardService dashboardService, TodoService todoService, MessageService messageService, AlertService alertService, WorkbenchPushService pushService,
-                               WbSupport support) {
+                               WbSupport support, com.erp.module.workbench.service.weather.WeatherService weatherService) {
+        this.weatherService = weatherService;
         this.dashboardService = dashboardService;
         this.todoService = todoService;
         this.messageService = messageService;
@@ -80,6 +82,13 @@ public class WorkbenchController {
             a.getResponse().setHeader("Cache-Control", "no-cache");
         }
         return pushService.subscribe(SecurityUtils.getLoginUser().id());
+    }
+
+    /** 首页天气预报（缓存 30 分钟，获取失败时返回上次结果） */
+    @GetMapping("/weather")
+    @PreAuthorize("isAuthenticated()")
+    public CommonResult<com.erp.module.workbench.service.weather.WeatherService.Weather> weather() {
+        return CommonResult.success(weatherService.current());
     }
 
     @GetMapping("/summary")

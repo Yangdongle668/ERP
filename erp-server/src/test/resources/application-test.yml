@@ -4,6 +4,9 @@ spring:
     username: sa
     password:
 erp:
+  # 测试不访问外网：天气接口指向本机关闭的端口，立即失败
+  weather:
+    url: http://127.0.0.1:9/v1/forecast
   monitoring:
     metrics-token: test-metrics-token
   file:
