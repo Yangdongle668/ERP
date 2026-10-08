@@ -6,7 +6,8 @@ import { useUserStore } from '@/stores/user'
 import { modules } from '@/modules/registry'
 import MetricCard from '../components/MetricCard.vue'
 import {
-  ALERT_LEVEL, alertApi, homeApi, noticeApi, TODO_CATEGORY, todoApi, type ActiveNotice, type Alert, type CardVO, type Summary, type Todo
+  ALERT_LEVEL, alertApi, homeApi, noticeApi, TODO_CATEGORY, todoApi, type ActiveNotice, type Alert, type CardVO, type Summary, type Todo,
+  type Weather
 } from '../api/workbench'
 
 defineOptions({ name: 'WbHomePage' })
@@ -23,6 +24,20 @@ const cards = ref<CardVO[]>([])
 const notices = ref<ActiveNotice[]>([])
 const alerts = ref<Alert[]>([])
 const shortcuts = ref<string[]>([])
+
+// 天气预报（欢迎区，提醒计数旁边）：今天实况 + 明后两天；取不到时显示“天气暂不可用”，关闭参数后不显示
+const weather = ref<Weather>()
+const DAY_NAMES = ['今天', '明天', '后天']
+const weatherTip = computed(() => {
+  const w = weather.value
+  if (!w?.available) return ''
+  const parts = [`湿度 ${w.humidity ?? '-'}%`, `风速 ${w.windSpeed ?? '-'} km/h`]
+  if (w.stale) parts.push('（网络异常，显示上次获取的数据）')
+  return parts.join('　')
+})
+function loadWeather() {
+  homeApi.weather().then((w) => (weather.value = w)).catch(() => undefined)
+}
 
 const now = new Date()
 const greeting = computed(() => {
@@ -96,6 +111,7 @@ async function confirmRead() {
 }
 
 onMounted(() => {
+  loadWeather()
   readRecent()
   trackRecent()
   loadAll()
@@ -179,6 +195,24 @@ function openTodo(t: Todo) {
           <div class="date">{{ today }}</div>
         </div>
         <span class="grow" />
+        <div v-if="weather?.enabled" class="weather" :title="weatherTip">
+          <template v-if="weather.available">
+            <el-icon class="weather__icon"><component :is="weather.icon" /></el-icon>
+            <div class="weather__now">
+              <div><b class="num">{{ weather.temperature }}°</b> {{ weather.text }}</div>
+              <div class="weather__city">{{ weather.city }}{{ weather.days[0] ? ` ${weather.days[0].min}~${weather.days[0].max}°` : '' }}</div>
+            </div>
+            <div class="weather__days">
+              <div v-for="(d, i) in weather.days.slice(1, 3)" :key="d.date" class="weather__day">
+                <span>{{ DAY_NAMES[i + 1] }}</span>
+                <el-icon><component :is="d.icon" /></el-icon>
+                <span>{{ d.text }}</span>
+                <span class="num">{{ d.min }}~{{ d.max }}°</span>
+              </div>
+            </div>
+          </template>
+          <span v-else class="weather__city">{{ weather.city }} 天气暂不可用</span>
+        </div>
         <div class="counter" @click="router.push({ path: '/workbench/todo', query: { category: 'APPROVAL' } })">
           <b>{{ summary?.approvals ?? '-' }}</b><span>待审批</span>
         </div>
@@ -283,6 +317,12 @@ function openTodo(t: Todo) {
 .hello { font-size: var(--erp-font-size-page-title); font-weight: var(--erp-font-weight-semibold); }
 .date { color: var(--erp-color-text-secondary); margin-top: var(--erp-space-1); }
 .grow { flex: 1; }
+.weather { display: flex; align-items: center; gap: var(--erp-space-3); padding-right: var(--erp-space-6); border-right: 1px solid var(--erp-color-border); }
+.weather__icon { font-size: var(--erp-font-size-metric); color: var(--erp-color-primary); }
+.weather__now b { font-size: var(--erp-font-size-section-title); font-weight: var(--erp-font-weight-semibold); }
+.weather__city { color: var(--erp-color-text-secondary); font-size: var(--erp-font-size-secondary); }
+.weather__days { display: flex; flex-direction: column; gap: var(--erp-space-1); font-size: var(--erp-font-size-secondary); color: var(--erp-color-text-secondary); }
+.weather__day { display: flex; align-items: center; gap: var(--erp-space-1); white-space: nowrap; }
 .counter { display: flex; flex-direction: column; align-items: center; cursor: pointer; min-width: 64px; }
 .counter b { font-size: var(--erp-font-size-metric); font-weight: var(--erp-font-weight-semibold); color: var(--erp-color-primary); }
 .counter span { color: var(--erp-color-text-secondary); }

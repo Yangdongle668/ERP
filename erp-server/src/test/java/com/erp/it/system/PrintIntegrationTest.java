@@ -55,19 +55,19 @@ class PrintIntegrationTest extends SystemTestSupport {
             JsonNode def = null;
             for (JsonNode t : av.at("/templates")) if (t.at("/isDefault").asBoolean() && "zh-CN".equals(t.at("/language").asText())) def = t;
             assertThat(def).as(biz + " 默认模板").isNotNull();
-            assertThat(def.at("/paper").asText()).as(biz).isEqualTo("DOT_241_93");
-            assertThat(def.at("/name").asText()).as(biz).endsWith("（针式三等分）");
+            assertThat(def.at("/paper").asText()).as(biz).isEqualTo("DOT_241_140");
+            assertThat(def.at("/name").asText()).as(biz).endsWith("（针式二等分）");
         }
         JsonNode av = ok(doGet("/api/system/print-templates/available?bizType=MFG_ISSUE", admin));
         String id = av.at("/templates/0/id").asText();
         JsonNode fp = ok(doGet("/api/system/print-templates/" + id + "/for-print", admin));
-        assertThat(fp.at("/rowsPerPage").asInt()).isEqualTo(9);
+        assertThat(fp.at("/rowsPerPage").asInt()).isEqualTo(16);
         assertThat(fp.at("/copiesNote").asText()).isEqualTo("①白 存根|②红 仓库|③黄 车间");
         assertThat(fp.at("/copyMode").asText()).isEqualTo("CARBON");
         assertThat(fp.at("/content").asText()).contains("{{#each page.lines}}", "{{company.name}}", "领料人");
 
         Map<String, Object> b = body("针式自定义", "<div>{{#each page.lines}}{{lineNo}}{{/each}}</div>");
-        b.put("paper", "DOT_241_93");
+        b.put("paper", "DOT_241_140");
         b.put("rowsPerPage", 8);
         b.put("copiesNote", "①白 存根|②红 客户");
         b.put("copyMode", "REPEAT");

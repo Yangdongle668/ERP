@@ -54,6 +54,8 @@ export interface CardData {
 
 export const homeApi = {
   summary: () => http.get<Summary>('/workbench/summary', undefined, { silent: true }),
+  /** 首页天气（Open-Meteo，后端缓存 30 分钟） */
+  weather: () => http.get<Weather>('/workbench/weather', undefined, { silent: true }),
   cards: () => http.get<CardVO[]>('/workbench/cards'),
   cardData: (code: string, refresh = false) => http.get<CardData>(`/workbench/cards/${code}/data`, { refresh }, { silent: true }),
   saveLayout: (items: { code: string; visible: boolean }[]) => http.put<void>('/workbench/layout', { items }),
@@ -145,4 +147,21 @@ export const alertApi = {
   stats: () => http.get<AlertStats>('/workbench/alerts/stats'),
   handle: (id: string, remark: string) => http.post<void>(`/workbench/alerts/${id}/handle`, { remark }),
   ignore: (id: string, remark: string) => http.post<void>(`/workbench/alerts/${id}/ignore`, { remark })
+}
+
+/** 首页天气预报；available=false 表示暂时取不到，stale=true 表示显示的是上次成功获取的数据 */
+export interface WeatherDay { date: string; code: number; text: string; icon: string; min?: string; max?: string; rainProbability?: number }
+export interface Weather {
+  enabled: boolean
+  available: boolean
+  stale: boolean
+  city: string
+  temperature?: string
+  humidity?: number
+  windSpeed?: string
+  code: number
+  text?: string
+  icon?: string
+  days: WeatherDay[]
+  updatedAt?: string
 }

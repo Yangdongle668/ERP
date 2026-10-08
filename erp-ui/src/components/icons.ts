@@ -5,7 +5,8 @@ import {
   Download, Ellipsis, Eye, Factory, FileSpreadsheet, FileText, Files, Folder, FolderX, History, House, Inbox, Info, KeyRound,
   Languages, LayoutGrid, Lightbulb, Link, ListFilter, LoaderCircle, Lock, LogOut, Package, PanelLeftClose, PanelLeftOpen,
   Paperclip, Pencil, Play, Plus, Printer, Receipt, RefreshCw, RotateCcw, Save, Search, Send, Settings, Settings2, ShoppingCart,
-  SlidersHorizontal, Tag, TriangleAlert, Trash2, Truck, Upload, User, Users, Wallet, Warehouse, X
+  SlidersHorizontal, Tag, TriangleAlert, Trash2, Truck, Upload, User, Users, Wallet, Warehouse, X,
+  Sun, CloudSun, Cloud, CloudFog, CloudDrizzle, CloudRain, CloudSnow, CloudLightning
 } from 'lucide-vue-next'
 
 /**
@@ -33,7 +34,10 @@ export const ICONS: Record<string, Component> = {
   // 组织与业务对象
   OfficeBuilding: Building2, Folder, HomeFilled: House, House, Box: Package, Goods: Boxes, Warehouse, Van: Truck,
   ShoppingCart, Sell: Tag, Money: Wallet, Tickets: Receipt, SetUp: Factory, Calendar: CalendarDays, Opportunity: Lightbulb,
-  DataAnalysis: ChartColumn, Grid: LayoutGrid, Backup: DatabaseBackup, Asset: Archive, Exchange: ArrowLeftRight
+  DataAnalysis: ChartColumn, Grid: LayoutGrid, Backup: DatabaseBackup, Asset: Archive, Exchange: ArrowLeftRight,
+  // 天气（首页天气预报，名称与后端 WeatherService.icon 一致）
+  WeatherSun: Sun, WeatherSunCloud: CloudSun, WeatherCloud: Cloud, WeatherFog: CloudFog, WeatherDrizzle: CloudDrizzle,
+  WeatherRain: CloudRain, WeatherSnow: CloudSnow, WeatherStorm: CloudLightning
 }
 
 export function registerIcons(app: App) {

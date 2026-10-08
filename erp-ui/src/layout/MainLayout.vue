@@ -141,9 +141,12 @@ onBeforeUnmount(() => {
   <el-container class="layout">
     <el-aside :width="collapsed ? 'var(--erp-sidebar-collapsed-width)' : 'var(--erp-sidebar-width)'" :class="['aside', { 'is-collapsed': collapsed }]">
       <div class="brand" :title="systemName">
-        <img v-if="logoUrl" :src="logoUrl" class="brand__logo" alt="" @error="logoUrl = ''">
-        <span v-else class="brand__mark">{{ systemName.slice(0, 1) }}</span>
-        <span v-show="!collapsed" class="brand__name">{{ systemName }}</span>
+        <!-- 上传了公司 Logo 时左上角只显示 Logo；没有 Logo 时显示首字 + 系统名称 -->
+        <img v-if="logoUrl" :src="logoUrl" :class="['brand__logo', { 'is-collapsed': collapsed }]" :alt="systemName" @error="logoUrl = ''">
+        <template v-else>
+          <span class="brand__mark">{{ systemName.slice(0, 1) }}</span>
+          <span v-show="!collapsed" class="brand__name">{{ systemName }}</span>
+        </template>
       </div>
       <el-scrollbar class="aside__menu">
         <el-menu :default-active="activeMenu" :collapse="collapsed" :collapse-transition="false" router unique-opened>
@@ -204,7 +207,8 @@ onBeforeUnmount(() => {
 }
 .brand { height: var(--erp-header-height); display: flex; align-items: center; gap: 10px; padding: 0 18px; flex-shrink: 0; overflow: hidden; }
 .aside.is-collapsed .brand { padding: 0; justify-content: center; }
-.brand__logo { height: 28px; max-width: 96px; object-fit: contain; flex-shrink: 0; }
+.brand__logo { height: 32px; max-width: 180px; object-fit: contain; object-position: left center; flex-shrink: 0; }
+.brand__logo.is-collapsed { height: 28px; max-width: 40px; object-position: center; }
 .brand__mark {
   width: 28px; height: 28px; border-radius: var(--erp-radius-control); background: var(--erp-color-text); color: var(--erp-color-surface);
   display: inline-flex; align-items: center; justify-content: center; font-size: var(--erp-font-size-body); font-weight: var(--erp-font-weight-semibold); flex-shrink: 0;
