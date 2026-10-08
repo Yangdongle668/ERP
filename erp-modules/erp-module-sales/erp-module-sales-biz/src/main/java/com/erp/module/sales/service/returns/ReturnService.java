@@ -549,6 +549,8 @@ public class ReturnService implements SalesReturnApi {
         data.put("docDate", d.docDate());
         data.put("status", d.status());
         data.put("customerName", support.customer(d.customerId()).name());
+        // 针式单据只打印客户编号
+        data.put("customerCode", java.util.Objects.toString(support.customer(d.customerId()).code(), ""));
         data.put("rmaNo", Objects.toString(d.rmaNo(), ""));
         data.put("reasonName", Objects.toString(support.dict().label("sal_return_reason", d.returnReason()), d.returnReason()));
         data.put("handlingName", REFUND.equals(d.handling()) ? "退货退款" : "退货换货");
@@ -569,6 +571,7 @@ public class ReturnService implements SalesReturnApi {
             lines.add(m);
         }
         data.put("lines", lines);
+        support.putPrintSignature(data, mapper.selectById(id));
         return data;
     }
 

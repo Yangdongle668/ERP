@@ -46,6 +46,8 @@ public interface SystemErrorCodes {
     ErrorCode ORG_NAME_DUPLICATE = new ErrorCode(1_001_003_012, "同一上级下已存在名称为「{}」的组织");
     ErrorCode ORG_LAST_COMPANY = new ErrorCode(1_001_003_013, "至少需要保留一个启用的公司");
     ErrorCode ORG_DISABLED = new ErrorCode(1_001_003_014, "部门「{}」已停用");
+    ErrorCode ORG_LOGO_ONLY_COMPANY = new ErrorCode(1_001_003_015, "只有公司可以设置 Logo");
+    ErrorCode ORG_LOGO_INVALID = new ErrorCode(1_001_003_016, "{}");
 
     // ========== 用户 1_001_004_xxx ==========
     ErrorCode USER_NOT_EXISTS = new ErrorCode(1_001_004_000, "用户不存在");

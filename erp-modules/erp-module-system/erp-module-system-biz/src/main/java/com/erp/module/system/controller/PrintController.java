@@ -36,9 +36,17 @@ import java.util.List;
 public class PrintController {
 
     private final PrintService printService;
+    private final com.erp.module.system.service.print.PrintHeaderService headerService;
 
-    public PrintController(PrintService printService) {
+    public PrintController(PrintService printService, com.erp.module.system.service.print.PrintHeaderService headerService) {
         this.printService = printService;
+        this.headerService = headerService;
+    }
+
+    /** 打印抬头：单据所属公司的中英文名、地址、Logo（登录即可） */
+    @GetMapping("/print-header")
+    public CommonResult<com.erp.module.system.controller.vo.PrintVOs.PrintHeader> header(@RequestParam(required = false) Long orgId) {
+        return CommonResult.success(headerService.header(orgId));
     }
 
     @GetMapping("/print-templates")

@@ -20,7 +20,16 @@ export interface TemplateRow {
 
 export interface TemplateDetail extends TemplateRow {
   content: string
+  rowsPerPage?: number
+  copiesNote?: string
+  copyMode?: 'CARBON' | 'REPEAT'
 }
+
+/** 打印方式：多联纸一次打印（针式复写纸）/ 普通纸逐联打印（激光，每联单独一页） */
+export const COPY_MODE_OPTIONS = [
+  { value: 'CARBON', label: '多联纸一次打印' },
+  { value: 'REPEAT', label: '普通纸逐联打印' }
+]
 
 export interface TemplateSave {
   bizType: string
@@ -32,6 +41,11 @@ export interface TemplateSave {
   margin: string
   content: string
   remark?: string
+  /** 每页明细行数：设置后按固定行数分页（针式多联纸），空为自动分页 */
+  rowsPerPage?: number
+  /** 联次说明，| 分隔：①白 存根|②红 财务|③黄 仓库 */
+  copiesNote?: string
+  copyMode?: 'CARBON' | 'REPEAT'
   version?: number
 }
 

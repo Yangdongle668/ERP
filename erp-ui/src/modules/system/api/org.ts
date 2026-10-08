@@ -1,4 +1,4 @@
-import { http } from '@/api/http'
+import { http, upload } from '@/api/http'
 
 export interface OrgNode {
   id: string
@@ -43,6 +43,9 @@ export type OrgSave = Omit<OrgDetail, 'id' | 'status' | 'leaderName' | 'version'
 const BASE = '/system/orgs'
 
 export const orgApi = {
+  /** 上传公司 Logo（PNG / SVG / JPG，≤ 512KB），返回文件 ID；用于系统左上角、登录页、打印单据抬头 */
+  uploadLogo: (id: string, file: File) => upload<string>(`/system/orgs/${id}/logo`, file),
+  removeLogo: (id: string) => http.delete<void>(`/system/orgs/${id}/logo`),
   tree: (params: { keyword?: string; status?: string }) => http.get<OrgNode[]>(`${BASE}/tree`, params),
   get: (id: string) => http.get<OrgDetail>(`${BASE}/${id}`),
   create: (data: OrgSave) => http.post<string>(BASE, data),

@@ -606,6 +606,16 @@ public class IssueService {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("docNo", d.docNo());
         data.put("issueTypeName", TYPE_NAMES.getOrDefault(d.issueType(), d.issueType()));
+        // 领料原因（打印标题）：按生产订单类型区分生产 / 样品 / 重工 / 拆解领料，超领、倒冲另行标明，如“重工超领”
+        MfgProdOrderDO order = d.prodOrderId() == null ? null : orderMapper.selectById(d.prodOrderId());
+        String kind = order == null ? "生产" : switch (Objects.toString(order.getOrderType(), "NORMAL")) {
+            case "SAMPLE" -> "样品";
+            case "REWORK" -> "重工";
+            case "DISASSEMBLY" -> "拆解";
+            default -> "生产";
+        };
+        data.put("orderTypeName", kind);
+        data.put("issueReasonName", "OVER".equals(d.issueType()) ? kind + "超领" : "BACKFLUSH".equals(d.issueType()) ? kind + "倒冲领料" : kind + "领料");
         data.put("docDate", d.docDate());
         data.put("prodOrderNo", d.prodOrderNo());
         data.put("productCode", d.productCode());
@@ -614,6 +624,15 @@ public class IssueService {
         data.put("overReasonName", d.overReason() == null ? null : support.dictLabel("mfg_over_issue_reason", d.overReason()));
         data.put("remark", d.remark());
         data.put("ownerName", d.ownerName());
+        data.put("stockOutNos", java.util.Objects.toString(d.stockOutNos(), ""));
+        data.put("productSpec", d.productId() == null || support.material(d.productId()) == null ? "" : java.util.Objects.toString(support.material(d.productId()).spec(), ""));
+        // 打印签名栏：制单、责任人（申请人）、车间；status 为 DRAFT 时打印“草稿”
+        com.erp.framework.mybatis.BaseDocDO doc = mapper.selectById(id);
+        data.put("status", d.status());
+        data.put("orgId", doc == null ? null : doc.getOrgId());
+        data.put("createdByName", doc == null ? "" : java.util.Objects.toString(support.userName(doc.getCreatedBy()), ""));
+        data.put("deptName", doc == null || doc.getDeptId() == null ? "" : java.util.Objects.toString(support.deptName(doc.getDeptId()), ""));
+        data.put("auditByName", "");
         data.put("lines", d.lines().stream().map(l -> {
             Map<String, Object> r = new LinkedHashMap<>();
             r.put("lineNo", l.lineNo());

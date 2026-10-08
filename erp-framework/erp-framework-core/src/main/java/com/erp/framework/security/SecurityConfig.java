@@ -40,6 +40,7 @@ public class SecurityConfig {
             "/api/system/auth/captcha-required",
             "/api/system/auth/password-policy",
             "/api/system/params/public",
+            "/api/system/params/public/logo",
             "/actuator/health",
             "/actuator/prometheus",
             "/v3/api-docs/**",

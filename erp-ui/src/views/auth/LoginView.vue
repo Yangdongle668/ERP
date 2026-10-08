@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import { authApi, type LoginFailData } from '@/api/auth'
 import { BizError } from '@/api/http'
-import { systemCommonApi } from '@/api/system'
+import { systemCommonApi, systemLogoUrl } from '@/api/system'
 import { useUserStore } from '@/stores/user'
 
 /** 登录页（01-13 登录与个人中心 3.1） */
@@ -17,6 +17,7 @@ const loading = ref(false)
 const error = ref('')
 const capsLock = ref(false)
 const systemName = ref('ERP 系统')
+const logoUrl = ref('')
 const remember = ref(false)
 const captcha = reactive({ required: false, id: '', image: '' })
 const form = reactive({ username: '', password: '', captchaCode: '' })
@@ -38,6 +39,7 @@ onMounted(async () => {
     /* ignore */
   }
   const p = await systemCommonApi.publicParams().catch(() => undefined)
+  logoUrl.value = systemLogoUrl(p?.logoVersion)
   if (p?.systemName) {
     systemName.value = p.systemName
     document.title = p.systemName
@@ -106,7 +108,8 @@ async function submit() {
   <div class="login">
     <div class="login__main">
       <div class="brand">
-        <span class="brand__mark">{{ systemName.slice(0, 1) }}</span>
+        <img v-if="logoUrl" :src="logoUrl" class="brand__logo" alt="" @error="logoUrl = ''">
+        <span v-else class="brand__mark">{{ systemName.slice(0, 1) }}</span>
         <div>
           <div class="brand__name">{{ systemName }}</div>
           <div class="brand__sub">企业资源计划 · 制造管理平台</div>
@@ -143,6 +146,7 @@ async function submit() {
 .login { min-height: 100vh; display: flex; flex-direction: column; background: var(--erp-color-bg); padding: 16px; }
 .login__main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; }
 .brand { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 400px; }
+.brand__logo { height: 36px; max-width: 120px; object-fit: contain; flex-shrink: 0; }
 .brand__mark {
   width: 36px; height: 36px; border-radius: var(--erp-radius-card); background: var(--erp-color-text); color: var(--erp-color-surface);
   display: inline-flex; align-items: center; justify-content: center; font-size: var(--erp-font-size-section-title); font-weight: var(--erp-font-weight-semibold);

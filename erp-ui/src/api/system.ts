@@ -99,7 +99,12 @@ export interface PublicParams {
   systemName: string
   captchaAfterFails: number
   idleTimeoutMinutes: number
+  /** 系统 Logo 的文件 ID（「组织架构」中顶级公司上传的 Logo），无 Logo 为空 */
+  logoVersion?: string
 }
+
+/** 系统 Logo 图片地址（不需要登录） */
+export const systemLogoUrl = (version?: string) => (version ? `/api/system/params/public/logo?v=${version}` : '')
 
 export const systemCommonApi = {
   dictAll: () => http.get<DictBundle>('/system/dicts/all', undefined, { silent: true }),

@@ -654,11 +654,15 @@ public class StockInService {
         data.put("warehouseName", d.warehouseName());
         data.put("toWarehouseName", "");
         data.put("sourceNo", Objects.toString(d.sourceNo(), ""));
-        data.put("partnerName", "");
+        data.put("partnerName", support.partnerName(d.supplierId(), d.customerId()));
         data.put("reasonName", Objects.toString(d.reason(), ""));
         data.put("remark", Objects.toString(d.remark(), ""));
         data.put("statusName", DocStatus.valueOf(d.status()).label());
         data.put("confirmedByName", Objects.toString(d.confirmedByName(), ""));
+        // 打印签名栏：制单人、审核（确认）人；status 为 DRAFT 时打印“草稿”
+        data.put("status", d.status());
+        data.put("createdByName", Objects.toString(d.createdByName(), ""));
+        data.put("auditByName", Objects.toString(d.confirmedByName(), ""));
         List<Map<String, Object>> lines = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
         for (StockInLineResp l : d.lines()) {

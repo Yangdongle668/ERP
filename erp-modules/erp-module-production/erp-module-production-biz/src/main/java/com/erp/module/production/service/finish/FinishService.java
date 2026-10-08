@@ -80,6 +80,7 @@ public class FinishService implements ProductionFinishApi {
         LambdaQueryWrapper<MfgFinishDO> w = new LambdaQueryWrapper<MfgFinishDO>().eq(MfgFinishDO::getDeleted, false);
         if (q.getProdOrderId() != null) w.eq(MfgFinishDO::getProdOrderId, q.getProdOrderId());
         if (StringUtils.hasText(q.getProdOrderNo())) w.likeRight(MfgFinishDO::getSourceNo, q.getProdOrderNo().trim());
+        if (StringUtils.hasText(q.getDocNo())) w.likeRight(MfgFinishDO::getDocNo, q.getDocNo().trim().toUpperCase());
         if (q.getMaterialId() != null) w.eq(MfgFinishDO::getMaterialId, q.getMaterialId());
         if (StringUtils.hasText(q.getStatuses())) w.in(MfgFinishDO::getFinishStatus, Arrays.asList(q.getStatuses().split(",")));
         if (q.getDateFrom() != null) w.ge(MfgFinishDO::getDocDate, q.getDateFrom());
@@ -98,6 +99,44 @@ public class FinishService implements ProductionFinishApi {
                     wh == null ? null : wh.name(), f.getStockInNos(), f.getStockedQty(), f.getQualifiedQty(), f.getRejectedQty(), f.getFinishStatus(),
                     MfgSupport.name(users, f.getOwnerId()), f.getDocDate(), f.getRemark());
         }).toList(), p.getTotal());
+    }
+
+    /** 完工入库单打印数据（单行明细，与其他单据模板共用 lines 结构） */
+    public Map<String, Object> printData(Long id) {
+        MfgFinishDO f = getOrThrow(id);
+        MfgProdOrderDO o = f.getProdOrderId() == null ? null : orderMapper.selectById(f.getProdOrderId());
+        MaterialDTO m = support.material(f.getMaterialId());
+        FinishStatus st = FinishStatus.valueOf(f.getFinishStatus());
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("docNo", f.getDocNo());
+        data.put("docDate", f.getDocDate());
+        data.put("status", st == FinishStatus.CANCELED ? "CANCELED" : st.docStatus().name());
+        data.put("statusName", st.label());
+        data.put("orgId", f.getOrgId());
+        data.put("prodOrderNo", java.util.Objects.toString(f.getSourceNo(), ""));
+        data.put("salesOrderNo", o == null ? "" : java.util.Objects.toString(o.getSalesOrderNo(), ""));
+        data.put("prodQty", o == null ? null : o.getQty());
+        data.put("warehouseName", java.util.Objects.toString(support.warehouseName(f.getWarehouseId()), ""));
+        data.put("fqcRequired", Boolean.TRUE.equals(f.getFqcRequired()) ? "是" : "否");
+        data.put("stockInNos", java.util.Objects.toString(f.getStockInNos(), ""));
+        data.put("remark", java.util.Objects.toString(f.getRemark(), ""));
+        data.put("ownerName", java.util.Objects.toString(support.userName(f.getOwnerId()), ""));
+        data.put("createdByName", java.util.Objects.toString(support.userName(f.getCreatedBy()), ""));
+        Long dept = f.getDeptId() != null ? f.getDeptId() : o == null ? null : o.getDeptId();
+        data.put("deptName", dept == null ? "" : java.util.Objects.toString(support.deptName(dept), ""));
+        data.put("auditByName", "");
+        Map<String, Object> line = new java.util.LinkedHashMap<>();
+        line.put("lineNo", 1);
+        line.put("materialCode", m == null ? "" : m.code());
+        line.put("materialName", m == null ? "" : m.name());
+        line.put("materialSpec", m == null ? "" : java.util.Objects.toString(m.spec(), ""));
+        line.put("uom", m == null ? "" : m.baseUom());
+        line.put("qty", f.getQty());
+        line.put("batchNo", java.util.Objects.toString(f.getBatchNo(), ""));
+        line.put("serialNos", java.util.Objects.toString(f.getSerialNos(), ""));
+        data.put("lines", List.of(line));
+        data.put("totalQty", f.getQty());
+        return data;
     }
 
     /** 申请完工入库（FN-R01、R02）：数量 ≤ 完工 − 已申请；需 FQC 入待检仓，否则入物料默认仓 */

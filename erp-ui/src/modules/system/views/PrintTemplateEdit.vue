@@ -10,8 +10,9 @@ import { useLeaveGuard } from '@/composables/useLeaveGuard'
 import { tabKeyOf, useTabsStore } from '@/stores/tabs'
 import { useDictStore } from '@/stores/dict'
 import { useUserStore } from '@/stores/user'
-import { buildPrintHtml, checkTemplate, renderTemplate } from '@/utils/print/render'
-import { LANGUAGE_OPTIONS, printApi, type PrintBiz, type TemplateSave } from '../api/print'
+import { buildPrintHtml, checkTemplate, writePrintWindow } from '@/utils/print/render'
+import { DOT_HINT, findDocId, layoutDocs } from '@/utils/print/printDocs'
+import { COPY_MODE_OPTIONS, LANGUAGE_OPTIONS, printApi, type PrintBiz, type TemplateSave } from '../api/print'
 
 defineOptions({ name: 'SystemPrintTemplateEdit' })
 
@@ -32,7 +33,7 @@ const saving = ref(false)
 const biz = ref<PrintBiz>()
 const bizList = ref<PrintBiz[]>([])
 
-const form = ref<TemplateSave>({ bizType: '', name: '', language: 'zh-CN', paper: 'A4_P', margin: '10mm 10mm 10mm 10mm', content: '' })
+const form = ref<TemplateSave>({ bizType: '', name: '', language: 'zh-CN', paper: 'A4_P', margin: '10mm 10mm 10mm 10mm', content: '', copyMode: 'CARBON' })
 const guard = useLeaveGuard(() => form.value)
 
 // ---------- 边距：上 右 下 左（mm） ----------
@@ -65,7 +66,17 @@ const HELPERS: { name: string; insert: string }[] = [
   { name: '二维码 qrcode', insert: '{{qrcode docNo 80}}' },
   { name: '字典标签 dict', insert: '{{dict "sys_uom" uom}}' },
   { name: '序号 add', insert: '{{add @index 1}}' },
-  { name: '条件 if', insert: '{{#if remark}}{{remark}}{{/if}}' }
+  { name: '条件 if', insert: '{{#if remark}}{{remark}}{{/if}}' },
+  { name: '公司名称 company.name', insert: '{{company.name}}' },
+  { name: '公司英文名 company.nameEn', insert: '{{company.nameEn}}' },
+  { name: '公司 Logo', insert: '{{#if company.logo}}<img src="{{company.logo}}" style="height:12mm">{{/if}}' },
+  { name: '本页明细（固定分页）', insert: '{{#each page.lines}}\n  {{lineNo}}\n{{/each}}\n{{#each page.blanks}}<tr><td>&nbsp;</td></tr>{{/each}}' },
+  { name: '页码 page.no/count', insert: '第 {{page.no}}/{{page.count}} 页' },
+  { name: '最后一页 page.isLast', insert: '{{#if page.isLast}}合计{{/if}}' },
+  { name: '本页小计 sum', insert: '{{formatQty (sum page.lines "qty")}}' },
+  { name: '联次 copies', insert: '{{#each copies}}<div>{{text}}</div>{{/each}}' },
+  { name: '补打 print.reprint', insert: '{{#if print.reprint}}补打（第 {{print.count}} 次）{{/if}}' },
+  { name: '草稿 print.draft', insert: '{{#if print.draft}}草稿{{/if}}' }
 ]
 
 /** 按 path 组装树：数组类型插入 each 片段；数组下的字段插入相对路径（在 each 内使用） */
@@ -136,41 +147,79 @@ const realId = ref('')
 const realData = ref<Record<string, unknown>>()
 const previewSource = computed(() => (realData.value ? '真实单据' : '示例数据'))
 
-function refreshPreview() {
+const previewData = () => (realData.value ?? biz.value?.sampleData ?? {}) as Record<string, unknown>
+
+async function buildPreview(toolbar: boolean) {
+  const docs = await layoutDocs(form.value, [previewData()])
+  return buildPrintHtml({
+    title: `${form.value.name || '预览'}（${previewSource.value}）`, setting: form.value, docs, printedBy: me.user?.realName, toolbar,
+    hint: form.value.paper.startsWith('DOT_') ? DOT_HINT : undefined
+  })
+}
+
+async function refreshPreview() {
   const err = checkTemplate(form.value.content)
   if (err) {
     previewError.value = err
     return
   }
   try {
-    const data = realData.value ?? biz.value?.sampleData ?? {}
-    const body = renderTemplate(form.value.content, data, { label: (t, v) => dict.item(t, v)?.label })
-    previewHtml.value = buildPrintHtml({ title: form.value.name || '预览', setting: form.value, docs: [{ html: body }], printedBy: me.user?.realName, toolbar: false })
+    previewHtml.value = await buildPreview(false)
     previewError.value = ''
   } catch (e) {
     previewError.value = e instanceof Error ? e.message.split('\n')[0] : String(e)
   }
 }
 
+/** 在新窗口打开与正式打印相同的预览（可直接点「打印」试打） */
+async function openPreviewWindow() {
+  const err = checkTemplate(form.value.content)
+  if (err) return ElMessage.error(`模板语法错误，${err.split('\n')[0]}`)
+  const win = window.open('', '_blank')
+  if (!win) return ElMessage.error('预览窗口被浏览器拦截，请允许本站弹出窗口')
+  try {
+    writePrintWindow(win, await buildPreview(true))
+  } catch (e) {
+    win.close()
+    ElMessage.error(e instanceof Error ? e.message.split('\n')[0] : String(e))
+  }
+}
+
 let timer = 0
-watch(() => [form.value.content, form.value.paper, form.value.paperWidth, form.value.paperHeight, form.value.margin], () => {
+watch(() => [form.value.content, form.value.paper, form.value.paperWidth, form.value.paperHeight, form.value.margin, form.value.rowsPerPage,
+  form.value.copiesNote, form.value.copyMode], () => {
   window.clearTimeout(timer)
   timer = window.setTimeout(refreshPreview, 1000)
 })
 
 const loadingReal = ref(false)
+/** 真实单据预览：输入单号（或单据 ID）→ 取打印数据 → 刷新右侧预览并打开预览窗口 */
 async function previewReal() {
-  const docId = realId.value.trim()
-  if (!docId) {
-    realData.value = undefined
-    refreshPreview()
-    return
-  }
-  if (!biz.value) return
+  const input = realId.value.trim()
+  if (!input) return ElMessage.warning('请输入单号，如 IN-20261008-0001')
+  if (!biz.value) return ElMessage.warning('请先选择单据类型')
+  // 先同步打开窗口，避免浏览器拦截异步弹窗
+  const win = window.open('', '_blank')
+  if (!win) return ElMessage.error('预览窗口被浏览器拦截，请允许本站弹出窗口')
+  win.document.write('<p style="font-family:sans-serif;color:#646a73;padding:24px">正在加载单据…</p>')
   loadingReal.value = true
   try {
-    realData.value = await http.get<Record<string, unknown>>(biz.value.dataApi.replace('{id}', encodeURIComponent(docId)).replace(/^\/api/, ''))
-    refreshPreview()
+    const dataApi = biz.value.dataApi.replace(/^\/api/, '')
+    const docId = await findDocId(dataApi, input)
+    if (!docId) {
+      win.close()
+      return ElMessage.warning(`没有找到${biz.value.name}「${input}」，请确认单号（或没有查看权限）`)
+    }
+    realData.value = await http.get<Record<string, unknown>>(dataApi.replace('{id}', encodeURIComponent(docId)))
+    await refreshPreview()
+    if (previewError.value) {
+      win.close()
+      return
+    }
+    writePrintWindow(win, await buildPreview(true))
+  } catch (e) {
+    win.close()
+    throw e
   } finally {
     loadingReal.value = false
   }
@@ -194,7 +243,8 @@ onMounted(async () => {
     builtin.value = d.isBuiltin
     form.value = {
       bizType: d.bizType, name: d.name, language: d.language, paper: d.paper, paperWidth: d.paperWidth, paperHeight: d.paperHeight,
-      margin: d.margin, content: d.content, remark: d.remark, version: d.version
+      margin: d.margin, content: d.content, remark: d.remark, rowsPerPage: d.rowsPerPage, copiesNote: d.copiesNote, copyMode: d.copyMode ?? 'CARBON',
+      version: d.version
     }
     tabs.setTitle(tabKeyOf(route), `${d.isBuiltin ? '查看' : '编辑'}模板 ${d.name}`)
   } else {
@@ -203,7 +253,8 @@ onMounted(async () => {
     form.value.language = typeof q.language === 'string' ? q.language : 'zh-CN'
     if (typeof q.from === 'string' && q.from) {
       const src = await printApi.get(q.from)
-      Object.assign(form.value, { paper: src.paper, paperWidth: src.paperWidth, paperHeight: src.paperHeight, margin: src.margin, content: src.content })
+      Object.assign(form.value, { paper: src.paper, paperWidth: src.paperWidth, paperHeight: src.paperHeight, margin: src.margin, content: src.content,
+        rowsPerPage: src.rowsPerPage, copiesNote: src.copiesNote, copyMode: src.copyMode ?? 'CARBON' })
     }
     const bizName = bizList.value.find((b) => b.bizType === form.value.bizType)?.name
     if (bizName) form.value.name = `${bizName}（自定义）`
@@ -295,6 +346,17 @@ const sizeKb = computed(() => (new Blob([form.value.content]).size / 1024).toFix
             </el-tooltip>
           </span>
         </el-form-item>
+        <el-form-item label="每页行数">
+          <el-tooltip content="针式多联纸按固定行数分页，每页都印单头和签名栏；留空为自动分页（A4）" placement="top">
+            <el-input-number v-model="form.rowsPerPage" :min="1" :max="60" :precision="0" controls-position="right" placeholder="自动" class="num-mm" />
+          </el-tooltip>
+        </el-form-item>
+        <el-form-item label="联次">
+          <el-input v-model="form.copiesNote" maxlength="256" placeholder="①白 存根|②红 财务|③黄 仓库" class="w240" />
+        </el-form-item>
+        <el-form-item label="打印方式">
+          <el-select v-model="form.copyMode" class="w160"><el-option v-for="o in COPY_MODE_OPTIONS" :key="o.value" v-bind="o" /></el-select>
+        </el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" maxlength="200" class="w200" /></el-form-item>
       </el-form>
     </ErpPanel>
@@ -328,8 +390,9 @@ const sizeKb = computed(() => (new Blob([form.value.content]).size / 1024).toFix
         <template #title>预览 <ErpBadge type="info" plain>{{ previewSource }}</ErpBadge></template>
         <template #extra>
           <div class="preview-tools">
-            <el-input v-model="realId" placeholder="单据 ID" clearable class="w120" @keyup.enter="previewReal" @clear="useSample" />
+            <el-input v-model="realId" placeholder="输入单号" clearable class="w160" @keyup.enter="previewReal" @clear="useSample" />
             <el-button :loading="loadingReal" @click="previewReal">真实单据预览</el-button>
+            <ErpIconButton icon="View" tooltip="在新窗口预览（与正式打印相同，可直接试打）" @click="openPreviewWindow" />
             <ErpIconButton icon="Refresh" tooltip="刷新预览" @click="refreshPreview" />
           </div>
         </template>

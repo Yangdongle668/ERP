@@ -143,7 +143,8 @@ public class ProductionModuleConfig {
         return PermissionDefinition.group(MODULE, "finish", "完工入库", 60)
                 .menu("mfg:finish:query", "查看")
                 .button("mfg:finish:create", "申请入库")
-                .button("mfg:finish:cancel", "取消");
+                .button("mfg:finish:cancel", "取消")
+                .button("mfg:finish:print", "打印");
     }
 
     @Bean
@@ -270,6 +271,8 @@ public class ProductionModuleConfig {
     public PrintBizDefinition mfgIssuePrint() {
         return PrintBizDefinition.of(ISSUE, "领料单", MODULE, "/production/issues/{id}/print-data")
                 .variable("docNo", "单号", "string").variable("issueTypeName", "类型", "string").variable("docDate", "日期", "date")
+                .variable("issueReasonName", "领料原因（生产 / 样品 / 重工 / 拆解领料，超领）", "string").variable("orderTypeName", "工单类型", "string")
+                .variable("deptName", "领料车间", "string").variable("createdByName", "制单", "string").variable("productSpec", "产品规格", "string")
                 .variable("prodOrderNo", "生产订单", "string").variable("productCode", "产品编码", "string").variable("productName", "产品名称", "string")
                 .variable("warehouseName", "发料仓", "string").variable("overReasonName", "超领原因", "string").variable("remark", "备注", "string")
                 .variable("ownerName", "申请人", "string")
@@ -277,6 +280,22 @@ public class ProductionModuleConfig {
                 .variable("lines.materialName", "名称", "string").variable("lines.materialSpec", "规格", "string").variable("lines.uom", "单位", "string")
                 .variable("lines.requestQty", "申请数量", "qty").variable("lines.issuedQty", "实发", "qty")
                 .sampleData("{\"docNo\":\"MI-20260925-001\",\"prodOrderNo\":\"MO-202609-0001\",\"lines\":[{\"lineNo\":1,\"materialCode\":\"RM0001\",\"requestQty\":100}]}");
+    }
+
+    @Bean
+    public PrintBizDefinition mfgFinishPrint() {
+        return PrintBizDefinition.of(FINISH, "完工入库单", MODULE, "/production/finishes/{id}/print-data")
+                .variable("docNo", "单号", "string").variable("docDate", "日期", "date").variable("statusName", "状态", "string")
+                .variable("prodOrderNo", "工单号", "string").variable("salesOrderNo", "销售订单", "string").variable("prodQty", "工单数量", "qty")
+                .variable("warehouseName", "入库仓", "string").variable("fqcRequired", "需 FQC", "string").variable("stockInNos", "入库单号", "string")
+                .variable("deptName", "生产车间", "string").variable("ownerName", "申请人", "string").variable("createdByName", "制单", "string")
+                .variable("remark", "备注", "string").variable("lines", "明细", "array").variable("lines.materialCode", "产品编码", "string")
+                .variable("lines.materialName", "名称", "string").variable("lines.materialSpec", "规格", "string").variable("lines.uom", "单位", "string")
+                .variable("lines.qty", "入库数量", "qty").variable("lines.batchNo", "批次", "string").variable("totalQty", "合计", "qty")
+                .sampleData("{\"docNo\":\"FN-20261008-001\",\"docDate\":\"2026-10-08\",\"statusName\":\"已提交\",\"prodOrderNo\":\"MO-202610-0001\","
+                        + "\"salesOrderNo\":\"SO-202610-0003\",\"prodQty\":1000,\"warehouseName\":\"成品仓\",\"fqcRequired\":\"是\",\"deptName\":\"PACK 车间\","
+                        + "\"ownerName\":\"李四\",\"createdByName\":\"李四\",\"lines\":[{\"lineNo\":1,\"materialCode\":\"99-2500001\",\"materialName\":\"A品电池\","
+                        + "\"materialSpec\":\"软包异形电池/3.87V/190mAh\",\"uom\":\"PCS\",\"qty\":500,\"batchNo\":\"B261008001\"}],\"totalQty\":500}");
     }
 
     @Bean

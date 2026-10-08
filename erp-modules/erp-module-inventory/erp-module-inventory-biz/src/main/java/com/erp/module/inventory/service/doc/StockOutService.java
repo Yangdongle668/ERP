@@ -872,11 +872,19 @@ public class StockOutService {
         data.put("warehouseName", d.warehouseName());
         data.put("toWarehouseName", "");
         data.put("sourceNo", Objects.toString(d.sourceNo(), ""));
-        data.put("partnerName", Objects.toString(d.receiverName(), ""));
+        String partner = support.partnerName(d.supplierId(), d.customerId());
+        String dept = support.deptName(d.receiverDeptId());
+        data.put("partnerName", !partner.isEmpty() ? partner : !dept.isEmpty() ? dept : Objects.toString(d.receiverName(), ""));
+        data.put("receiverDeptName", dept);
+        data.put("receiverName", Objects.toString(d.receiverName(), ""));
         data.put("reasonName", Objects.toString(d.reason(), ""));
         data.put("remark", Objects.toString(d.remark(), ""));
         data.put("statusName", DocStatus.valueOf(d.status()).label());
         data.put("confirmedByName", Objects.toString(d.confirmedByName(), ""));
+        // 打印签名栏：制单人、审核（确认）人；status 为 DRAFT 时打印“草稿”
+        data.put("status", d.status());
+        data.put("createdByName", Objects.toString(d.createdByName(), ""));
+        data.put("auditByName", Objects.toString(d.confirmedByName(), ""));
         List<Map<String, Object>> lines = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
         for (StockOutLineResp l : d.lines()) {

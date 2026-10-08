@@ -36,7 +36,7 @@ public final class PrintVOs {
 
     public record TemplateDetail(Long id, String bizType, String bizTypeName, String name, String language, String paper, Integer paperWidth,
                                  Integer paperHeight, String margin, String content, boolean isDefault, boolean isBuiltin, String status,
-                                 String remark, Integer version) {
+                                 String remark, Integer rowsPerPage, String copiesNote, String copyMode, Integer version) {
     }
 
     public record TemplateSave(
@@ -49,6 +49,9 @@ public final class PrintVOs {
             @NotBlank(message = "请输入边距") @Size(max = 32) String margin,
             @NotBlank(message = "模板内容不能为空") String content,
             @Size(max = 256) String remark,
+            @Min(value = 1, message = "每页行数 1～60") @Max(value = 60, message = "每页行数 1～60") Integer rowsPerPage,
+            @Size(max = 256, message = "联次说明不能超过 256 字") String copiesNote,
+            @Pattern(regexp = "CARBON|REPEAT", message = "打印方式只能是 CARBON 或 REPEAT") String copyMode,
             Integer version) {
     }
 
@@ -61,7 +64,12 @@ public final class PrintVOs {
 
     /** 打印时取模板（登录即可） */
     public record ForPrint(Long id, String name, String language, String paper, Integer paperWidth, Integer paperHeight, String margin,
-                           String content) {
+                           String content, Integer rowsPerPage, String copiesNote, String copyMode) {
+    }
+
+    /** 打印抬头（单据所属公司）：logo 为 data URI，可直接用于 img src */
+    public record PrintHeader(Long orgId, String name, String nameEn, String shortName, String address, String addressEn, String phone,
+                              String taxNo, String logo) {
     }
 
     public record BizResp(String bizType, String name, String moduleCode, String moduleName, String dataApi, JsonNode variables,

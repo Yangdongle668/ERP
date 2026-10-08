@@ -25,6 +25,7 @@ public final class ParamVOs {
     }
 
     /** 登录页等不需要登录即可读取的公开参数 */
-    public record PublicParams(String systemName, int captchaAfterFails, int idleTimeoutMinutes) {
+    /** logoVersion：系统 Logo 的文件 ID（无 Logo 为空），前端用 /system/params/public/logo?v= 显示 */
+    public record PublicParams(String systemName, int captchaAfterFails, int idleTimeoutMinutes, String logoVersion) {
     }
 }

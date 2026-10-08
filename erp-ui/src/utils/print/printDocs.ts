@@ -2,7 +2,7 @@ import { ElMessage } from 'element-plus'
 import { BizError, http } from '@/api/http'
 import { useDictStore } from '@/stores/dict'
 import { useUserStore } from '@/stores/user'
-import { buildPrintHtml, renderTemplate, writePrintWindow, type PaperSetting } from './render'
+import { buildPrintHtml, layoutDocument, writePrintWindow, type PaperSetting, type PrintDoc } from './render'
 
 /** 打印按钮下拉用的模板（GET /system/print-templates/available） */
 export interface TemplateBrief {
@@ -28,6 +28,60 @@ interface ForPrint extends PaperSetting {
 }
 
 export const MAX_BATCH = 50
+
+/** 针式模板打印前的提示（打印窗口顶部） */
+export const DOT_HINT = '针式多联纸：打印对话框选纸张 241×140（9.5×5.5 英寸）、边距「无」、缩放 100%，取消「页眉和页脚」'
+
+/** 打印抬头（GET /system/print-header）：单据所属公司的中英文名、地址、电话、税号、logo（data URI） */
+export type PrintHeader = Record<string, unknown>
+const headerCache = new Map<string, Promise<PrintHeader>>()
+export function loadHeader(orgId?: unknown) {
+  const key = orgId == null || orgId === '' ? '' : String(orgId)
+  let p = headerCache.get(key)
+  if (!p) {
+    p = http.get<PrintHeader>('/system/print-header', key ? { orgId: key } : undefined, { silent: true }).catch(() => ({}))
+    headerCache.set(key, p)
+    window.setTimeout(() => headerCache.delete(key), 5 * 60 * 1000)
+  }
+  return p
+}
+
+/** 已打印次数（补打判断） */
+async function printedCounts(bizType: string, ids: string[]): Promise<Map<string, number>> {
+  const list = await http.get<{ bizId: string; count: number }[]>('/system/print-logs/counts', { bizType, bizIds: ids.join(',') }, { silent: true })
+    .catch(() => [])
+  return new Map(list.map((c) => [String(c.bizId), Number(c.count) || 0]))
+}
+
+/** 按单据渲染打印页（打印、模板编辑器预览共用） */
+export async function layoutDocs(tpl: { content: string } & PaperSetting, datas: Record<string, unknown>[], opts: { printedCounts?: number[] } = {}): Promise<PrintDoc[]> {
+  const dict = useDictStore()
+  await dict.load()
+  const printedBy = useUserStore().user?.realName
+  const pages: PrintDoc[] = []
+  for (let i = 0; i < datas.length; i++) {
+    const d = datas[i]
+    const company = await loadHeader(d.orgId)
+    pages.push(...layoutDocument(tpl.content, d, tpl, { company, printedCount: opts.printedCounts?.[i] ?? 0, printedBy }, { label: (t, v) => dict.label(t, v) }))
+  }
+  return pages
+}
+
+/**
+ * 按单号找单据 ID（模板编辑器“真实单据预览”）：打印数据接口去掉 /{id}/print-data 即列表接口，
+ * 按 docNo / no / keyword 查询后取单号完全一致的一条；输入纯数字长 ID 时直接使用。
+ */
+export async function findDocId(dataApi: string, input: string): Promise<string | undefined> {
+  const v = input.trim()
+  if (!v) return undefined
+  if (/^\d{15,20}$/.test(v)) return v
+  const listApi = dataApi.replace(/\/\{id\}.*$/, '')
+  const res = await http.get<unknown>(listApi, { docNo: v, no: v, keyword: v, pageNo: 1, pageSize: 20 }, { silent: true }).catch(() => undefined)
+  const rows = (Array.isArray(res) ? res : (res as { list?: unknown[] } | undefined)?.list ?? []) as Record<string, unknown>[]
+  const up = v.toUpperCase()
+  const hit = rows.find((r) => ['docNo', 'no', 'code', 'plNo', 'invoiceNo'].some((k) => String(r[k] ?? '').toUpperCase() === up))
+  return hit?.id != null ? String(hit.id) : undefined
+}
 
 export function loadAvailable(bizType: string) {
   return http.get<Available>('/system/print-templates/available', { bizType })
@@ -70,11 +124,11 @@ export async function printDocuments(opts: { bizType: string; ids: string[]; tem
     }
     const canceled = datas.find((d) => d.status === 'CANCELED')
     if (canceled) throw new BizError(-1, `已作废的单据不能打印${canceled.docNo ? `：${canceled.docNo}` : ''}`)
-    const dict = useDictStore()
-    await dict.load()
-    const docs = datas.map((d) => ({ html: renderTemplate(tpl.content, d, { label: (t, v) => dict.label(t, v) }), draft: d.status === 'DRAFT' }))
+    const counts = await printedCounts(bizType, ids)
+    const docs = await layoutDocs(tpl, datas, { printedCounts: ids.map((id) => counts.get(id) ?? 0) })
     writePrintWindow(win, buildPrintHtml({
-      title: `${available.bizName} - ${tpl.name}`, setting: tpl, docs, printedBy: useUserStore().user?.realName
+      title: `${available.bizName} - ${tpl.name}`, setting: tpl, docs, printedBy: useUserStore().user?.realName,
+      hint: tpl.paper.startsWith('DOT_') ? DOT_HINT : undefined
     }))
     http.post('/system/print-logs', { bizType, bizIds: ids, templateId: tpl.id }, { silent: true }).catch(() => undefined)
   } catch (e) {

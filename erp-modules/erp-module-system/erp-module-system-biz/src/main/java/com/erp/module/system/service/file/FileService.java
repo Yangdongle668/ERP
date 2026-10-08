@@ -188,6 +188,11 @@ public class FileService implements FileApi {
         fileMapper.deleteById(f.getId());
     }
 
+    /** 不校验查看权限取文件记录（公开的系统 Logo 等），不存在返回 null */
+    public FileDO findById(Long id) {
+        return id == null ? null : fileMapper.selectById(id);
+    }
+
     private FileDO get(Long id) {
         FileDO f = id == null ? null : fileMapper.selectById(id);
         if (f == null) throw BizException.of(SystemErrorCodes.FILE_NOT_EXISTS);

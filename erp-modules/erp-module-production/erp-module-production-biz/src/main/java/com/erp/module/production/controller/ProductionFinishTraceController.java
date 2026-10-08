@@ -58,6 +58,12 @@ public class ProductionFinishTraceController {
         return CommonResult.success(finishService.page(q));
     }
 
+    @GetMapping("/finishes/{id}/print-data")
+    @PreAuthorize("@ss.has('mfg:finish:print')")
+    public CommonResult<java.util.Map<String, Object>> finishPrint(@PathVariable Long id) {
+        return CommonResult.success(finishService.printData(id));
+    }
+
     @PostMapping("/finishes/{id}/cancel")
     @PreAuthorize("@ss.has('mfg:finish:cancel')")
     public CommonResult<Void> cancel(@PathVariable Long id) {

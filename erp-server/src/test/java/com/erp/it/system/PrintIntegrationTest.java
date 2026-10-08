@@ -46,6 +46,43 @@ class PrintIntegrationTest extends SystemTestSupport {
         assertThat(biz.at("/sampleData/docNo").asText()).isEqualTo("IT-0001");
     }
 
+    /** 针式多联模板（01-09 第 4 节）：内置针式模板导入后为默认；固定行数、联次、打印方式随模板保存；打印抬头 */
+    @Test
+    void dotMatrixTemplates() throws Exception {
+        for (String biz : List.of("INV_STOCK_IN", "INV_STOCK_OUT", "INV_TRANSFER", "MFG_ISSUE", "MFG_RETURN", "MFG_FINISH", "PUR_RECEIPT", "PUR_RETURN",
+                "PUR_ORDER", "SHP_SHIPMENT", "SAL_RETURN", "SAL_ORDER")) {
+            JsonNode av = ok(doGet("/api/system/print-templates/available?bizType=" + biz, admin));
+            JsonNode def = null;
+            for (JsonNode t : av.at("/templates")) if (t.at("/isDefault").asBoolean() && "zh-CN".equals(t.at("/language").asText())) def = t;
+            assertThat(def).as(biz + " 默认模板").isNotNull();
+            assertThat(def.at("/paper").asText()).as(biz).isEqualTo("DOT_241_140");
+            assertThat(def.at("/name").asText()).as(biz).endsWith("（针式二等分）");
+        }
+        JsonNode av = ok(doGet("/api/system/print-templates/available?bizType=MFG_ISSUE", admin));
+        String id = av.at("/templates/0/id").asText();
+        JsonNode fp = ok(doGet("/api/system/print-templates/" + id + "/for-print", admin));
+        assertThat(fp.at("/rowsPerPage").asInt()).isEqualTo(12);
+        assertThat(fp.at("/copiesNote").asText()).isEqualTo("①白 存根|②红 仓库|③黄 车间");
+        assertThat(fp.at("/copyMode").asText()).isEqualTo("CARBON");
+        assertThat(fp.at("/content").asText()).contains("{{#each page.lines}}", "{{company.name}}", "领料人");
+
+        Map<String, Object> b = body("针式自定义", "<div>{{#each page.lines}}{{lineNo}}{{/each}}</div>");
+        b.put("paper", "DOT_241_140");
+        b.put("rowsPerPage", 8);
+        b.put("copiesNote", "①白 存根|②红 客户");
+        b.put("copyMode", "REPEAT");
+        String custom = ok(doPost("/api/system/print-templates", admin, b)).asText();
+        JsonNode d = ok(doGet("/api/system/print-templates/" + custom, admin));
+        assertThat(d.at("/rowsPerPage").asInt()).isEqualTo(8);
+        assertThat(d.at("/copiesNote").asText()).isEqualTo("①白 存根|②红 客户");
+        assertThat(d.at("/copyMode").asText()).isEqualTo("REPEAT");
+        b.put("rowsPerPage", 0);
+        assertError(doPost("/api/system/print-templates", admin, b), "请求参数不正确：rowsPerPage 每页行数 1～60");
+
+        JsonNode header = ok(doGet("/api/system/print-header", admin));
+        assertThat(header.at("/name").asText()).isNotBlank();
+    }
+
     @Test
     void copyBuiltinSetDefault_T03() throws Exception {
         JsonNode b = builtin();

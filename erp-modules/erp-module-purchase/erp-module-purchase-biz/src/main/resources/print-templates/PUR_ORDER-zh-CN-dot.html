@@ -1,0 +1,66 @@
+<!-- erp-print: paper=DOT_241_140; margin=5mm 6mm 4mm 6mm; rowsPerPage=11; copies=①白 存根|②红 供应商 -->
+<!-- 采购订单（针式二等分 241×140mm，多联纸）：每页 11 行明细，单头、表头、签名栏每页都打印；合计在最后一页 -->
+<style>
+.dm { position: relative; box-sizing: border-box; height: 100%; padding-right: 7mm; font-family: "SimSun", "宋体", "NSimSun", "Songti SC", serif; font-size: 10pt; line-height: 1.2; color: #000; }
+.dm table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.dm-head { display: flex; align-items: center; height: 15mm; border-bottom: 0.35mm solid #000; }
+.dm-co { display: flex; align-items: center; gap: 2mm; width: 40%; overflow: hidden; }
+.dm-co img { height: 11mm; max-width: 26mm; object-fit: contain; }
+.dm-co b { display: block; font-size: 11pt; white-space: nowrap; }
+.dm-co small { display: block; font-size: 7.5pt; white-space: nowrap; }
+.dm-title { position: relative; flex: 1; text-align: center; font-size: 17pt; font-weight: bold; letter-spacing: 1.5mm; white-space: nowrap; }
+.dm-title small { display: block; font-size: 9pt; font-weight: normal; letter-spacing: 0; }
+.dm-marks { position: absolute; right: 0; top: 1.5mm; display: flex; flex-direction: column; gap: 1mm; }
+.dm-stamp { display: inline-block; padding: 0 1.2mm; border: 0.4mm solid #000; font-size: 10pt; letter-spacing: 0; vertical-align: middle; }
+.dm-no { width: 30%; text-align: right; font-size: 9pt; line-height: 1.25; }
+.dm-no b { font-size: 10.5pt; }
+.dm-no svg { display: block; height: 6.5mm; width: auto; max-width: 100%; margin-left: auto; }
+.dm-info { margin: 1mm 0; }
+.dm-info th { width: 18mm; font-weight: normal; text-align: right; padding: 0.4mm 1mm 0.4mm 0; white-space: nowrap; }
+.dm-info td { padding: 0.4mm 1mm; border-bottom: 0.2mm solid #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-lines th, .dm-lines td { height: 5.4mm; padding: 0 0.8mm; border: 0.25mm solid #000; font-size: 9.5pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-lines th { font-weight: bold; text-align: center; }
+.dm-lines .r { text-align: right; } .dm-lines .c { text-align: center; }
+.dm-lines tfoot td { font-weight: bold; }
+.dm-memo { margin-top: 1mm; font-size: 9pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-sign { display: flex; gap: 3mm; margin-top: 2.5mm; font-size: 9.5pt; }
+.dm-sign div { flex: 1; white-space: nowrap; border-bottom: 0.2mm solid #000; padding-bottom: 0.5mm; min-height: 5mm; }
+.dm-sign div.wide { flex: 2; }
+.dm-foot { position: absolute; left: 0; right: 7mm; bottom: 0; display: flex; justify-content: space-between; font-size: 7.5pt; }
+.dm-copies { position: absolute; top: 0; right: 0; bottom: 4mm; width: 5mm; display: flex; flex-direction: column; justify-content: space-around; align-items: center; font-size: 8pt; }
+.dm-copies span { writing-mode: vertical-rl; letter-spacing: 0.6mm; white-space: nowrap; }
+</style>
+<div class="dm">
+  <div class="dm-head">
+    <div class="dm-co">
+      {{#if company.logo}}<img src="{{company.logo}}" alt="">{{/if}}
+      <div><b>{{company.name}}</b><small>{{company.nameEn}}</small></div>
+    </div>
+    <div class="dm-title">采购订单<small>{{orderTypeName}}</small><span class="dm-marks">{{#if print.draft}}<span class="dm-stamp">草稿</span>{{/if}}{{#if print.reprint}}<span class="dm-stamp">补打</span>{{/if}}</span></div>
+    <div class="dm-no">
+      No. <b>{{docNo}}</b>{{barcode docNo 30}}
+      日期：{{formatDate docDate}}　第 {{page.no}}/{{page.count}} 页
+    </div>
+  </div>
+
+  <table class="dm-info"><colgroup><col style="width:18mm"><col><col style="width:18mm"><col><col style="width:18mm"><col><col style="width:18mm"><col></colgroup>
+    <tr><th>供应商：</th><td colspan="5">{{supplierName}}</td><th>联系人：</th><td>{{contactName}} {{contactPhone}}</td></tr>
+    <tr><th>币别：</th><td>{{currency}}</td><th>付款条件：</th><td>{{paymentTermName}}</td><th>采购员：</th><td>{{buyerName}}</td><th>版本：</th><td>{{orderVersion}}</td></tr>
+    <tr><th>交货地址：</th><td colspan="5">{{deliveryAddress}}</td><th>贸易条款：</th><td>{{tradeTerm}}</td></tr>
+  </table>
+  <table class="dm-lines"><colgroup><col style="width:8mm"><col style="width:28mm"><col style="width:36mm"><col style="width:48mm"><col style="width:12mm"><col style="width:22mm"><col style="width:22mm"><col style="width:26mm"><col style="width:20mm"></colgroup>
+    <thead><tr><th>序</th><th>物料编码</th><th>名称</th><th>规格</th><th>单位</th><th>数量</th><th>含税单价</th><th>金额</th><th>交期</th></tr></thead>
+    <tbody>
+      {{#each page.lines}}<tr><td class=c>{{lineNo}}</td><td>{{materialCode}}</td><td>{{materialName}}</td><td>{{spec}}</td><td class="c">{{uom}}</td><td class="r">{{formatQty qty}}</td><td class="r">{{formatPrice priceInclTax}}</td><td class="r">{{formatAmount totalAmount}}</td><td class="c">{{formatDate requiredDate}}</td></tr>{{/each}}
+      {{#each page.blanks}}<tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>{{/each}}
+    </tbody>
+    <tfoot><tr><td colspan="5" class="c">{{#if page.isLast}}合　计{{else}}本页小计{{/if}}</td><td class="r">{{#if page.isLast}}{{formatQty (sum lines "qty")}}{{else}}{{formatQty (sum page.lines "qty")}}{{/if}}</td><td></td><td class="r">{{#if page.isLast}}{{formatAmount totalAmount}}{{else}}{{formatAmount (sum page.lines "totalAmount")}}{{/if}}</td><td></td></tr></tfoot>
+  </table>
+  <div class="dm-memo">税额：{{formatAmount taxAmount}}　价税合计：{{formatAmount totalAmount}}{{#if (eq currency "CNY")}}（{{amountInWordsCn totalAmount}}）{{/if}}　备注：{{remark}}</div>
+  <div class="dm-sign"><div>制单：{{createdByName}}</div><div>审核：{{auditByName}}</div><div>采购员：{{buyerName}}</div><div class=wide>供应商确认（签字/盖章）：</div></div>
+  <div class="dm-foot">
+    <span>打印：{{print.printedAt}} {{print.printedBy}}{{#if print.reprint}}（补打，第 {{print.count}} 次打印）{{/if}}</span>
+    <span>{{company.address}}{{#if company.phone}}　电话：{{company.phone}}{{/if}}</span>
+  </div>
+  <div class="dm-copies">{{#if copy}}<span>{{copy.text}}</span>{{else}}{{#each copies}}<span>{{text}}</span>{{/each}}{{/if}}</div>
+</div>
