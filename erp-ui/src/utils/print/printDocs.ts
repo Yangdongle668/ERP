@@ -30,7 +30,11 @@ interface ForPrint extends PaperSetting {
 export const MAX_BATCH = 50
 
 /** 针式模板打印前的提示（打印窗口顶部） */
-export const DOT_HINT = '针式多联纸：打印对话框选纸张 241×140（9.5×5.5 英寸）、边距「无」、缩放 100%，取消「页眉和页脚」'
+const DOT_PAPER_TEXT: Record<string, string> = {
+  DOT_241_93: '241×93（三等分，9.5×3.67 英寸）', DOT_241_140: '241×140（二等分，9.5×5.5 英寸）', DOT_241_280: '241×280（整张，9.5×11 英寸）'
+}
+export const dotHint = (paper: string) =>
+  DOT_PAPER_TEXT[paper] ? `针式多联纸：打印对话框选纸张 ${DOT_PAPER_TEXT[paper]}、边距「无」、缩放 100%，取消「页眉和页脚」` : undefined
 
 /** 打印抬头（GET /system/print-header）：单据所属公司的中英文名、地址、电话、税号、logo（data URI） */
 export type PrintHeader = Record<string, unknown>
@@ -128,7 +132,7 @@ export async function printDocuments(opts: { bizType: string; ids: string[]; tem
     const docs = await layoutDocs(tpl, datas, { printedCounts: ids.map((id) => counts.get(id) ?? 0) })
     writePrintWindow(win, buildPrintHtml({
       title: `${available.bizName} - ${tpl.name}`, setting: tpl, docs, printedBy: useUserStore().user?.realName,
-      hint: tpl.paper.startsWith('DOT_') ? DOT_HINT : undefined
+      hint: dotHint(tpl.paper)
     }))
     http.post('/system/print-logs', { bizType, bizIds: ids, templateId: tpl.id }, { silent: true }).catch(() => undefined)
   } catch (e) {

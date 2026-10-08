@@ -36,8 +36,16 @@ function createEngine() {
   hb.registerHelper('amountInWordsCn', (v: unknown) => (masked(v) ? MASK : amountInWordsCn(v)))
   hb.registerHelper('amountInWordsEn', (v: unknown, currency: unknown) =>
     masked(v) ? MASK : amountInWordsEn(v, typeof currency === 'string' ? currency : 'USD'))
-  hb.registerHelper('barcode', (v: unknown, height: unknown) =>
-    new hb.SafeString(v ? code128Svg(String(v), typeof height === 'number' ? height : 40) : ''))
+  /**
+   * 条码：{{barcode docNo 40}}；第三个参数 "stretch" 时不带文字、按 CSS 宽高拉伸（针式打印用宽条码，单条线约 2 个针点，扫码更稳）：
+   * {{barcode docNo 24 "stretch"}} + CSS svg { width: 55mm; height: 4.5mm }
+   */
+  hb.registerHelper('barcode', (v: unknown, height: unknown, mode: unknown) => {
+    if (!v) return ''
+    const h = typeof height === 'number' ? height : 40
+    if (mode === 'stretch') return new hb.SafeString(code128Svg(String(v), h, false).replace('<svg ', '<svg preserveAspectRatio="none" '))
+    return new hb.SafeString(code128Svg(String(v), h))
+  })
   hb.registerHelper('qrcode', (v: unknown, size: unknown) => {
     if (!v) return ''
     const q = qrcode(0, 'M')
@@ -51,6 +59,19 @@ function createEngine() {
   hb.registerHelper('eq', (a: unknown, b: unknown) => a === b)
   hb.registerHelper('or', (...args: unknown[]) => args.slice(0, -1).some(Boolean))
   hb.registerHelper('gt', (a: unknown, b: unknown) => Number(a) > Number(b))
+  /**
+   * 小数点对齐：{{decAlign (formatQty qty) 3}}。整数部分右对齐，小数部分（含小数点）放进固定宽度（reserve 位小数 + 1）的格子，
+   * 同一列的数字小数点上下对齐；*** / 空值原样输出。
+   */
+  hb.registerHelper('decAlign', (v: unknown, reserve: unknown) => {
+    const s = v == null ? '' : String(v)
+    if (!s || !/\d/.test(s)) return s
+    const i = s.indexOf('.')
+    const r = typeof reserve === 'number' ? reserve : 2
+    const int = i < 0 ? s : s.slice(0, i)
+    const frac = i < 0 ? '' : s.slice(i)
+    return new hb.SafeString(`<span class="num-i">${hb.escapeExpression(int)}</span><span class="num-f" style="display:inline-block;min-width:${r + 1}ch;text-align:left">${hb.escapeExpression(frac)}</span>`)
+  })
   /** 数组某字段求和：{{formatQty (sum page.lines "qty")}} */
   hb.registerHelper('sum', (rows: unknown, key: unknown) => (Array.isArray(rows) ? sumOf(rows, String(key)) : 0))
   // 未知变量显示为空；null（无字段权限）显示 ***

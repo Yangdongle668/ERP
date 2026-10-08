@@ -1,34 +1,38 @@
-<!-- erp-print: paper=DOT_241_140; margin=5mm 6mm 4mm 6mm; rowsPerPage=12; copies=①白 存根|②红 供应商|③黄 仓库 -->
-<!-- 到货单（针式二等分 241×140mm，多联纸）：每页 12 行明细，单头、表头、签名栏每页都打印；合计在最后一页 -->
+<!-- erp-print: paper=DOT_241_93; margin=4mm 6mm 3mm 6mm; rowsPerPage=9; copies=①白 存根|②红 供应商|③黄 仓库 -->
+<!-- 到货单（针式三等分 241×93mm，多联纸）：每页 9 行明细，单头、表头、签名栏每页都打印；合计在最后一页 -->
 <style>
-.dm { position: relative; box-sizing: border-box; height: 100%; padding-right: 7mm; font-family: "SimSun", "宋体", "NSimSun", "Songti SC", serif; font-size: 10pt; line-height: 1.2; color: #000; }
-.dm table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-.dm-head { display: flex; align-items: center; height: 15mm; border-bottom: 0.35mm solid #000; }
-.dm-co { display: flex; align-items: center; gap: 2mm; width: 40%; overflow: hidden; }
-.dm-co img { height: 11mm; max-width: 26mm; object-fit: contain; }
-.dm-co b { display: block; font-size: 11pt; white-space: nowrap; }
-.dm-co small { display: block; font-size: 7.5pt; white-space: nowrap; }
-.dm-title { position: relative; flex: 1; text-align: center; font-size: 17pt; font-weight: bold; letter-spacing: 1.5mm; white-space: nowrap; }
-.dm-title small { display: block; font-size: 9pt; font-weight: normal; letter-spacing: 0; }
-.dm-marks { position: absolute; right: 0; top: 1.5mm; display: flex; flex-direction: column; gap: 1mm; }
-.dm-stamp { display: inline-block; padding: 0 1.2mm; border: 0.4mm solid #000; font-size: 10pt; letter-spacing: 0; vertical-align: middle; }
-.dm-no { width: 30%; text-align: right; font-size: 9pt; line-height: 1.25; }
-.dm-no b { font-size: 10.5pt; }
-.dm-no svg { display: block; height: 6.5mm; width: auto; max-width: 100%; margin-left: auto; }
-.dm-info { margin: 1mm 0; }
-.dm-info th { width: 18mm; font-weight: normal; text-align: right; padding: 0.4mm 1mm 0.4mm 0; white-space: nowrap; }
-.dm-info td { padding: 0.4mm 1mm; border-bottom: 0.2mm solid #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dm-lines th, .dm-lines td { height: 5.4mm; padding: 0 0.8mm; border: 0.25mm solid #000; font-size: 9.5pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 针式三等分（241×93mm）：8.5pt 正文，单头为无线条的标签-内容网格，明细为细线网格，签名栏等分纯文本 */
+.dm { position: relative; box-sizing: border-box; height: 100%; padding-right: 6mm; font-family: "SimSun", "宋体", "NSimSun", "Songti SC", serif; font-size: 8.5pt; line-height: 1.2; color: #000; font-variant-numeric: tabular-nums; }
+.dm-head { display: grid; grid-template-columns: 38% 1fr 30%; align-items: center; min-height: 10.5mm; padding-bottom: 0.6mm; border-bottom: 0.25mm solid #000; }
+.dm-co { display: flex; align-items: center; gap: 1.5mm; overflow: hidden; }
+.dm-co img { height: 8mm; max-width: 20mm; object-fit: contain; }
+.dm-co b { display: block; font-size: 9pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-co small { display: block; font-size: 6.5pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-title { position: relative; text-align: center; font-size: 13pt; font-weight: bold; letter-spacing: 1mm; white-space: nowrap; }
+.dm-title small { display: block; font-size: 7.5pt; font-weight: normal; letter-spacing: 0; }
+.dm-marks { position: absolute; right: 0; top: 0; display: flex; flex-direction: column; gap: 0.6mm; }
+.dm-stamp { display: inline-block; padding: 0 1mm; border: 0.3mm solid #000; font-size: 8pt; letter-spacing: 0; }
+.dm-no { text-align: right; font-size: 7.5pt; line-height: 1.15; }
+.dm-no b { font-size: 9pt; }
+.dm-no svg { display: block; height: 4.2mm; width: 55mm; max-width: 100%; margin: 0.4mm 0 0.4mm auto; }
+.dm-info { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 3mm; row-gap: 0.6mm; margin: 1.2mm 0; }
+.dm-f { display: flex; min-width: 0; white-space: nowrap; }
+.dm-f .l { flex: 0 0 14.5mm; white-space: nowrap; }
+.dm-f .v { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
+.dm-f.s2 { grid-column: span 2; } .dm-f.s3 { grid-column: span 3; } .dm-f.s4 { grid-column: span 4; }
+.dm-lines { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.dm-lines th, .dm-lines td { height: 4.1mm; padding: 0 0.8mm; border: 0.2mm solid #000; font-size: 8.5pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
 .dm-lines th { font-weight: bold; text-align: center; }
 .dm-lines .r { text-align: right; } .dm-lines .c { text-align: center; }
 .dm-lines tfoot td { font-weight: bold; }
-.dm-memo { margin-top: 1mm; font-size: 9pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dm-sign { display: flex; gap: 3mm; margin-top: 2.5mm; font-size: 9.5pt; }
-.dm-sign div { flex: 1; white-space: nowrap; border-bottom: 0.2mm solid #000; padding-bottom: 0.5mm; min-height: 5mm; }
-.dm-sign div.wide { flex: 2; }
-.dm-foot { position: absolute; left: 0; right: 7mm; bottom: 0; display: flex; justify-content: space-between; font-size: 7.5pt; }
-.dm-copies { position: absolute; top: 0; right: 0; bottom: 4mm; width: 5mm; display: flex; flex-direction: column; justify-content: space-around; align-items: center; font-size: 8pt; }
-.dm-copies span { writing-mode: vertical-rl; letter-spacing: 0.6mm; white-space: nowrap; }
+.dm-memo { margin-top: 0.8mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-sign { display: grid; grid-auto-columns: 1fr; grid-auto-flow: column; column-gap: 3mm; margin-top: 1.2mm; height: 6mm; }
+.dm-sign div { white-space: nowrap; overflow: hidden; }
+.dm-sign div.wide { grid-column: span 2; }
+.dm-foot { position: absolute; left: 0; right: 6mm; bottom: 0; display: grid; grid-template-columns: 1fr auto; column-gap: 3mm; font-size: 6.5pt; white-space: nowrap; }
+.dm-foot span:last-child { text-align: right; overflow: hidden; text-overflow: ellipsis; }
+.dm-copies { position: absolute; top: 0; right: 0; bottom: 3mm; width: 4mm; display: flex; flex-direction: column; justify-content: space-around; align-items: center; font-size: 6.5pt; }
+.dm-copies span { writing-mode: vertical-rl; letter-spacing: 0.4mm; white-space: nowrap; }
 </style>
 <div class="dm">
   <div class="dm-head">
@@ -38,28 +42,32 @@
     </div>
     <div class="dm-title">到货单<small>{{typeName}}</small><span class="dm-marks">{{#if print.draft}}<span class="dm-stamp">草稿</span>{{/if}}{{#if print.reprint}}<span class="dm-stamp">补打</span>{{/if}}</span></div>
     <div class="dm-no">
-      No. <b>{{docNo}}</b>{{barcode docNo 30}}
-      日期：{{formatDate arrivalAt}}　第 {{page.no}}/{{page.count}} 页
+      No. <b>{{docNo}}</b>{{barcode docNo 24 "stretch"}}
+      日期 {{formatDate arrivalAt}}　第 {{page.no}}/{{page.count}} 页
     </div>
   </div>
 
-  <table class="dm-info"><colgroup><col style="width:18mm"><col><col style="width:18mm"><col><col style="width:18mm"><col><col style="width:18mm"><col></colgroup>
-    <tr><th>供应商：</th><td colspan="5">{{supplierName}}</td><th>送货单号：</th><td>{{deliveryNoteNo}}</td></tr>
-    <tr><th>到货时间：</th><td>{{formatDateTime arrivalAt}}</td><th>收货人：</th><td>{{receiverName}}</td><th>部门：</th><td>{{deptName}}</td><th>采购员：</th><td>{{ownerName}}</td></tr>
-  </table>
+  <div class="dm-info">
+    <div class="dm-f s3"><span class="l">供应商</span><span class="v">{{supplierName}}</span></div>
+    <div class="dm-f"><span class="l">送货单号</span><span class="v">{{deliveryNoteNo}}</span></div>
+    <div class="dm-f"><span class="l">到货时间</span><span class="v">{{formatDateTime arrivalAt}}</span></div>
+    <div class="dm-f"><span class="l">收货人</span><span class="v">{{receiverName}}</span></div>
+    <div class="dm-f"><span class="l">部门</span><span class="v">{{deptName}}</span></div>
+    <div class="dm-f"><span class="l">采购员</span><span class="v">{{ownerName}}</span></div>
+  </div>
   <table class="dm-lines"><colgroup><col style="width:8mm"><col style="width:28mm"><col style="width:28mm"><col style="width:36mm"><col style="width:46mm"><col style="width:12mm"><col style="width:22mm"><col style="width:26mm"><col style="width:16mm"></colgroup>
     <thead><tr><th>序</th><th>采购单号</th><th>物料编码</th><th>名称</th><th>规格</th><th>单位</th><th>到货数量</th><th>供应商批次</th><th>检验</th></tr></thead>
     <tbody>
-      {{#each page.lines}}<tr><td class=c>{{lineNo}}</td><td>{{orderNo}}</td><td>{{materialCode}}</td><td>{{materialName}}</td><td>{{spec}}</td><td class="c">{{uom}}</td><td class="r">{{formatQty qty}}</td><td>{{supplierBatchNo}}</td><td class="c">{{#if inspect}}需检{{else}}免检{{/if}}</td></tr>{{/each}}
+      {{#each page.lines}}<tr><td class=c>{{lineNo}}</td><td>{{orderNo}}</td><td>{{materialCode}}</td><td>{{materialName}}</td><td>{{spec}}</td><td class="c">{{uom}}</td><td class="r">{{decAlign (formatQty qty) 3}}</td><td>{{supplierBatchNo}}</td><td class="c">{{#if inspect}}需检{{else}}免检{{/if}}</td></tr>{{/each}}
       {{#each page.blanks}}<tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>{{/each}}
     </tbody>
-    <tfoot><tr><td colspan="6" class="c">{{#if page.isLast}}合　计{{else}}本页小计{{/if}}</td><td class="r">{{#if page.isLast}}{{formatQty (sum lines "qty")}}{{else}}{{formatQty (sum page.lines "qty")}}{{/if}}</td><td></td><td></td></tr></tfoot>
+    <tfoot><tr><td colspan="6" class="c">{{#if page.isLast}}合　计{{else}}本页小计{{/if}}</td><td class="r">{{#if page.isLast}}{{decAlign (formatQty (sum lines "qty")) 3}}{{else}}{{decAlign (formatQty (sum page.lines "qty")) 3}}{{/if}}</td><td></td><td></td></tr></tfoot>
   </table>
   <div class="dm-memo">备注：{{remark}}</div>
   <div class="dm-sign"><div>制单：{{createdByName}}</div><div>收货：{{receiverName}}</div><div>品质（IQC）：</div><div>仓管：</div><div>送货人：</div></div>
   <div class="dm-foot">
-    <span>打印：{{print.printedAt}} {{print.printedBy}}{{#if print.reprint}}（补打，第 {{print.count}} 次打印）{{/if}}</span>
-    <span>{{company.address}}{{#if company.phone}}　电话：{{company.phone}}{{/if}}</span>
+    <span>打印 {{print.printedAt}} {{print.printedBy}}{{#if print.reprint}}　补打（第 {{print.count}} 次打印）{{/if}}</span>
+    <span>{{company.address}}{{#if company.phone}}　电话 {{company.phone}}{{/if}}</span>
   </div>
   <div class="dm-copies">{{#if copy}}<span>{{copy.text}}</span>{{else}}{{#each copies}}<span>{{text}}</span>{{/each}}{{/if}}</div>
 </div>

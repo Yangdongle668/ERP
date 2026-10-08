@@ -130,19 +130,21 @@ public class PrintService {
     private void importBuiltin(PrintBizDefinition d, String lang, String key) {
         Resource r = resourceLoader.getResource("classpath:print-templates/" + d.bizType() + "-" + key + ".html");
         if (!r.exists()) return;
-        boolean has = templateMapper.selectCount(new LambdaQueryWrapper<PrintTemplateDO>().eq(PrintTemplateDO::getBizType, d.bizType())
+        boolean dot = key.endsWith("-dot");
+        PrintTemplateDO existing = templateMapper.selectOne(new LambdaQueryWrapper<PrintTemplateDO>().eq(PrintTemplateDO::getBizType, d.bizType())
                 .eq(PrintTemplateDO::getLanguage, lang).eq(PrintTemplateDO::getIsBuiltin, true)
                 .and(w -> {
                     w.eq(PrintTemplateDO::getBuiltinKey, key);
                     if (key.equals(lang)) w.or().isNull(PrintTemplateDO::getBuiltinKey);
-                })) > 0;
-        if (has) return;
+                }).last("LIMIT 1"));
+        // 标准模板已存在不覆盖（R05）；内置针式模板只读，随版本更新（纸张、版式调整后已导入的也同步）
+        if (existing != null && !dot) return;
         try (InputStream in = r.getInputStream()) {
             String content = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            boolean dot = key.endsWith("-dot");
-            PrintTemplateDO t = new PrintTemplateDO();
+            PrintTemplateDO t = existing != null ? existing : new PrintTemplateDO();
+            if (existing != null && content.equals(existing.getContent())) return;
             t.setBizType(d.bizType());
-            t.setName(dot ? d.name() + "（针式二等分）" : "en".equals(lang) ? d.name() + " (Standard)" : d.name() + "（标准）");
+            t.setName(dot ? d.name() + "（针式三等分）" : "en".equals(lang) ? d.name() + " (Standard)" : d.name() + "（标准）");
             t.setLanguage(lang);
             t.setPaper("A4_P");
             t.setMargin("10mm 10mm 10mm 10mm");
@@ -165,6 +167,11 @@ public class PrintService {
                 }
             }
             t.setContent(content);
+            if (existing != null) {
+                templateMapper.updateByIdOrFail(t);
+                log.info("[打印模板] 更新内置模板 {}-{}", d.bizType(), key);
+                return;
+            }
             PrintTemplateDO currentDefault = templateMapper.selectOne(new LambdaQueryWrapper<PrintTemplateDO>().eq(PrintTemplateDO::getBizType, d.bizType())
                     .eq(PrintTemplateDO::getLanguage, lang).eq(PrintTemplateDO::getIsDefault, true).last("LIMIT 1"));
             boolean makeDefault = currentDefault == null || (dot && Boolean.TRUE.equals(currentDefault.getIsBuiltin()));

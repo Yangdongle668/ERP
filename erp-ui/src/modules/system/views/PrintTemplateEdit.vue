@@ -11,7 +11,7 @@ import { tabKeyOf, useTabsStore } from '@/stores/tabs'
 import { useDictStore } from '@/stores/dict'
 import { useUserStore } from '@/stores/user'
 import { buildPrintHtml, checkTemplate, writePrintWindow } from '@/utils/print/render'
-import { DOT_HINT, findDocId, layoutDocs } from '@/utils/print/printDocs'
+import { dotHint, findDocId, layoutDocs } from '@/utils/print/printDocs'
 import { COPY_MODE_OPTIONS, LANGUAGE_OPTIONS, printApi, type PrintBiz, type TemplateSave } from '../api/print'
 
 defineOptions({ name: 'SystemPrintTemplateEdit' })
@@ -74,6 +74,7 @@ const HELPERS: { name: string; insert: string }[] = [
   { name: '页码 page.no/count', insert: '第 {{page.no}}/{{page.count}} 页' },
   { name: '最后一页 page.isLast', insert: '{{#if page.isLast}}合计{{/if}}' },
   { name: '本页小计 sum', insert: '{{formatQty (sum page.lines "qty")}}' },
+  { name: '小数点对齐 decAlign', insert: '{{decAlign (formatQty qty) 3}}' },
   { name: '联次 copies', insert: '{{#each copies}}<div>{{text}}</div>{{/each}}' },
   { name: '补打 print.reprint', insert: '{{#if print.reprint}}补打（第 {{print.count}} 次）{{/if}}' },
   { name: '草稿 print.draft', insert: '{{#if print.draft}}草稿{{/if}}' }
@@ -153,7 +154,7 @@ async function buildPreview(toolbar: boolean) {
   const docs = await layoutDocs(form.value, [previewData()])
   return buildPrintHtml({
     title: `${form.value.name || '预览'}（${previewSource.value}）`, setting: form.value, docs, printedBy: me.user?.realName, toolbar,
-    hint: form.value.paper.startsWith('DOT_') ? DOT_HINT : undefined
+    hint: dotHint(form.value.paper)
   })
 }
 
