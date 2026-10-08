@@ -84,11 +84,33 @@ public class WorkbenchController {
         return pushService.subscribe(SecurityUtils.getLoginUser().id());
     }
 
-    /** 首页天气预报（缓存 30 分钟，获取失败时返回上次结果） */
+    /** 顶部天气：传入经纬度（自动定位）按位置查询，否则按个人设置的城市（默认东莞）；缓存 30 分钟 */
     @GetMapping("/weather")
     @PreAuthorize("isAuthenticated()")
-    public CommonResult<com.erp.module.workbench.service.weather.WeatherService.Weather> weather() {
-        return CommonResult.success(weatherService.current());
+    public CommonResult<com.erp.module.workbench.service.weather.WeatherService.Weather> weather(
+            @RequestParam(required = false) java.math.BigDecimal lat, @RequestParam(required = false) java.math.BigDecimal lon) {
+        return CommonResult.success(weatherService.current(lat, lon));
+    }
+
+    @GetMapping("/weather/pref")
+    @PreAuthorize("isAuthenticated()")
+    public CommonResult<com.erp.module.workbench.service.weather.WeatherService.Pref> weatherPref() {
+        return CommonResult.success(weatherService.pref());
+    }
+
+    /** 保存个人天气设置：mode AUTO 自动定位 / MANUAL 手选城市 */
+    @PutMapping("/weather/pref")
+    @PreAuthorize("isAuthenticated()")
+    public CommonResult<Void> saveWeatherPref(@RequestBody com.erp.module.workbench.service.weather.WeatherService.Pref req) {
+        weatherService.savePref(req);
+        return CommonResult.success();
+    }
+
+    @GetMapping("/weather/cities")
+    @PreAuthorize("isAuthenticated()")
+    public CommonResult<java.util.List<com.erp.module.workbench.service.weather.WeatherCities.City>> weatherCities(
+            @RequestParam(required = false) String keyword) {
+        return CommonResult.success(weatherService.cities(keyword));
     }
 
     @GetMapping("/summary")

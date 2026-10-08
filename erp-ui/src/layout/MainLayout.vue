@@ -12,6 +12,7 @@ import { systemCommonApi, systemLogoUrl } from '@/api/system'
 import TabsBar from './TabsBar.vue'
 import MenuSearch from './MenuSearch.vue'
 import TodoBell from './TodoBell.vue'
+import WeatherWidget from './WeatherWidget.vue'
 
 /** 整体布局（UI 设计规范第 3 节）：侧边栏、头部、多页签栏、内容区 */
 const COLLAPSE_KEY = 'erp.sidebarCollapsed'
@@ -167,6 +168,7 @@ onBeforeUnmount(() => {
         <ErpIconButton :icon="collapsed ? 'Expand' : 'Fold'" :tooltip="collapsed ? '展开侧边栏' : '收起侧边栏'" @click="collapsed = !collapsed" />
         <MenuSearch :modules="visibleModules" />
         <div class="erp-spacer" />
+        <WeatherWidget />
         <TodoBell />
         <span class="header__divider" />
         <el-dropdown trigger="click" placement="bottom-end">
