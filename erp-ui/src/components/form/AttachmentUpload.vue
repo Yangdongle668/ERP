@@ -44,7 +44,7 @@ async function handle(file: File) {
   try {
     const fields: Record<string, string> = {}
     if (props.bizType) fields.bizType = props.bizType
-    if (props.bizId) fields.bizId = props.bizId
+    if (props.bizId && /^\d+$/.test(props.bizId)) fields.bizId = props.bizId
     if (props.category) fields.category = props.category
     const info = await upload<FileInfo>('/system/files', file, fields, (p) => (item.percent = p))
     emit('uploaded', info)

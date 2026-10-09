@@ -11,15 +11,17 @@ import { formatDateTime } from '@/utils/format'
  * editable 由单据状态决定（通常草稿可编辑）；删除权限最终由后端 FileAccessChecker 判断。
  */
 const props = defineProps<{ bizType: string; bizId?: string; editable?: boolean; category?: string }>()
+/** 只用真实的单据 ID 请求（新建页的 "new"、未加载完的 "undefined" 等忽略） */
+const validId = (id?: string) => !!id && /^\d+$/.test(id)
 const emit = defineEmits<{ change: [count: number] }>()
 const files = ref<FileInfo[]>([])
 const loading = ref(false)
 
 async function load() {
-  if (!props.bizId) return
+  if (!validId(props.bizId)) return
   loading.value = true
   try {
-    files.value = await systemCommonApi.files(props.bizType, props.bizId)
+    files.value = await systemCommonApi.files(props.bizType, props.bizId!)
     emit('change', files.value.length)
   } finally {
     loading.value = false

@@ -12,6 +12,8 @@ import { formatDateTime } from '@/utils/format'
  * 数据来自 GET /system/workflow/instances/by-biz；也可直接传入 instances（监控页查看）。
  */
 const props = defineProps<{ bizType?: string; bizId?: string; instances?: WfInstance[] }>()
+/** 只用真实的单据 ID 请求（新建页的 "new"、未加载完的 "undefined" 等忽略） */
+const validId = (id?: string) => !!id && /^\d+$/.test(id)
 const emit = defineEmits<{ loaded: [data: ByBiz] }>()
 const data = ref<ByBiz>({ instances: props.instances ?? [] })
 const loading = ref(false)
@@ -40,7 +42,7 @@ async function load() {
     data.value = { instances: props.instances }
     return
   }
-  if (!props.bizId || !props.bizType) return
+  if (!validId(props.bizId) || !props.bizType) return
   loading.value = true
   try {
     data.value = await http.get<ByBiz>('/system/workflow/instances/by-biz', { bizType: props.bizType, bizId: props.bizId }, { silent: true })
