@@ -1,3 +1,4 @@
+import { copyWithMessage } from '@/utils/clipboard'
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -123,7 +124,7 @@ function notifyError(err: BizError) {
       type: 'error',
       confirmButtonText: err.traceId ? '复制追踪号' : '确定',
       callback: () => {
-        if (err.traceId) navigator.clipboard?.writeText(err.traceId).catch(() => undefined)
+        if (err.traceId) copyWithMessage(err.traceId, '追踪号')
       }
     })
     return

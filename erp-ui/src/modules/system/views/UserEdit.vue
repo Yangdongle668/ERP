@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { copyWithMessage } from '@/utils/clipboard'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
@@ -81,7 +82,7 @@ async function save(andNew = false) {
       const r = await userApi.create(data)
       guard.markClean()
       await ElMessageBox.alert(`用户已创建。初始密码：<b style="font-family:monospace;font-size:16px">${r.initPassword}</b><br/>该密码只显示这一次，请告知用户。`,
-        '保存成功', { dangerouslyUseHTMLString: true, confirmButtonText: '复制并关闭', callback: () => navigator.clipboard?.writeText(r.initPassword) })
+        '保存成功', { dangerouslyUseHTMLString: true, confirmButtonText: '复制并关闭', callback: () => copyWithMessage(r.initPassword, '初始密码') })
       if (andNew) {
         form.value = { ...empty(), deptId: form.value.deptId, roleIds: form.value.roleIds }
         guard.markClean()

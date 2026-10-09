@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { copyWithMessage } from '@/utils/clipboard'
 import { computed, ref } from 'vue'
-import { ElMessage } from 'element-plus'
 import type { SearchField, StatusMap, TableColumn } from '@/components'
 import { useListPage } from '@/composables/useListPage'
 import { modules } from '@/modules/registry'
@@ -119,7 +119,7 @@ const prettyParams = computed(() => {
 
 function copy(text?: string) {
   if (!text) return
-  navigator.clipboard?.writeText(text).then(() => ElMessage.success('已复制'), () => ElMessage.warning('复制失败，请手动选择复制'))
+  copyWithMessage(text)
 }
 
 const asOper = (r: unknown) => r as OperLogRow

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { copyWithMessage } from '@/utils/clipboard'
 import { reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { userApi, type UserRow } from '../api/user'
@@ -34,7 +35,7 @@ async function submit() {
 }
 
 function copy() {
-  navigator.clipboard?.writeText(result.value ?? '').then(() => ElMessage.success('已复制'))
+  copyWithMessage(result.value ?? '', '密码')
 }
 
 defineExpose({ open })
