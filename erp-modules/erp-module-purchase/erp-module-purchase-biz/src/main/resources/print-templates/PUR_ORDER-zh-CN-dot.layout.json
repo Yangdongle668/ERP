@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "title": "采购订单",
+  "subtitle": "{{orderTypeName}}",
+  "date": "{{formatDate docDate}}",
+  "header": {
+    "logo": true,
+    "nameEn": true,
+    "barcode": true
+  },
+  "info": [
+    {
+      "key": "supplierName",
+      "label": "供应商",
+      "expr": "{{supplierName}}",
+      "span": 3,
+      "visible": true
+    },
+    {
+      "key": "contactName",
+      "label": "联系人",
+      "expr": "{{contactName}} {{contactPhone}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "currency",
+      "label": "币别",
+      "expr": "{{currency}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "paymentTermName",
+      "label": "付款条件",
+      "expr": "{{paymentTermName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "buyerName",
+      "label": "采购员",
+      "expr": "{{buyerName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "orderVersion",
+      "label": "版本",
+      "expr": "{{orderVersion}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "deliveryAddress",
+      "label": "交货地址",
+      "expr": "{{deliveryAddress}}",
+      "span": 3,
+      "visible": true
+    },
+    {
+      "key": "tradeTerm",
+      "label": "贸易条款",
+      "expr": "{{tradeTerm}}",
+      "span": 1,
+      "visible": true
+    }
+  ],
+  "columns": [
+    {
+      "key": "seq",
+      "label": "序",
+      "width": 8,
+      "expr": "{{lineNo}}",
+      "align": "center",
+      "visible": true
+    },
+    {
+      "key": "materialCode",
+      "label": "物料编码",
+      "width": 28,
+      "expr": "{{materialCode}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "materialName",
+      "label": "名称",
+      "width": 36,
+      "expr": "{{materialName}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "spec",
+      "label": "规格",
+      "width": 48,
+      "expr": "{{spec}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "uom",
+      "label": "单位",
+      "width": 12,
+      "expr": "{{uom}}",
+      "align": "center",
+      "visible": true
+    },
+    {
+      "key": "qty",
+      "label": "数量",
+      "width": 22,
+      "expr": "{{decAlign (formatQty qty) 3}}",
+      "align": "right",
+      "visible": true,
+      "total": {
+        "kind": "qty",
+        "field": "qty"
+      }
+    },
+    {
+      "key": "priceInclTax",
+      "label": "含税单价",
+      "width": 22,
+      "expr": "{{decAlign (formatPrice priceInclTax) 4}}",
+      "align": "right",
+      "visible": true
+    },
+    {
+      "key": "totalAmount",
+      "label": "金额",
+      "width": 26,
+      "expr": "{{decAlign (formatAmount totalAmount) 2}}",
+      "align": "right",
+      "visible": true,
+      "total": {
+        "kind": "amount",
+        "field": "totalAmount",
+        "docExpr": "totalAmount"
+      }
+    },
+    {
+      "key": "requiredDate",
+      "label": "交期",
+      "width": 20,
+      "expr": "{{formatDate requiredDate}}",
+      "align": "center",
+      "visible": true
+    }
+  ],
+  "memo": {
+    "visible": true,
+    "expr": "税额：{{formatAmount taxAmount}}　价税合计：{{formatAmount totalAmount}}{{#if (eq currency \"CNY\")}}（{{amountInWordsCn totalAmount}}）{{/if}}　备注：{{remark}}"
+  },
+  "signs": [
+    {
+      "key": "s1",
+      "label": "制单",
+      "expr": "{{createdByName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s2",
+      "label": "审核",
+      "expr": "{{auditByName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s3",
+      "label": "采购员",
+      "expr": "{{buyerName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s4",
+      "label": "供应商确认（签字/盖章）",
+      "expr": "",
+      "wide": true,
+      "visible": true
+    }
+  ],
+  "footer": {
+    "printInfo": true,
+    "address": true
+  },
+  "fontSize": 8.5,
+  "paper": "DOT_241_140",
+  "margin": "5mm 6mm 4mm 6mm",
+  "rowsPerPage": 15,
+  "copies": "①白 存根|②红 供应商"
+}

@@ -156,6 +156,13 @@ function paperDims(p: PaperSetting): [string, string] {
   return PAPERS[p.paper] ?? PAPERS.A4_P
 }
 
+/** 纸张宽度（CSS px，96dpi），编辑器内嵌预览按此缩放到容器宽度 */
+export function paperWidthPx(p: PaperSetting): number {
+  const [w] = paperDims(p)
+  const n = parseFloat(w)
+  return w.endsWith('in') ? n * 96 : (n * 96) / 25.4
+}
+
 export function pageSize(p: PaperSetting): string {
   if (p.paper === 'A4_L') return 'A4 landscape'
   if (p.paper === 'A5_L') return 'A5 landscape'

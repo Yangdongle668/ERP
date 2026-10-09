@@ -32,6 +32,9 @@ public class PrintTemplateDO extends BaseDO {
     private String copiesNote;
     /** CARBON 多联纸一次打印 / REPEAT 普通纸逐联打印 */
     private String copyMode;
+    /** 可视化版式 JSON（为空表示代码模板）；有版式时 content 由前端按版式生成 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private String layout;
     /** 内置模板变体：zh-CN / en / zh-CN-dot */
     private String builtinKey;
     private Boolean isDefault;

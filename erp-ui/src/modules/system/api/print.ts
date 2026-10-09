@@ -23,6 +23,7 @@ export interface TemplateDetail extends TemplateRow {
   rowsPerPage?: number
   copiesNote?: string
   copyMode?: 'CARBON' | 'REPEAT'
+  layout?: string | null
 }
 
 /** 打印方式：多联纸一次打印（针式复写纸）/ 普通纸逐联打印（激光，每联单独一页） */
@@ -46,6 +47,8 @@ export interface TemplateSave {
   /** 联次说明，| 分隔：①白 存根|②红 财务|③黄 仓库 */
   copiesNote?: string
   copyMode?: 'CARBON' | 'REPEAT'
+  /** 可视化版式 JSON（为空表示代码模板） */
+  layout?: string | null
   version?: number
 }
 

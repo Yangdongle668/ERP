@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { EditorView, basicSetup } from 'codemirror'
 import { Compartment, EditorState } from '@codemirror/state'
 import { html } from '@codemirror/lang-html'
@@ -10,8 +10,10 @@ import { useLeaveGuard } from '@/composables/useLeaveGuard'
 import { tabKeyOf, useTabsStore } from '@/stores/tabs'
 import { useDictStore } from '@/stores/dict'
 import { useUserStore } from '@/stores/user'
-import { buildPrintHtml, checkTemplate, writePrintWindow } from '@/utils/print/render'
+import { buildPrintHtml, checkTemplate, paperWidthPx, writePrintWindow } from '@/utils/print/render'
 import { dotHint, findDocId, layoutDocs } from '@/utils/print/printDocs'
+import { buildLayoutHtml, exprOf, type PrintLayout } from '@/utils/print/layoutTemplate'
+import PrintLayoutDesigner from '../components/PrintLayoutDesigner.vue'
 import { COPY_MODE_OPTIONS, LANGUAGE_OPTIONS, printApi, type PrintBiz, type TemplateSave } from '../api/print'
 
 defineOptions({ name: 'SystemPrintTemplateEdit' })
@@ -19,6 +21,7 @@ defineOptions({ name: 'SystemPrintTemplateEdit' })
 /**
  * 打印模板编辑器（需求 01-09 第 3.2 节）：变量面板 | 代码（CodeMirror，HTML 模式）| 预览（示例数据或真实单据）。
  * 内置模板只读，可复制后修改；保存时后端再次校验（R02：≤ 200KB、无脚本、语法正确）。
+ * 带版式（layout）的模板默认用「可视化」方式编辑（第 9 节）：勾选 / 添加条目 → 重新生成模板代码 → 实时预览；此时代码只读。
  */
 const route = useRoute()
 const router = useRouter()
@@ -35,6 +38,81 @@ const bizList = ref<PrintBiz[]>([])
 
 const form = ref<TemplateSave>({ bizType: '', name: '', language: 'zh-CN', paper: 'A4_P', margin: '10mm 10mm 10mm 10mm', content: '', copyMode: 'CARBON' })
 const guard = useLeaveGuard(() => form.value)
+
+// ---------- 可视化版式 ----------
+const layoutObj = ref<PrintLayout>()
+const mode = ref<'design' | 'code'>('code')
+const codeReadonly = computed(() => readonly.value || !!layoutObj.value)
+
+function parseLayout(json?: string | null): PrintLayout | undefined {
+  if (!json) return undefined
+  try {
+    const l = JSON.parse(json) as PrintLayout
+    return l && Array.isArray(l.info) && Array.isArray(l.columns) && Array.isArray(l.signs) ? l : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** 加载模板后设置版式；有版式默认进入可视化编辑 */
+function initLayout(json?: string | null) {
+  layoutObj.value = parseLayout(json)
+  form.value.layout = layoutObj.value ? JSON.stringify(layoutObj.value) : null
+  mode.value = layoutObj.value ? 'design' : 'code'
+}
+
+/** 版式 → 模板代码（同步到代码编辑器），预览快速刷新 */
+function applyLayout() {
+  const l = layoutObj.value
+  if (!l) return
+  const content = buildLayoutHtml(l)
+  form.value.layout = JSON.stringify(l)
+  if (content === form.value.content) return
+  form.value.content = content
+  const v = view.value
+  if (v && v.state.doc.toString() !== content) v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: content } })
+}
+
+/** 没有版式的模板：按单据变量生成一个可视化版式（会替换现有代码） */
+async function startDesign() {
+  await ElMessageBox.confirm('将按该单据的字段生成一个可视化版式（针式二等分纸样式），并替换当前模板代码。继续？', '使用可视化版式', { type: 'warning' })
+  const vars = biz.value?.variables ?? []
+  const head = vars.filter((v) => !v.path.includes('.') && v.type !== 'array' && v.type !== 'object' && v.path !== 'docNo' && v.path !== 'remark')
+  const lines = vars.filter((v) => v.path.startsWith('lines.') && v.path !== 'lines.lineNo')
+  const numeric = new Set(['qty', 'amount', 'price', 'number'])
+  layoutObj.value = {
+    version: 1, title: biz.value?.name ?? '单据', subtitle: '', date: vars.some((v) => v.path === 'docDate') ? '{{formatDate docDate}}' : '',
+    header: { logo: true, nameEn: true, barcode: true },
+    info: [{ key: 'docNo', label: '单号', expr: '{{docNo}}', span: 1, visible: true },
+      ...head.slice(0, 11).map((v) => ({ key: v.path, label: v.name.replace(/（.*$/, ''), expr: exprOf(v.path, v.type), span: 1, visible: true }))],
+    columns: lines.map((v) => {
+      const field = v.path.replace(/^lines\./, '')
+      return {
+        key: field, label: v.name, width: numeric.has(v.type) ? 20 : 26, expr: exprOf(v.path, v.type, true),
+        align: numeric.has(v.type) ? 'right' : field === 'uom' ? 'center' : 'left', visible: true,
+        total: v.type === 'qty' ? { kind: 'qty', field } : v.type === 'amount' ? { kind: 'amount', field } : null
+      } as PrintLayout['columns'][number]
+    }),
+    memo: { visible: true, expr: '{{remark}}' },
+    signs: [{ key: 'maker', label: '制单', expr: '{{createdByName}}', wide: false, visible: true },
+      { key: 'audit', label: '审核', expr: '{{auditByName}}', wide: false, visible: true },
+      { key: 'sign', label: '签收', expr: '', wide: true, visible: true }],
+    footer: { printInfo: true, address: true }, fontSize: 8.5
+  }
+  if (!form.value.rowsPerPage) form.value.rowsPerPage = 16
+  applyLayout()
+  mode.value = 'design'
+}
+
+/** 改为直接编辑代码：去掉版式（之后不能再用可视化方式编辑） */
+async function toCode() {
+  await ElMessageBox.confirm('改为代码编辑后，模板不再关联可视化版式，之后只能直接改代码。继续？', '改为代码编辑', { type: 'warning' })
+  layoutObj.value = undefined
+  form.value.layout = null
+  mode.value = 'code'
+}
+
+watch(layoutObj, applyLayout, { deep: true })
 
 // ---------- 边距：上 右 下 左（mm） ----------
 const margins = computed<number[]>({
@@ -119,7 +197,7 @@ function createEditor() {
         basicSetup,
         html(),
         EditorView.lineWrapping,
-        readonlyCompartment.of(EditorState.readOnly.of(readonly.value)),
+        readonlyCompartment.of(EditorState.readOnly.of(codeReadonly.value)),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) form.value.content = u.state.doc.toString()
         })
@@ -128,7 +206,7 @@ function createEditor() {
   })
 }
 
-watch(readonly, (r) => view.value?.dispatch({ effects: readonlyCompartment.reconfigure(EditorState.readOnly.of(r)) }))
+watch(codeReadonly, (r) => view.value?.dispatch({ effects: readonlyCompartment.reconfigure(EditorState.readOnly.of(r)) }))
 
 function onNodeClick(n: VarNode) {
   insert(n.insert)
@@ -136,7 +214,7 @@ function onNodeClick(n: VarNode) {
 
 function insert(text: string) {
   const v = view.value
-  if (!v || readonly.value) return
+  if (!v || codeReadonly.value) return
   v.dispatch(v.state.replaceSelection(text))
   v.focus()
 }
@@ -147,6 +225,17 @@ const previewError = ref('')
 const realId = ref('')
 const realData = ref<Record<string, unknown>>()
 const previewSource = computed(() => (realData.value ? '真实单据' : '示例数据'))
+
+/** 内嵌预览缩放到预览区宽度，整页可见（新窗口预览仍为实际尺寸） */
+const frameWrap = ref<HTMLElement>()
+const frameWidth = ref(0)
+let resizeObs: ResizeObserver | undefined
+const previewZoom = computed(() => {
+  const page = paperWidthPx(form.value) + 48
+  return frameWidth.value > 0 && frameWidth.value < page ? Math.floor((frameWidth.value / page) * 100) / 100 : 1
+})
+const previewDoc = computed(() =>
+  previewZoom.value < 1 ? previewHtml.value.replace('</head>', `<style>html { zoom: ${previewZoom.value}; }</style></head>`) : previewHtml.value)
 
 const previewData = () => (realData.value ?? biz.value?.sampleData ?? {}) as Record<string, unknown>
 
@@ -190,7 +279,7 @@ let timer = 0
 watch(() => [form.value.content, form.value.paper, form.value.paperWidth, form.value.paperHeight, form.value.margin, form.value.rowsPerPage,
   form.value.copiesNote, form.value.copyMode], () => {
   window.clearTimeout(timer)
-  timer = window.setTimeout(refreshPreview, 1000)
+  timer = window.setTimeout(refreshPreview, layoutObj.value ? 250 : 1000)
 })
 
 const loadingReal = ref(false)
@@ -247,6 +336,7 @@ onMounted(async () => {
       margin: d.margin, content: d.content, remark: d.remark, rowsPerPage: d.rowsPerPage, copiesNote: d.copiesNote, copyMode: d.copyMode ?? 'CARBON',
       version: d.version
     }
+    initLayout(d.layout)
     tabs.setTitle(tabKeyOf(route), `${d.isBuiltin ? '查看' : '编辑'}模板 ${d.name}`)
   } else {
     const q = route.query
@@ -256,6 +346,7 @@ onMounted(async () => {
       const src = await printApi.get(q.from)
       Object.assign(form.value, { paper: src.paper, paperWidth: src.paperWidth, paperHeight: src.paperHeight, margin: src.margin, content: src.content,
         rowsPerPage: src.rowsPerPage, copiesNote: src.copiesNote, copyMode: src.copyMode ?? 'CARBON' })
+      initLayout(src.layout)
     }
     const bizName = bizList.value.find((b) => b.bizType === form.value.bizType)?.name
     if (bizName) form.value.name = `${bizName}（自定义）`
@@ -264,6 +355,10 @@ onMounted(async () => {
   guard.markClean()
   await nextTick()
   createEditor()
+  if (frameWrap.value) {
+    resizeObs = new ResizeObserver(([e]) => (frameWidth.value = e.contentRect.width))
+    resizeObs.observe(frameWrap.value)
+  }
   refreshPreview()
 })
 
@@ -277,6 +372,7 @@ watch(() => form.value.bizType, (t, old) => {
 onBeforeUnmount(() => {
   window.clearTimeout(timer)
   view.value?.destroy()
+  resizeObs?.disconnect()
 })
 
 async function back() {
@@ -362,8 +458,26 @@ const sizeKb = computed(() => (new Blob([form.value.content]).size / 1024).toFix
       </el-form>
     </ErpPanel>
 
-    <div class="workspace">
-      <ErpPanel title="变量" flush class="vars">
+    <div class="mode-bar">
+      <el-radio-group v-model="mode" size="small">
+        <el-radio-button value="design" :disabled="!layoutObj">可视化</el-radio-button>
+        <el-radio-button value="code">代码</el-radio-button>
+      </el-radio-group>
+      <span v-if="layoutObj && builtin" class="text-muted">内置模板只读：点列表中的「复制」后即可勾选要打印的条目</span>
+      <span v-else-if="layoutObj" class="text-muted">勾选要打印的条目、修改名称和顺序，或添加条目，右侧实时预览；代码由版式自动生成</span>
+      <span v-else class="text-muted">该模板没有可视化版式，直接编辑代码</span>
+      <span class="erp-spacer" />
+      <el-button v-if="layoutObj && !readonly" link type="primary" @click="toCode">改为代码编辑</el-button>
+      <el-button v-if="!layoutObj && !readonly && biz" link type="primary" @click="startDesign">使用可视化版式</el-button>
+    </div>
+
+    <div class="workspace" :class="{ 'is-design': mode === 'design' && layoutObj }">
+      <ErpPanel v-if="mode === 'design' && layoutObj" title="打印条目" flush class="designer-panel">
+        <el-scrollbar>
+          <PrintLayoutDesigner v-model="layoutObj" :variables="biz?.variables ?? []" :disabled="readonly" />
+        </el-scrollbar>
+      </ErpPanel>
+      <ErpPanel v-show="mode === 'code' || !layoutObj" title="变量" flush class="vars">
         <el-scrollbar>
           <div class="vars-body">
             <el-tree v-if="varTree.length" :data="varTree" node-key="key" default-expand-all :expand-on-click-node="false" :indent="12" @node-click="onNodeClick">
@@ -382,8 +496,8 @@ const sizeKb = computed(() => (new Blob([form.value.content]).size / 1024).toFix
         </el-scrollbar>
       </ErpPanel>
 
-      <ErpPanel title="模板代码（HTML + Handlebars）" flush class="code">
-        <template #extra><span class="text-muted">{{ sizeKb }} KB / 200 KB</span></template>
+      <ErpPanel v-show="mode === 'code' || !layoutObj" title="模板代码（HTML + Handlebars）" flush class="code">
+        <template #extra><span class="text-muted">{{ layoutObj ? '由版式生成 · 只读　' : '' }}{{ sizeKb }} KB / 200 KB</span></template>
         <div ref="editorEl" class="editor" />
       </ErpPanel>
 
@@ -401,7 +515,9 @@ const sizeKb = computed(() => (new Blob([form.value.content]).size / 1024).toFix
           <div class="preview-error__title">模板语法错误：{{ previewError.split('\n')[0] }}</div>
           <pre class="mono">{{ previewError.split('\n').slice(1).join('\n') }}</pre>
         </div>
-        <iframe v-else class="preview-frame" sandbox="" :srcdoc="previewHtml" title="打印预览" />
+        <div v-show="!previewError" ref="frameWrap" class="preview-wrap">
+          <iframe class="preview-frame" sandbox="" :srcdoc="previewDoc" title="打印预览" />
+        </div>
       </ErpPanel>
     </div>
   </ErpPage>
@@ -414,7 +530,9 @@ const sizeKb = computed(() => (new Blob([form.value.content]).size / 1024).toFix
 .num-mm { width: 100px; }
 .margins { display: inline-flex; gap: var(--erp-space-1); }
 .num-margin { width: 52px; }
+.mode-bar { display: flex; align-items: center; gap: var(--erp-space-3); }
 .workspace { flex: 1; min-height: 480px; display: grid; grid-template-columns: 240px minmax(0, 1fr) minmax(0, 1fr); gap: var(--erp-space-4); }
+.workspace.is-design { grid-template-columns: minmax(520px, 5fr) minmax(0, 6fr); }
 .workspace > * { min-height: 0; display: flex; flex-direction: column; }
 .workspace :deep(.erp-panel__body) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .vars-body { padding: var(--erp-space-2); }
@@ -436,11 +554,13 @@ const sizeKb = computed(() => (new Blob([form.value.content]).size / 1024).toFix
 .editor :deep(.cm-gutters) { background: var(--erp-color-surface-subtle); border-right: 1px solid var(--erp-color-border-light); color: var(--erp-color-text-tertiary); }
 .preview :deep(.erp-panel__title) { display: flex; align-items: center; gap: var(--erp-space-2); white-space: nowrap; }
 .preview-tools { display: flex; align-items: center; gap: var(--erp-space-2); }
+.preview-wrap { flex: 1; min-height: 0; display: flex; }
 .preview-frame { flex: 1; width: 100%; min-height: 0; border: 0; background: var(--erp-color-bg); border-radius: 0 0 var(--erp-radius-card) var(--erp-radius-card); }
 .preview-error { padding: var(--erp-space-4); }
 .preview-error__title { color: var(--el-color-danger); font-weight: var(--erp-font-weight-medium); margin-bottom: var(--erp-space-2); }
 .preview-error pre { margin: 0; white-space: pre-wrap; font-size: var(--erp-font-size-secondary); color: var(--erp-color-text); }
 @media (max-width: 1280px) {
   .workspace { grid-template-columns: 200px minmax(0, 1fr) minmax(0, 1fr); }
+  .workspace.is-design { grid-template-columns: minmax(480px, 1fr) minmax(0, 1fr); }
 }
 </style>

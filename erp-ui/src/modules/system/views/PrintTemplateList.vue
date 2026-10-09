@@ -60,7 +60,7 @@ async function confirmNew() {
   let from: string | undefined
   if (f.from === 'BUILTIN') {
     const page = await printApi.page({ bizType: f.bizType, language: f.language, pageNo: 1, pageSize: 50 })
-    from = page.list.find((t) => t.isBuiltin)?.id ?? page.list.find((t) => t.isDefault)?.id
+    from = (page.list.find((t) => t.isBuiltin && t.isDefault) ?? page.list.find((t) => t.isBuiltin) ?? page.list.find((t) => t.isDefault))?.id
     if (!from) ElMessage.info('该单据类型没有内置模板，将从空白模板开始')
   }
   newVisible.value = false

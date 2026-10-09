@@ -36,7 +36,7 @@ public final class PrintVOs {
 
     public record TemplateDetail(Long id, String bizType, String bizTypeName, String name, String language, String paper, Integer paperWidth,
                                  Integer paperHeight, String margin, String content, boolean isDefault, boolean isBuiltin, String status,
-                                 String remark, Integer rowsPerPage, String copiesNote, String copyMode, Integer version) {
+                                 String remark, Integer rowsPerPage, String copiesNote, String copyMode, String layout, Integer version) {
     }
 
     public record TemplateSave(
@@ -52,6 +52,7 @@ public final class PrintVOs {
             @Min(value = 1, message = "每页行数 1～60") @Max(value = 60, message = "每页行数 1～60") Integer rowsPerPage,
             @Size(max = 256, message = "联次说明不能超过 256 字") String copiesNote,
             @Pattern(regexp = "CARBON|REPEAT", message = "打印方式只能是 CARBON 或 REPEAT") String copyMode,
+            @Size(max = 102400, message = "版式不能超过 100KB") String layout,
             Integer version) {
     }
 

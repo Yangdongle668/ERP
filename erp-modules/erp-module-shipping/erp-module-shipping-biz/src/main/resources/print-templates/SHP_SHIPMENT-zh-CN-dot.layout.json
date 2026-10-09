@@ -1,0 +1,182 @@
+{
+  "version": 1,
+  "title": "送货单",
+  "subtitle": "",
+  "date": "{{formatDate shipDate}}",
+  "header": {
+    "logo": true,
+    "nameEn": true,
+    "barcode": true
+  },
+  "info": [
+    {
+      "key": "customerCode",
+      "label": "客户编号",
+      "expr": "{{customerCode}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "noticeNo",
+      "label": "出货通知",
+      "expr": "{{noticeNo}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "transportModeName",
+      "label": "运输方式",
+      "expr": "{{transportModeName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "warehouseName",
+      "label": "发货仓",
+      "expr": "{{warehouseName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "cartonCount",
+      "label": "箱数",
+      "expr": "{{cartonCount}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "ownerName",
+      "label": "业务员",
+      "expr": "{{ownerName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "forwarderName",
+      "label": "物流/提单",
+      "expr": "{{forwarderName}} {{blNo}}",
+      "span": 2,
+      "visible": true
+    }
+  ],
+  "columns": [
+    {
+      "key": "seq",
+      "label": "序",
+      "width": 8,
+      "expr": "{{lineNo}}",
+      "align": "center",
+      "visible": true
+    },
+    {
+      "key": "orderNo",
+      "label": "订单号",
+      "width": 30,
+      "expr": "{{orderNo}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "materialCode",
+      "label": "物料编码",
+      "width": 30,
+      "expr": "{{materialCode}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "materialName",
+      "label": "名称",
+      "width": 40,
+      "expr": "{{materialName}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "materialSpec",
+      "label": "规格",
+      "width": 50,
+      "expr": "{{materialSpec}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "uom",
+      "label": "单位",
+      "width": 12,
+      "expr": "{{uom}}",
+      "align": "center",
+      "visible": true
+    },
+    {
+      "key": "qty",
+      "label": "数量",
+      "width": 24,
+      "expr": "{{decAlign (formatQty qty) 3}}",
+      "align": "right",
+      "visible": true,
+      "total": {
+        "kind": "qty",
+        "field": "qty"
+      }
+    },
+    {
+      "key": "batchNo",
+      "label": "批次",
+      "width": 28,
+      "expr": "{{batchNo}}",
+      "align": "left",
+      "visible": true
+    }
+  ],
+  "memo": {
+    "visible": false,
+    "expr": "备注：{{remark}}"
+  },
+  "signs": [
+    {
+      "key": "s1",
+      "label": "制单",
+      "expr": "{{createdByName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s2",
+      "label": "审核",
+      "expr": "{{auditByName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s3",
+      "label": "仓管",
+      "expr": "",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s4",
+      "label": "送货人",
+      "expr": "",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s5",
+      "label": "客户签收（签字/盖章/日期）",
+      "expr": "",
+      "wide": true,
+      "visible": true
+    }
+  ],
+  "footer": {
+    "printInfo": true,
+    "address": true
+  },
+  "fontSize": 8.5,
+  "paper": "DOT_241_140",
+  "margin": "5mm 6mm 4mm 6mm",
+  "rowsPerPage": 16,
+  "copies": "①白 存根|②红 客户签收回单|③黄 财务|④蓝 仓库"
+}

@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "title": "到货单",
+  "subtitle": "{{typeName}}",
+  "date": "{{formatDate arrivalAt}}",
+  "header": {
+    "logo": true,
+    "nameEn": true,
+    "barcode": true
+  },
+  "info": [
+    {
+      "key": "supplierName",
+      "label": "供应商",
+      "expr": "{{supplierName}}",
+      "span": 3,
+      "visible": true
+    },
+    {
+      "key": "deliveryNoteNo",
+      "label": "送货单号",
+      "expr": "{{deliveryNoteNo}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "arrivalAt",
+      "label": "到货时间",
+      "expr": "{{formatDateTime arrivalAt}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "receiverName",
+      "label": "收货人",
+      "expr": "{{receiverName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "deptName",
+      "label": "部门",
+      "expr": "{{deptName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "ownerName",
+      "label": "采购员",
+      "expr": "{{ownerName}}",
+      "span": 1,
+      "visible": true
+    }
+  ],
+  "columns": [
+    {
+      "key": "seq",
+      "label": "序",
+      "width": 8,
+      "expr": "{{lineNo}}",
+      "align": "center",
+      "visible": true
+    },
+    {
+      "key": "orderNo",
+      "label": "采购单号",
+      "width": 28,
+      "expr": "{{orderNo}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "materialCode",
+      "label": "物料编码",
+      "width": 28,
+      "expr": "{{materialCode}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "materialName",
+      "label": "名称",
+      "width": 36,
+      "expr": "{{materialName}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "spec",
+      "label": "规格",
+      "width": 46,
+      "expr": "{{spec}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "uom",
+      "label": "单位",
+      "width": 12,
+      "expr": "{{uom}}",
+      "align": "center",
+      "visible": true
+    },
+    {
+      "key": "qty",
+      "label": "到货数量",
+      "width": 22,
+      "expr": "{{decAlign (formatQty qty) 3}}",
+      "align": "right",
+      "visible": true,
+      "total": {
+        "kind": "qty",
+        "field": "qty"
+      }
+    },
+    {
+      "key": "supplierBatchNo",
+      "label": "供应商批次",
+      "width": 26,
+      "expr": "{{supplierBatchNo}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "else",
+      "label": "检验",
+      "width": 16,
+      "expr": "{{#if inspect}}需检{{else}}免检{{/if}}",
+      "align": "center",
+      "visible": true
+    }
+  ],
+  "memo": {
+    "visible": true,
+    "expr": "备注：{{remark}}"
+  },
+  "signs": [
+    {
+      "key": "s1",
+      "label": "制单",
+      "expr": "{{createdByName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s2",
+      "label": "收货",
+      "expr": "{{receiverName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s3",
+      "label": "品质（IQC）",
+      "expr": "",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s4",
+      "label": "仓管",
+      "expr": "",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s5",
+      "label": "送货人",
+      "expr": "",
+      "wide": false,
+      "visible": true
+    }
+  ],
+  "footer": {
+    "printInfo": true,
+    "address": true
+  },
+  "fontSize": 8.5,
+  "paper": "DOT_241_140",
+  "margin": "5mm 6mm 4mm 6mm",
+  "rowsPerPage": 16,
+  "copies": "①白 存根|②红 供应商|③黄 仓库"
+}

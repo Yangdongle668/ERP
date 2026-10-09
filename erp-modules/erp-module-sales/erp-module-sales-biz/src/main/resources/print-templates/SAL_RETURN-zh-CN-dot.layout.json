@@ -1,0 +1,180 @@
+{
+  "version": 1,
+  "title": "销售退货单",
+  "subtitle": "{{handlingName}}",
+  "date": "{{formatDate docDate}}",
+  "header": {
+    "logo": true,
+    "nameEn": true,
+    "barcode": true
+  },
+  "info": [
+    {
+      "key": "customerCode",
+      "label": "客户编号",
+      "expr": "{{customerCode}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "rmaNo",
+      "label": "RMA 号",
+      "expr": "{{rmaNo}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "currency",
+      "label": "币别",
+      "expr": "{{currency}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "ownerName",
+      "label": "业务员",
+      "expr": "{{ownerName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "reasonName",
+      "label": "退货原因",
+      "expr": "{{reasonName}}",
+      "span": 2,
+      "visible": true
+    },
+    {
+      "key": "handlingName",
+      "label": "处理方式",
+      "expr": "{{handlingName}}",
+      "span": 2,
+      "visible": true
+    }
+  ],
+  "columns": [
+    {
+      "key": "seq",
+      "label": "序",
+      "width": 8,
+      "expr": "{{lineNo}}",
+      "align": "center",
+      "visible": true
+    },
+    {
+      "key": "orderNo",
+      "label": "订单号",
+      "width": 30,
+      "expr": "{{orderNo}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "materialCode",
+      "label": "物料编码",
+      "width": 30,
+      "expr": "{{materialCode}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "materialName",
+      "label": "名称",
+      "width": 56,
+      "expr": "{{materialName}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "qty",
+      "label": "数量",
+      "width": 24,
+      "expr": "{{decAlign (formatQty qty) 3}}",
+      "align": "right",
+      "visible": true,
+      "total": {
+        "kind": "qty",
+        "field": "qty"
+      }
+    },
+    {
+      "key": "priceInclTax",
+      "label": "含税单价",
+      "width": 24,
+      "expr": "{{decAlign (formatPrice priceInclTax) 4}}",
+      "align": "right",
+      "visible": true
+    },
+    {
+      "key": "totalAmount",
+      "label": "金额",
+      "width": 26,
+      "expr": "{{decAlign (formatAmount totalAmount) 2}}",
+      "align": "right",
+      "visible": true,
+      "total": {
+        "kind": "amount",
+        "field": "totalAmount",
+        "docExpr": "totalAmount"
+      }
+    },
+    {
+      "key": "batchNo",
+      "label": "批次",
+      "width": 24,
+      "expr": "{{batchNo}}",
+      "align": "left",
+      "visible": true
+    }
+  ],
+  "memo": {
+    "visible": true,
+    "expr": "{{#if (eq currency \"CNY\")}}金额大写：{{amountInWordsCn totalAmount}}　{{/if}}备注：{{remark}}"
+  },
+  "signs": [
+    {
+      "key": "s1",
+      "label": "制单",
+      "expr": "{{createdByName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s2",
+      "label": "审核",
+      "expr": "{{auditByName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s3",
+      "label": "业务",
+      "expr": "{{ownerName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s4",
+      "label": "品质",
+      "expr": "",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s5",
+      "label": "仓管（收货）",
+      "expr": "",
+      "wide": false,
+      "visible": true
+    }
+  ],
+  "footer": {
+    "printInfo": true,
+    "address": true
+  },
+  "fontSize": 8.5,
+  "paper": "DOT_241_140",
+  "margin": "5mm 6mm 4mm 6mm",
+  "rowsPerPage": 16,
+  "copies": "①白 存根|②红 财务|③黄 仓库"
+}
