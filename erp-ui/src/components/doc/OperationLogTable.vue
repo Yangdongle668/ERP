@@ -7,14 +7,16 @@ import { formatDateTime } from '@/utils/format'
 
 /** 单据操作日志（01-11 日志审计 3.2）：时间、操作人、动作、状态变化、原因，按时间正序 */
 const props = defineProps<{ bizType: string; bizId?: string; statusMap?: StatusMap }>()
+/** 只用真实的单据 ID 请求（新建页的 "new"、未加载完的 "undefined" 等忽略） */
+const validId = (id?: string) => !!id && /^\d+$/.test(id)
 const list = ref<DocLog[]>([])
 const loading = ref(false)
 
 async function load() {
-  if (!props.bizId) return
+  if (!validId(props.bizId)) return
   loading.value = true
   try {
-    list.value = await systemCommonApi.docLogs(props.bizType, props.bizId)
+    list.value = await systemCommonApi.docLogs(props.bizType, props.bizId!)
   } finally {
     loading.value = false
   }

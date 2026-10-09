@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, defineComponent, onBeforeUnmount, onMounted, ref, watch, type VNode } from 'vue'
-import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router'
+import { computed, defineComponent, onBeforeUnmount, onMounted, provide, reactive, ref, watch, type VNode } from 'vue'
+import { routeLocationKey, useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { modules } from '@/modules/registry'
 import { useUserStore } from '@/stores/user'
@@ -60,7 +60,11 @@ const activeMenu = computed(() => {
 // ---------- 页签缓存 ----------
 watch(() => route.fullPath, () => tabs.open(route), { immediate: true })
 
-/** 每个页签一个具名包装组件，keep-alive 按名称缓存；关闭页签时从 include 移除即销毁 */
+/**
+ * 每个页签一个具名包装组件，keep-alive 按名称缓存；关闭页签时从 include 移除即销毁。
+ * 包装组件给页面提供它自己的路由（useRoute()）：只在本页签是当前页签时随路由更新。
+ * 否则后台缓存的页面（如 BOM 详情）会读到其他页签的参数（如新建页的 id = "new"），用错误的 ID 去请求接口。
+ */
 const wrappers = new Map<string, ReturnType<typeof defineComponent>>()
 const latest = new Map<string, VNode>()
 function wrap(vnode: VNode, r: RouteLocationNormalizedLoaded) {
@@ -68,7 +72,17 @@ function wrap(vnode: VNode, r: RouteLocationNormalizedLoaded) {
   latest.set(name, vnode)
   let w = wrappers.get(name)
   if (!w) {
-    w = defineComponent({ name, setup: () => () => latest.get(name) })
+    w = defineComponent({
+      name,
+      setup() {
+        const own = reactive({ ...router.currentRoute.value }) as RouteLocationNormalizedLoaded
+        watch(() => router.currentRoute.value, (cur) => {
+          if (cacheNameOf(tabKeyOf(cur)) === name) Object.assign(own, cur)
+        })
+        provide(routeLocationKey, own)
+        return () => latest.get(name)
+      }
+    })
     wrappers.set(name, w)
   }
   return w
