@@ -83,6 +83,36 @@ class PrintIntegrationTest extends SystemTestSupport {
         assertThat(header.at("/name").asText()).isNotBlank();
     }
 
+    /** 可视化版式（01-09 第 9 节）：内置针式模板带版式；版式随模板保存、复制；格式不正确拒绝 */
+    @Test
+    void printLayout() throws Exception {
+        JsonNode av = ok(doGet("/api/system/print-templates/available?bizType=MFG_ISSUE", admin));
+        String id = av.at("/templates/0/id").asText();
+        JsonNode dot = ok(doGet("/api/system/print-templates/" + id, admin));
+        JsonNode layout = objectMapper.readTree(dot.at("/layout").asText());
+        assertThat(layout.at("/columns").size()).isGreaterThan(3);
+        assertThat(layout.at("/info").size()).isGreaterThan(3);
+
+        String copy = ok(doPost("/api/system/print-templates/" + id + "/copy", admin, null)).asText();
+        JsonNode c = ok(doGet("/api/system/print-templates/" + copy, admin));
+        assertThat(c.at("/layout").asText()).isEqualTo(dot.at("/layout").asText());
+
+        Map<String, Object> save = body("领料单（精简）", "<div>{{docNo}}</div>");
+        save.put("version", c.at("/version").asInt());
+        save.put("layout", "{\"version\":1,\"info\":[],\"columns\":[],\"signs\":[]}");
+        ok(doPut("/api/system/print-templates/" + copy, admin, save));
+        JsonNode saved = ok(doGet("/api/system/print-templates/" + copy, admin));
+        assertThat(objectMapper.readTree(saved.at("/layout").asText()).at("/version").asInt()).isEqualTo(1);
+
+        save.put("version", saved.at("/version").asInt());
+        save.put("layout", "[1,2]");
+        assertError(doPut("/api/system/print-templates/" + copy, admin, save), "版式格式不正确");
+        save.remove("layout");
+        ok(doPut("/api/system/print-templates/" + copy, admin, save));
+        assertThat(ok(doGet("/api/system/print-templates/" + copy, admin)).at("/layout").isTextual()).isFalse();
+        ok(doDelete("/api/system/print-templates/" + copy, admin));
+    }
+
     @Test
     void copyBuiltinSetDefault_T03() throws Exception {
         JsonNode b = builtin();

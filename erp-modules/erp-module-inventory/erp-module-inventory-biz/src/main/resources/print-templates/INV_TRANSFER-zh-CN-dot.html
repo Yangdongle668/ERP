@@ -1,7 +1,7 @@
 <!-- erp-print: paper=DOT_241_140; margin=5mm 6mm 4mm 6mm; rowsPerPage=16; copies=①白 存根|②红 调出仓|③黄 调入仓 -->
-<!-- 调拨单（针式二等分 241×140mm，多联纸）：每页 16 行明细，单头、表头、签名栏每页都打印；合计在最后一页 -->
+<!-- 由可视化版式生成（同目录 .layout.json），请勿直接修改；在「系统管理 / 打印模板」复制后可视化调整 -->
 <style>
-/* 针式二等分（241×140mm）：8.5pt 正文，单头为无线条的标签-内容网格，明细为细线网格，签名栏等分纯文本 */
+/* 针式多联（可视化版式生成）：单头为无线条的标签-内容网格，明细为细线网格，签名栏等分纯文本 */
 .dm { position: relative; box-sizing: border-box; height: 100%; padding-right: 6mm; font-family: "SimSun", "宋体", "NSimSun", "Songti SC", serif; font-size: 8.5pt; line-height: 1.2; color: #000; font-variant-numeric: tabular-nums; }
 .dm-head { display: grid; grid-template-columns: 38% 1fr 30%; align-items: center; min-height: 10.5mm; padding-bottom: 0.6mm; border-bottom: 0.25mm solid #000; }
 .dm-co { display: flex; align-items: center; gap: 1.5mm; overflow: hidden; }
@@ -55,10 +55,10 @@
     <div class="dm-f s3"><span class="l">原因</span><span class="v">{{reasonName}}</span></div>
     <div class="dm-f"><span class="l">状态</span><span class="v">{{statusName}}</span></div>
   </div>
-  <table class="dm-lines"><colgroup><col style="width:8mm"><col style="width:30mm"><col style="width:42mm"><col style="width:56mm"><col style="width:12mm"><col style="width:22mm"><col style="width:28mm"><col style="width:24mm"></colgroup>
+  <table class="dm-lines"><colgroup><col style="width:3.6%"><col style="width:13.51%"><col style="width:18.92%"><col style="width:25.23%"><col style="width:5.41%"><col style="width:9.91%"><col style="width:12.61%"><col style="width:10.81%"></colgroup>
     <thead><tr><th>序</th><th>物料编码</th><th>名称</th><th>规格</th><th>单位</th><th>数量</th><th>批次</th><th>备注</th></tr></thead>
     <tbody>
-      {{#each page.lines}}<tr><td class=c>{{lineNo}}</td><td>{{code}}</td><td>{{name}}</td><td>{{spec}}</td><td class="c">{{uom}}</td><td class="r">{{decAlign (formatQty qty) 3}}</td><td>{{batchNo}}</td><td>{{remark}}</td></tr>{{/each}}
+      {{#each page.lines}}<tr><td class="c">{{lineNo}}</td><td>{{code}}</td><td>{{name}}</td><td>{{spec}}</td><td class="c">{{uom}}</td><td class="r">{{decAlign (formatQty qty) 3}}</td><td>{{batchNo}}</td><td>{{remark}}</td></tr>{{/each}}
       {{#each page.blanks}}<tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>{{/each}}
     </tbody>
     <tfoot><tr><td colspan="5" class="c">{{#if page.isLast}}合　计{{else}}本页小计{{/if}}</td><td class="r">{{#if page.isLast}}{{decAlign (formatQty (sum lines "qty")) 3}}{{else}}{{decAlign (formatQty (sum page.lines "qty")) 3}}{{/if}}</td><td></td><td></td></tr></tfoot>

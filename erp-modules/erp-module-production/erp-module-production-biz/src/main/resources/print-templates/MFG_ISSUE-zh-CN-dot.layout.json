@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "title": "{{#if issueReasonName}}{{issueReasonName}}单{{else}}领料单{{/if}}",
+  "subtitle": "{{#if overReasonName}}超领原因：{{overReasonName}}{{/if}}",
+  "date": "{{formatDate docDate}}",
+  "header": {
+    "logo": true,
+    "nameEn": true,
+    "barcode": true
+  },
+  "info": [
+    {
+      "key": "prodOrderNo",
+      "label": "工单号",
+      "expr": "{{prodOrderNo}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "productCode",
+      "label": "产品编码",
+      "expr": "{{productCode}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "productName",
+      "label": "产品名称",
+      "expr": "{{productName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "productSpec",
+      "label": "规格",
+      "expr": "{{productSpec}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "deptName",
+      "label": "领料车间",
+      "expr": "{{deptName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "warehouseName",
+      "label": "发料仓",
+      "expr": "{{warehouseName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "ownerName",
+      "label": "责任人",
+      "expr": "{{ownerName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "issueReasonName",
+      "label": "领料原因",
+      "expr": "{{issueReasonName}}",
+      "span": 1,
+      "visible": true
+    }
+  ],
+  "columns": [
+    {
+      "key": "seq",
+      "label": "序",
+      "width": 8,
+      "expr": "{{lineNo}}",
+      "align": "center",
+      "visible": true
+    },
+    {
+      "key": "materialCode",
+      "label": "物料编码",
+      "width": 30,
+      "expr": "{{materialCode}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "materialName",
+      "label": "名称",
+      "width": 40,
+      "expr": "{{materialName}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "materialSpec",
+      "label": "规格",
+      "width": 62,
+      "expr": "{{materialSpec}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "uom",
+      "label": "单位",
+      "width": 12,
+      "expr": "{{uom}}",
+      "align": "center",
+      "visible": true
+    },
+    {
+      "key": "requestQty",
+      "label": "申请数量",
+      "width": 22,
+      "expr": "{{decAlign (formatQty requestQty) 3}}",
+      "align": "right",
+      "visible": true,
+      "total": {
+        "kind": "qty",
+        "field": "requestQty"
+      }
+    },
+    {
+      "key": "issuedQty",
+      "label": "实发数量",
+      "width": 22,
+      "expr": "{{decAlign (formatQty issuedQty) 3}}",
+      "align": "right",
+      "visible": true,
+      "total": {
+        "kind": "qty",
+        "field": "issuedQty"
+      }
+    },
+    {
+      "key": "f7",
+      "label": "备注",
+      "width": 26,
+      "expr": "",
+      "align": "left",
+      "visible": true
+    }
+  ],
+  "memo": {
+    "visible": true,
+    "expr": "备注：{{remark}}{{#if stockOutNos}}　出库单：{{stockOutNos}}{{/if}}"
+  },
+  "signs": [
+    {
+      "key": "s1",
+      "label": "制单",
+      "expr": "{{createdByName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s2",
+      "label": "审核",
+      "expr": "{{auditByName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s3",
+      "label": "责任人",
+      "expr": "{{ownerName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s4",
+      "label": "仓管（发料）",
+      "expr": "",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s5",
+      "label": "领料人",
+      "expr": "",
+      "wide": false,
+      "visible": true
+    }
+  ],
+  "footer": {
+    "printInfo": true,
+    "address": true
+  },
+  "fontSize": 8.5,
+  "paper": "DOT_241_140",
+  "margin": "5mm 6mm 4mm 6mm",
+  "rowsPerPage": 16,
+  "copies": "①白 存根|②红 仓库|③黄 车间"
+}

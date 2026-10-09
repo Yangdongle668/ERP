@@ -1,0 +1,181 @@
+{
+  "version": 1,
+  "title": "完工入库单",
+  "subtitle": "{{statusName}}",
+  "date": "{{formatDate docDate}}",
+  "header": {
+    "logo": true,
+    "nameEn": true,
+    "barcode": true
+  },
+  "info": [
+    {
+      "key": "prodOrderNo",
+      "label": "工单号",
+      "expr": "{{prodOrderNo}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "salesOrderNo",
+      "label": "销售订单",
+      "expr": "{{salesOrderNo}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "prodQty",
+      "label": "工单数量",
+      "expr": "{{decAlign (formatQty prodQty) 3}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "warehouseName",
+      "label": "入库仓",
+      "expr": "{{warehouseName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "deptName",
+      "label": "生产车间",
+      "expr": "{{deptName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "ownerName",
+      "label": "申请人",
+      "expr": "{{ownerName}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "fqcRequired",
+      "label": "需 FQC",
+      "expr": "{{fqcRequired}}",
+      "span": 1,
+      "visible": true
+    },
+    {
+      "key": "stockInNos",
+      "label": "入库单号",
+      "expr": "{{stockInNos}}",
+      "span": 1,
+      "visible": true
+    }
+  ],
+  "columns": [
+    {
+      "key": "seq",
+      "label": "序",
+      "width": 8,
+      "expr": "{{lineNo}}",
+      "align": "center",
+      "visible": true
+    },
+    {
+      "key": "materialCode",
+      "label": "产品编码",
+      "width": 32,
+      "expr": "{{materialCode}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "materialName",
+      "label": "名称",
+      "width": 44,
+      "expr": "{{materialName}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "materialSpec",
+      "label": "规格",
+      "width": 66,
+      "expr": "{{materialSpec}}",
+      "align": "left",
+      "visible": true
+    },
+    {
+      "key": "uom",
+      "label": "单位",
+      "width": 12,
+      "expr": "{{uom}}",
+      "align": "center",
+      "visible": true
+    },
+    {
+      "key": "qty",
+      "label": "入库数量",
+      "width": 26,
+      "expr": "{{decAlign (formatQty qty) 3}}",
+      "align": "right",
+      "visible": true,
+      "total": {
+        "kind": "qty",
+        "field": "qty"
+      }
+    },
+    {
+      "key": "batchNo",
+      "label": "批次",
+      "width": 34,
+      "expr": "{{batchNo}}",
+      "align": "left",
+      "visible": true
+    }
+  ],
+  "memo": {
+    "visible": true,
+    "expr": "备注：{{remark}}"
+  },
+  "signs": [
+    {
+      "key": "s1",
+      "label": "制单",
+      "expr": "{{createdByName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s2",
+      "label": "审核",
+      "expr": "{{auditByName}}",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s3",
+      "label": "生产主管",
+      "expr": "",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s4",
+      "label": "品质（FQC）",
+      "expr": "",
+      "wide": false,
+      "visible": true
+    },
+    {
+      "key": "s5",
+      "label": "仓管（收货）",
+      "expr": "",
+      "wide": false,
+      "visible": true
+    }
+  ],
+  "footer": {
+    "printInfo": true,
+    "address": true
+  },
+  "fontSize": 8.5,
+  "paper": "DOT_241_140",
+  "margin": "5mm 6mm 4mm 6mm",
+  "rowsPerPage": 16,
+  "copies": "①白 存根|②红 仓库|③黄 生产"
+}

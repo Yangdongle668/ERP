@@ -141,8 +141,16 @@ public class PrintService {
         if (existing != null && !dot) return;
         try (InputStream in = r.getInputStream()) {
             String content = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            Resource lr = resourceLoader.getResource("classpath:print-templates/" + d.bizType() + "-" + key + ".layout.json");
+            String layout = null;
+            if (lr.exists()) {
+                try (InputStream lin = lr.getInputStream()) {
+                    layout = new String(lin.readAllBytes(), StandardCharsets.UTF_8);
+                }
+            }
             PrintTemplateDO t = existing != null ? existing : new PrintTemplateDO();
-            if (existing != null && content.equals(existing.getContent())) return;
+            if (existing != null && content.equals(existing.getContent()) && java.util.Objects.equals(layout, existing.getLayout())) return;
+            t.setLayout(layout);
             t.setBizType(d.bizType());
             t.setName(dot ? d.name() + "（针式二等分）" : "en".equals(lang) ? d.name() + " (Standard)" : d.name() + "（标准）");
             t.setLanguage(lang);
@@ -211,7 +219,7 @@ public class PrintService {
         return new TemplateDetail(t.getId(), t.getBizType(), bizNames().getOrDefault(t.getBizType(), t.getBizType()), t.getName(), t.getLanguage(),
                 t.getPaper(), t.getPaperWidth(), t.getPaperHeight(), t.getMargin(), t.getContent(), Boolean.TRUE.equals(t.getIsDefault()),
                 Boolean.TRUE.equals(t.getIsBuiltin()), t.getStatus().name(), t.getRemark(), t.getRowsPerPage(), t.getCopiesNote(),
-                copyMode(t), t.getVersion());
+                copyMode(t), t.getLayout(), t.getVersion());
     }
 
     public List<BizResp> bizList() {
@@ -290,6 +298,7 @@ public class PrintService {
         t.setRowsPerPage(src.getRowsPerPage());
         t.setCopiesNote(src.getCopiesNote());
         t.setCopyMode(src.getCopyMode());
+        t.setLayout(src.getLayout());
         t.setIsDefault(false);
         t.setIsBuiltin(false);
         t.setStatus(EnableStatus.ENABLED);
@@ -383,6 +392,18 @@ public class PrintService {
         t.setRowsPerPage(req.rowsPerPage());
         t.setCopiesNote(StringUtils.hasText(req.copiesNote()) ? req.copiesNote().trim() : null);
         t.setCopyMode(StringUtils.hasText(req.copyMode()) ? req.copyMode() : "CARBON");
+        t.setLayout(StringUtils.hasText(req.layout()) ? validLayout(req.layout()) : null);
+    }
+
+    /** 版式必须是 JSON 对象 */
+    private String validLayout(String layout) {
+        try {
+            JsonNode n = objectMapper.readTree(layout);
+            if (n == null || !n.isObject()) throw new IllegalArgumentException();
+            return layout;
+        } catch (Exception e) {
+            throw BizException.of(SystemErrorCodes.PRINT_LAYOUT_INVALID);
+        }
     }
 
     private static String copyMode(PrintTemplateDO t) {
